@@ -28,7 +28,7 @@ rubber-banding, reduced motion).
 | --- | --- |
 | `public/` | **The site. Deploy this folder and nothing else.** `index.html`, `release-notes.html`, `privacy.html`, `css/`, `js/`, `assets/` |
 | `public/js/config.js` | The one place for release details: DMG URL, notarized or not, version, price, size, minimum macOS, chip, support email |
-| `vercel.json` | Hosting: serves `public/` with clean URLs and sets cache and content-type headers (see Hosting) |
+| `../vercel.json` (repository root) | Hosting: serves `Website/public/` with clean URLs and sets cache and content-type headers (see Hosting) |
 | `DESIGN.md` | This file (not deployed) |
 | `tools/make-assets.sh` | Re-renders the pictures from a debug build (not deployed) |
 | `tools/og-card.html`, `tools/make-og-image.js` | The 1200 × 630 social card and its renderer (not deployed) |
@@ -182,7 +182,7 @@ link once set.
    `Tools/updates/release-identity`; `vercel.json` keeps `appcast.json` and `appcast.json.sig` out of every cache,
    since they must change together.
 2. Set `price` and `supportEmail`.
-3. In Vercel: set the project's Root Directory to `Website` (so `vercel.json` is read and `public/` is served), add
+3. In Vercel: the project `yummyorange` (team ali-furqans-projects) is connected to the GitHub repository and reads the root `vercel.json`, which serves `Website/public/`; add
    `yummyorange.com` and make it the primary domain, with `www.yummyorange.com` redirecting to it: the app asks the
    apex address, and the canonical links name it.
 4. There is no build step, so site.js is not minified (97 KB raw, about 29 KB with the compression Vercel applies).

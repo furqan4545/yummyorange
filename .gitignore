@@ -23,3 +23,5 @@ Website/unused-assets/
 *.p8
 *.p12
 update-signing-key*
+.vercel
+.env*
