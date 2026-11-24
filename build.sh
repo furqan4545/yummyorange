@@ -10,7 +10,8 @@
 #                       keys). Without a key the app can't check for updates.
 #   SIGN_IDENTITY       sign with this identity ("Developer ID Application: …", of the TEAM_ID pinned in
 #                       release-identity) using the hardened runtime and a secure timestamp, nested code first and the
-#                       app without --deep
+#                       app without --deep. "-" signs ad hoc with the hardened runtime: the app release.sh hands to
+#                       Xcode, whose cloud-managed Developer ID certificate signs it again, keeping the runtime flag
 #   SIGN_TIMESTAMP=none leave the timestamp out (release.sh --dry-run, which stays offline)
 #   BUILD_DIR           where YummyOrange.app goes (default build; an older build/DropWheel.app is left alone)
 set -euo pipefail
@@ -79,7 +80,7 @@ if [[ "$SIGN_IDENTITY" == "Developer ID Application: "* && -n "$PINNED_TEAM" && 
   echo "build.sh: SIGN_IDENTITY '$SIGN_IDENTITY' isn't of the team $PINNED_TEAM pinned in Tools/updates/release-identity" >&2
   exit 1
 fi
-if [[ -n "$SIGN_IDENTITY" ]] && ! { security find-identity -v -p codesigning 2>/dev/null || true; } | grep -qF "\"$SIGN_IDENTITY\""; then
+if [[ -n "$SIGN_IDENTITY" && "$SIGN_IDENTITY" != - ]] && ! { security find-identity -v -p codesigning 2>/dev/null || true; } | grep -qF "\"$SIGN_IDENTITY\""; then
   echo "build.sh: SIGN_IDENTITY '$SIGN_IDENTITY' isn't a code-signing identity in your keychain (security find-identity -v -p codesigning)" >&2
   exit 1
 fi
@@ -145,7 +146,10 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
   # A release: the hardened runtime and a secure timestamp (both needed for notarization). Nested code is signed
   # first, then the app on its own, so every piece gets these options rather than whatever --deep would apply.
   sign_opts=(--force --options runtime --sign "$SIGN_IDENTITY")
-  if [[ "$SIGN_TIMESTAMP" == none ]]; then
+  if [[ "$SIGN_IDENTITY" == - ]]; then
+    # Ad hoc, for Xcode to sign with Developer ID (release.sh): an ad-hoc signature has no timestamp.
+    sign_opts+=(--timestamp=none); stamp="ad hoc, for Xcode's Developer ID signing"
+  elif [[ "$SIGN_TIMESTAMP" == none ]]; then
     sign_opts+=(--timestamp=none); stamp="no timestamp"
   else
     sign_opts+=(--timestamp); stamp="timestamped"
@@ -155,7 +159,7 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
     codesign "${sign_opts[@]}" "$nested"
   done
   codesign "${sign_opts[@]}" "$APP"
-  echo "Signed with $SIGN_IDENTITY (hardened runtime, $stamp)"
+  echo "Signed with ${SIGN_IDENTITY/#-/an ad-hoc signature} (hardened runtime, $stamp)"
 else
   # Sign with an Apple Development identity when there is one: macOS then keeps permissions such as Accessibility
   # (needed by "Hold the key first") across rebuilds. Otherwise sign ad hoc.

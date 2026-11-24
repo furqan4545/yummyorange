@@ -1246,12 +1246,16 @@ enum UpdaterTests {
         /// A dry run on a Mac without a signing identity: only the local test mode's check.
         var allowAdHoc = false
         var network = false
+        /// The build installed copies have (the published release's, "0" before the first), which the new one must be
+        /// above; nil for a test release (release.sh --test-release), which is meant for no installed copy.
+        var installedBuild: String? = "0"
     }
 
     /// `--selftest updater-release:<folder>`: release.sh's check, with what installed copies trust from the
     /// environment: DW_RELEASE_PUBLIC_KEY (their keys), DW_RELEASE_TEAM (their team), DW_RELEASE_DEVELOPER_ID=1 (they
-    /// are Developer ID copies: also notarization and Gatekeeper, with the network allowed), DW_RELEASE_ALLOW_ADHOC=1
-    /// and DW_RELEASE_FEED_URL (default the built-in one).
+    /// are Developer ID copies: also notarization and Gatekeeper, with the network allowed), DW_RELEASE_ALLOW_ADHOC=1,
+    /// DW_RELEASE_FEED_URL (default the built-in one) and DW_RELEASE_INSTALLED_BUILD (the build installed copies have,
+    /// default 0; "none" for a test release).
     static func checkRelease(folder path: String) -> String {
         let c = Checker()
         let env = ProcessInfo.processInfo.environment
@@ -1261,10 +1265,12 @@ enum UpdaterTests {
             return c.report("updater-release")
         }
         let developerID = env["DW_RELEASE_DEVELOPER_ID"] == "1"
+        let installed = env["DW_RELEASE_INSTALLED_BUILD"].flatMap { $0.isEmpty ? nil : $0 } ?? "0"
         checkRelease(ReleaseCheck(folder: URL(fileURLWithPath: path, isDirectory: true),
                                   feedURL: URL(string: env["DW_RELEASE_FEED_URL"] ?? "") ?? feedURL, keys: keys,
                                   team: env["DW_RELEASE_TEAM"].flatMap { $0.isEmpty ? nil : $0 }, developerID: developerID,
-                                  allowAdHoc: env["DW_RELEASE_ALLOW_ADHOC"] == "1", network: developerID), c)
+                                  allowAdHoc: env["DW_RELEASE_ALLOW_ADHOC"] == "1", network: developerID,
+                                  installedBuild: installed == "none" ? nil : installed), c)
         return c.report("updater-release")
     }
 
@@ -1302,8 +1308,27 @@ enum UpdaterTests {
         defer { try? FileManager.default.removeItem(at: scratch) }
         do {
             let app = try UpdateInstaller.expand(local, into: scratch)
-            try UpdateInstaller.checkInfo(of: app, item: item, bundleID: "com.yummyorange.app", installedBuild: "0", system: ProcessInfo.processInfo.operatingSystemVersion)
-            c.check("it unpacks to YummyOrange.app, version and build as the feed says", app.lastPathComponent == "YummyOrange.app")
+            let system = ProcessInfo.processInfo.operatingSystemVersion
+            if let installed = r.installedBuild {
+                try UpdateInstaller.checkInfo(of: app, item: item, bundleID: "com.yummyorange.app", installedBuild: installed, system: system)
+                c.check("it unpacks to YummyOrange.app, version and build as the feed says, above the installed build \(installed)",
+                        app.lastPathComponent == "YummyOrange.app")
+            } else {
+                // A test release: the same Info.plist checks against a build below its own, when it has one. Build 0
+                // has none, which is what keeps it from every installed copy: they refuse it as not newer.
+                let below = UpdateVersion.isNewer(item.build, than: "0") ? "0" : nil
+                let e = error { try UpdateInstaller.checkInfo(of: app, item: item, bundleID: "com.yummyorange.app", installedBuild: below ?? "0", system: system) }
+                if below != nil {
+                    c.check("it unpacks to YummyOrange.app, version and build as the feed says (a test release)",
+                            e == nil && app.lastPathComponent == "YummyOrange.app", e?.localizedDescription ?? "")
+                } else {
+                    let notNewer: Bool
+                    if case .notNewer? = e { notNewer = true } else { notNewer = false }
+                    c.check("it unpacks to YummyOrange.app, version and build as the feed says; build 0, so every installed copy refuses it as not newer (a test release)",
+                            notNewer && app.lastPathComponent == "YummyOrange.app", e?.localizedDescription ?? "accepted")
+                }
+                c.notes.append("a test release: signed with throwaway update keys, never to be published")
+            }
             let signer = CodeSigner.of(app)
             if r.team == nil && r.allowAdHoc {
                 // A dry run on a Mac without a signing identity: the local test mode's check.
@@ -1336,17 +1361,18 @@ enum UpdaterTests {
         let site = kit.dir.appendingPathComponent("release-check/public", isDirectory: true)
         try? fm.createDirectory(at: site.appendingPathComponent("updates"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: site.appendingPathComponent("downloads"), withIntermediateDirectories: true)
-        guard let app = kit.make("YummyOrange", in: kit.dir.appendingPathComponent("release-check/build"), version: "1.0.1", build: "2", signing: .identity) else {
+        guard let app = kit.make("YummyOrange", in: kit.dir.appendingPathComponent("release-check/build"), version: "1.0.1", build: "2", signing: .identity),
+              let zero = kit.make("YummyOrange", in: kit.dir.appendingPathComponent("release-check/build-0"), version: "0.9.9", build: "0", signing: .identity) else {
             c.check("a test release app", false)
             return
         }
         let key = Curve25519.Signing.PrivateKey(), other = Curve25519.Signing.PrivateKey()
-        func stage(zipName: String) {
+        func stage(zipName: String, app: URL = app, version: String = "1.0.1", build: String = "2") {
             let zip = site.appendingPathComponent("downloads/\(zipName)")
             try? fm.removeItem(at: zip)
             _ = TestApps.run("/usr/bin/ditto", ["-c", "-k", "--keepParent", app.path, zip.path])
             guard let bytes = try? Data(contentsOf: zip) else { return }
-            let feed: [String: Any] = ["version": "1.0.1", "build": "2", "minimumSystemVersion": "13.0", "url": "../downloads/\(zipName)",
+            let feed: [String: Any] = ["version": version, "build": build, "minimumSystemVersion": "13.0", "url": "../downloads/\(zipName)",
                                        "length": bytes.count, "sha256": SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined(),
                                        "signature": ((try? key.signature(for: bytes)) ?? Data()).base64EncodedString(),
                                        "published": "2026-11-24T12:00:00Z"]
@@ -1375,6 +1401,19 @@ enum UpdaterTests {
         var asDeveloperID = good
         asDeveloperID.developerID = true
         c.check("release check: for Developer ID copies, a release that isn’t Developer ID fails", !passes(asDeveloperID).0)
+        var publishedSame = good
+        publishedSame.installedBuild = "2"
+        c.check("release check: a release whose build isn’t above the published one fails", !passes(publishedSame).0)
+        var asTest = good
+        asTest.installedBuild = nil
+        let (testOK, testDetail) = passes(asTest)
+        c.check("release check: a test release (release.sh --test-release) above build 0 passes the same checks", testOK, testDetail)
+        stage(zipName: "YummyOrange-0.9.9-0.zip", app: zero, version: "0.9.9", build: "0")
+        let (zeroOK, zeroDetail) = passes(asTest)
+        c.check("release check: a test release of build 0 passes, refused by every installed copy as not newer", zeroOK, zeroDetail)
+        c.check("release check: build 0 never passes as a real release", !passes(good).0)
+        try? fm.removeItem(at: site.appendingPathComponent("downloads/YummyOrange-0.9.9-0.zip"))
+        stage(zipName: "YummyOrange-1.0.1-2.zip")
         try? fm.removeItem(at: site.appendingPathComponent("updates/appcast.json.sig"))
         c.check("release check: a feed without its signature fails", !passes(good).0)
         for stale in (try? fm.contentsOfDirectory(at: site.appendingPathComponent("downloads"), includingPropertiesForKeys: nil)) ?? [] {
@@ -1435,7 +1474,22 @@ enum UpdaterTests {
         refuses("release.sh --dry-run refuses the release key (it signs with throwaway keys only)", ["/bin/zsh", release, "--dry-run"],
                 ["VERSION": "1.0.1", "BUILD_NUMBER": "2", "UPDATE_PRIVATE_KEY": keys.appendingPathComponent("missing").path],
                 "--dry-run signs with throwaway update keys only")
+        refuses("release.sh --test-release refuses the release key too (it is notarized, but signed with throwaway keys only)",
+                ["/bin/zsh", release, "--test-release"],
+                ["VERSION": "0.9.9", "BUILD_NUMBER": "0", "UPDATE_PRIVATE_KEY": keys.appendingPathComponent("missing").path],
+                "--test-release signs with throwaway update keys only")
+        let website = tree.appendingPathComponent("Website/public", isDirectory: true)
+        try? fm.createDirectory(at: website, withIntermediateDirectories: true)
+        refuses("release.sh --test-release refuses to write into the website folder, however its path is spelled",
+                ["/bin/zsh", release, "--test-release", "--out", website.appendingPathComponent("test").path
+                    .decomposedStringWithCanonicalMapping.replacingOccurrences(of: "release tree", with: "RELEASE TREE")],
+                ["VERSION": "0.9.9", "BUILD_NUMBER": "0"], "--out must not be the website folder or around it")
+        try? fm.removeItem(at: tree.appendingPathComponent("Website"))
         var env = real
+        env["SIGNING"] = "cloud"
+        refuses("release.sh refuses SIGNING=cloud (Xcode) together with this Mac’s SIGN_IDENTITY and NOTARY_PROFILE", ["/bin/zsh", release], env,
+                "SIGNING=cloud signs and notarizes with Xcode")
+        env = real
         env["SIGN_IDENTITY"] = "Developer ID Application: Someone Else (BBBBBBBBBB)"
         refuses("release.sh refuses a Developer ID identity of another team than the pinned one", ["/bin/zsh", release], env,
                 "isn't of the team \(team) pinned in Tools/updates/release-identity")
