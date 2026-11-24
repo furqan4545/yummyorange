@@ -1,0 +1,25 @@
+# Build output
+.build/
+build/
+.swiftpm/
+
+# macOS and iCloud Desktop (iCloud puts deleted files back as "name 2")
+.DS_Store
+* 2.*
+* 2
+
+# Design explorations kept locally (the app icon and art live in Design/)
+/*.png
+/*.mp4
+Website/unused-assets/
+
+# Your own ffmpeg/cwebp copies in Tools/ (build.sh bundles them) stay local; the release scripts are kept
+/Tools/*
+!/Tools/updates/
+
+# Hosting and secrets
+.vercel/
+*.key
+*.p8
+*.p12
+update-signing-key*

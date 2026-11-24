@@ -1,0 +1,19 @@
+# Who makes YummyOrange's releases, pinned so a release can't go out signed by another team or with another update key.
+# Installed copies would refuse such a release, and only a manual reinstall would fix them. build.sh and
+# Tools/updates/release.sh read this file (KEY=value lines; nothing in it is run) and refuse anything else.
+# Public values only: no secret ever goes in here.
+#
+# TEAM_ID            The team of the Developer ID Application certificate that signs releases. 37P86CG9SS is the team
+#                    of this Mac's Apple Development certificate; a Developer ID certificate of the same Apple account
+#                    carries the same team. release.sh refuses a SIGN_IDENTITY whose name ends in another "(TEAM)".
+# UPDATE_PUBLIC_KEY  The update key's public half, base64, as make-update-keys.swift prints it. Before the first
+#                    release, add the public half of a backup key kept off this Mac, after a space, so the key can be
+#                    replaced later without stranding installed copies (they trust every key listed here). Empty until
+#                    the key is made: release.sh refuses to run without it.
+# FEED_URL           The update feed's real address, ending in /updates/appcast.json: on yummyorange.com, the domain
+#                    YummyOrange owns (a custom domain you own is safest: a vercel.app name that is given up can be
+#                    taken by someone else, and every copy built with it keeps asking it). build.sh builds it into every
+#                    copy, and release.sh refuses any other address.
+TEAM_ID=37P86CG9SS
+UPDATE_PUBLIC_KEY=
+FEED_URL=https://yummyorange.com/updates/appcast.json

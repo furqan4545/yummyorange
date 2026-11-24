@@ -1,0 +1,267 @@
+{
+  "finalists": [
+    {
+      "name": "breath-hush",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/breath/breath-hush.json",
+      "title": "Hush",
+      "description": "A soft key release with a faint low bump.",
+      "level": 0.933,
+      "sweep_lufs_after": -41.3,
+      "earshot": "tick: 'a soft key release click' z +3.22, 'a single mechanical keyboard key press' +3.04, 'an error buzz' +2.50, 'a digital glitch' +2.27, 'a snare hit' +2.26 [clear reading]. match: strong, z +3.22, #1 of 322; forced choice 30% key release, 67% mechanical key press, 3% bad terms in total. ab(ref, hush): CLAP cosine 0.66 ('related'), only measured difference is less low end (-8 vs -5 dB below 250 Hz). sweep: 'a ratchet clicking' +2.53, 'a fidget toy clicking' +2.49, 'a wood creak' +2.48, 'a stutter glitch transition' +2.43 (AudioSet Creak 0.59). This sweep reads most like the ref sweep ('a fidget toy clicking' +2.7) and carries the lowest glitch z of the field.",
+      "metrics": {
+        "rms_dbfs": -41.5,
+        "crest_db": 24.4,
+        "attack_ms": 1.9,
+        "fall_ms_20_30_40": [
+          12,
+          26,
+          42
+        ],
+        "tonal_peak_db": 15.5,
+        "local_tonal_third_octave_db": 8.8,
+        "centroid_hz": 6330,
+        "bands_db": {
+          "0-250": -9.7,
+          "250-1000": -11.2,
+          "1000-3000": -8.8,
+          "3000-6000": -6.8,
+          "6000-12000": -4.2,
+          "12000-24000": -10.2
+        },
+        "band_rms_dist_to_ref_db": 2.9,
+        "length_ms": 60,
+        "xcorr_vs_ref": 0.271,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -40.7,
+        "sweep_2k5k_share_db": -9.1,
+        "sweep_momentary_max_lufs_after": -37.2,
+        "composite_rank": 1
+      },
+      "why": "Best overall in the composite score (3.3). Its band shape is closest to the reference (2.9 dB RMS distance; every other candidate is 3.6 dB or more). It has the second-lowest tonal ratio (15.5 dB, ref 16.7) and crest 24.4 dB (ref 25.1). Its -30/-40 dB tail is noise, not ring: tail tonality is 16.8 dB, the second-lowest. Its sweep has the cleanest reading in the field (ratchet/fidget, glitch only +2.43) and a gentle spectrum (2-5 kHz share -9.1 dB). One weakness: 'an error buzz' +2.5 is third in the tick readings."
+    },
+    {
+      "name": "felt-dome",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/felt/felt-dome.json",
+      "title": "Felt",
+      "description": "A muted key press, soft and rounded.",
+      "level": 1,
+      "sweep_lufs_after": -41.7,
+      "earshot": "tick: 'a soft key release click' z +3.47, 'a single mechanical keyboard key press' +3.31, 'an error buzz' +2.53, 'a snare hit' +2.37, 'a digital glitch' +2.29 [clear reading]. match: strong, z +3.47, #1 of 322; forced choice 27% key release, 72% mechanical key press, 1% bad terms. ab(ref, dome): CLAP cosine 0.69, the highest of all 12; shorter tail (14 vs 52 ms), less low end (-11 vs -5 dB). sweep: 'a digital glitch' +2.93, 'a stutter glitch transition' +2.83, 'a rubber stretch' +2.54, 'an error buzz' +2.40 (AudioSet Creak 0.33).",
+      "metrics": {
+        "rms_dbfs": -42,
+        "crest_db": 25,
+        "attack_ms": 3.2,
+        "fall_ms_20_30_40": [
+          12,
+          16,
+          48
+        ],
+        "tonal_peak_db": 21.6,
+        "local_tonal_third_octave_db": 7,
+        "centroid_hz": 2812,
+        "bands_db": {
+          "0-250": -10,
+          "250-1000": -5.5,
+          "1000-3000": -5,
+          "3000-6000": -8,
+          "6000-12000": -9.1,
+          "12000-24000": -16
+        },
+        "band_rms_dist_to_ref_db": 5.8,
+        "length_ms": 60,
+        "xcorr_vs_ref": 0.198,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -41.7,
+        "sweep_2k5k_share_db": -5.2,
+        "sweep_momentary_max_lufs_after": -37.8,
+        "composite_rank": 2
+      },
+      "why": "Earshot hears it as the closest to the reference (CLAP cosine 0.69). Its crest matches the reference (25.0 vs 25.1 dB), and it has the second-softest attack (3.2 ms) and the lowest local tonal prominence in the field (7.0 dB, so no ring). The global tonal ratio of 21.6 dB comes from its darker slope. The tick reads cleanly (1% bad terms in forced choice). Level is capped at 1.0: its sweep measures -41.7 LUFS, 0.4 dB under the target, which is inside the 0.5 dB tolerance. Weaknesses: the sweep reads 'digital glitch' +2.93 with 'error buzz' +2.40, and the tick has 'an error buzz' +2.53 in its top 3."
+    },
+    {
+      "name": "breath-feather",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/breath/breath-feather.json",
+      "title": "Feather",
+      "description": "An airy, soft-edged tick with almost no low end.",
+      "level": 0.759,
+      "sweep_lufs_after": -41.3,
+      "earshot": "tick: 'a soft key release click' z +3.31, 'a single mechanical keyboard key press' +2.83, 'an error buzz' +2.58, 'a crisp interface click' +2.23, 'a pen click' +2.21 [clear reading]. match: strong, z +3.31, #1 of 322; forced choice 52% key release, 38% mechanical key press, 4.5% bad terms. ab(ref, feather): CLAP cosine 0.61; 2 dB louder, brighter (11.9 vs 6.4 kHz), less low end (-19 vs -5 dB). sweep: 'a ratchet clicking' +3.13, 'a fidget toy clicking' +3.09, 'a stutter glitch transition' +2.63, 'coins dropping' +2.56, 'a digital glitch' +2.55. This is the strongest ratchet reading of any sweep, the closest to a rotary dial returning.",
+      "metrics": {
+        "rms_dbfs": -40.7,
+        "crest_db": 23.6,
+        "attack_ms": 3.5,
+        "fall_ms_20_30_40": [
+          12,
+          24,
+          42
+        ],
+        "tonal_peak_db": 12.6,
+        "local_tonal_third_octave_db": 9.3,
+        "centroid_hz": 7938,
+        "bands_db": {
+          "0-250": -16.2,
+          "250-1000": -19.6,
+          "1000-3000": -10.5,
+          "3000-6000": -6.5,
+          "6000-12000": -3,
+          "12000-24000": -8.3
+        },
+        "band_rms_dist_to_ref_db": 4.7,
+        "length_ms": 70,
+        "xcorr_vs_ref": 0.288,
+        "xcorr_vs_breath_hush": 0.71,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -38.9,
+        "sweep_2k5k_share_db": -8,
+        "sweep_momentary_max_lufs_after": -37.6,
+        "composite_rank": 3
+      },
+      "why": "It is the softest by the model-free numbers: the lowest tonal ratio of all 12 (12.6 dB, below the ref's 16.7), the softest attack (3.5 ms), and the most noise-like tail (tail tonality 12.2 dB). Its centroid matches the reference's (7.9 vs 7.8 kHz). Its sweep reads as ratchet/fidget clicking and stays gentle (2-5 kHz share -8.0 dB). Caveat: it is a sibling of Hush (waveform xcorr 0.71). It is kept as the airier, brighter alternative, but the two may sound alike. The tick also has 'an error buzz' +2.58 in its top 3."
+    },
+    {
+      "name": "tock-air",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/tock/tock-air.json",
+      "title": "Air",
+      "description": "A light, airy tick with no low thud.",
+      "level": 0.861,
+      "sweep_lufs_after": -41.3,
+      "earshot": "tick: 'a soft key release click' z +3.56, 'a single mechanical keyboard key press' +3.24, 'an enter key press' +2.78, 'a scroll wheel tick' +2.65, 'a camera shutter click' +2.46 [clear reading]. This is the only tick whose top 5 has no glitch, buzz, kick, beep or bell. match: strong, z +3.56 (highest), #1 of 322; forced choice 40% key release, 52% mechanical key press, 0.9% bad terms (lowest). ab(ref, air): CLAP cosine 0.63; brighter (8.2 vs 6.4 kHz), shorter tail (13 vs 52 ms), much less low end (-45 vs -5 dB). sweep: 'a stutter glitch transition' +3.37, 'a digital glitch' +2.94, 'a scroll wheel tick' +2.82, 'a keyboard typing fast' +2.55, 'a ratchet clicking' +2.38.",
+      "metrics": {
+        "rms_dbfs": -40.7,
+        "crest_db": 23.6,
+        "attack_ms": 1.3,
+        "fall_ms_20_30_40": [
+          6,
+          10,
+          12
+        ],
+        "tonal_peak_db": 20,
+        "local_tonal_third_octave_db": 9.6,
+        "centroid_hz": 9173,
+        "bands_db": {
+          "0-250": -26,
+          "250-1000": -4.9,
+          "1000-3000": -14.8,
+          "3000-6000": -11.1,
+          "6000-12000": -7.6,
+          "12000-24000": -4.2
+        },
+        "band_rms_dist_to_ref_db": 7.7,
+        "length_ms": 71.8,
+        "xcorr_vs_ref": 0.211,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -40,
+        "sweep_2k5k_share_db": -13,
+        "sweep_momentary_max_lufs_after": -37.6,
+        "composite_rank": 4
+      },
+      "why": "It has the cleanest single-tick reading in the field and the strongest key-release match (z +3.56). It is the driest tick: falls of 6/10/12 ms, and only -30.5 dB of energy after 8 ms, so there is no tail anyone could hear as echo. Its sweep has the least energy in the harsh 2-5 kHz band of any candidate (-13.0 dB, the same as the ref sweep's -12.7; the current Dial's is -2.4). It is the only tock that survives. Weaknesses: its sweep has the highest glitch reading of all (stutter glitch +3.37), probably because of its very dry clicks with digital silence between them. It is also brighter than the ref and has no low end."
+    },
+    {
+      "name": "felt-hush",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/felt/felt-hush.json",
+      "title": "Tap",
+      "description": "A light, mellow tap with no thump.",
+      "level": 0.759,
+      "sweep_lufs_after": -41.3,
+      "earshot": "tick: 'a soft key release click' z +3.38, 'a single mechanical keyboard key press' +3.07, 'an error buzz' +2.31, 'a hand clap' +2.25, 'a digital glitch' +2.19 [clear reading]. match: strong, z +3.38, #2 of 322; forced choice 42% key release, 55% mechanical key press, 1.4% bad terms. ab(ref, felt-hush): CLAP cosine 0.69 (second highest); 2 dB louder, shorter tail (19 vs 52 ms), less low end (-19 vs -5 dB). sweep: 'a digital glitch' +2.81, 'a stutter glitch transition' +2.76, 'a rubber stretch' +2.67, 'a wood creak' +2.35, 'a balloon squeak' +2.33 (AudioSet Creak 0.50).",
+      "metrics": {
+        "rms_dbfs": -39.7,
+        "crest_db": 22.6,
+        "attack_ms": 1.8,
+        "fall_ms_20_30_40": [
+          14,
+          18,
+          52
+        ],
+        "tonal_peak_db": 18.9,
+        "local_tonal_third_octave_db": 11.3,
+        "centroid_hz": 3407,
+        "bands_db": {
+          "0-250": -17.2,
+          "250-1000": -10.1,
+          "1000-3000": -2.6,
+          "3000-6000": -7.6,
+          "6000-12000": -9.1,
+          "12000-24000": -14.5
+        },
+        "band_rms_dist_to_ref_db": 6.2,
+        "length_ms": 60,
+        "xcorr_vs_ref": 0.213,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -38.9,
+        "sweep_2k5k_share_db": -3.9,
+        "sweep_momentary_max_lufs_after": -37.3,
+        "composite_rank": 6
+      },
+      "why": "It has the second-closest CLAP match to the ref (0.69), and its tick reading has the lowest bad-term z among ticks that have one (error buzz +2.31; 1.4% bad terms in forced choice). It fills the mid-toned gap between Felt (2.8 kHz) and Hush (6.3 kHz). It was chosen over breath-puff (composite 6.04 vs 6.08, effectively a tie) because puff's sweep reads glitch/zipper at +3.2 and its dark role is covered by Velvet. Weaknesses: its sweep has the second-highest 2-5 kHz share (-3.9 dB, near the current Dial's -2.4), the lowest crest of the finalists after Velvet (22.6 dB), and 'digital glitch' +2.81 tops its sweep reading."
+    },
+    {
+      "name": "felt-pad",
+      "recipe_path": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/felt/felt-pad.json",
+      "title": "Velvet",
+      "description": "A dark, rounded tap with a soft low thump.",
+      "level": 0.794,
+      "sweep_lufs_after": -41.3,
+      "earshot": "tick: 'a soft key release click' z +3.45, 'a single mechanical keyboard key press' +3.08, 'an error buzz' +2.44, 'a snare hit' +2.29, 'a digital glitch' +2.20 [clear reading]. match: strong, z +3.45, #1 of 322; forced choice 48% key release, 50% mechanical key press, 1.4% bad terms. ab(ref, pad): CLAP cosine 0.65; darker (4.3 vs 6.4 kHz), shorter tail (12 vs 52 ms). sweep: 'a digital glitch' +2.69, 'a wood creak' +2.69, 'a stutter glitch transition' +2.62, 'a rubber stretch' +2.54, 'a balloon squeak' +2.38 (AudioSet Creak 0.65).",
+      "metrics": {
+        "rms_dbfs": -38.9,
+        "crest_db": 21.8,
+        "attack_ms": 2.4,
+        "fall_ms_20_30_40": [
+          14,
+          18,
+          48
+        ],
+        "tonal_peak_db": 29,
+        "local_tonal_third_octave_db": 13.4,
+        "centroid_hz": 1501,
+        "bands_db": {
+          "0-250": -7.3,
+          "250-1000": -3.9,
+          "1000-3000": -6.1,
+          "3000-6000": -8.8,
+          "6000-12000": -16.9,
+          "12000-24000": -22.1
+        },
+        "band_rms_dist_to_ref_db": 9.1,
+        "length_ms": 60,
+        "xcorr_vs_ref": 0.218,
+        "reproduces_bit_exact": true,
+        "sweep_lufs_level1": -39.3,
+        "sweep_2k5k_share_db": -7,
+        "sweep_momentary_max_lufs_after": -37.3,
+        "composite_rank": 7
+      },
+      "why": "It is the dark, warm end of the range, so the six choices span 1.5 to 9.2 kHz in centroid. The tick reads cleanly (1.4% bad terms, key-release z +3.45). Its sweep is gentle (2-5 kHz share -7.0 dB) and has the third-lowest glitch z (+2.69). The tonal ratio of 29 dB is not a ring: the -30 dB fall is at 18 ms and the peak bin sits on the dark low-frequency slope. Weaknesses: it is the farthest from the reference spectrum (band distance 9.1 dB, centroid 1.5 vs 7.8 kHz) and has the lowest crest of all (21.8 dB)."
+    }
+  ],
+  "rejected": [
+    {
+      "name": "breath-puff",
+      "why": "Its sweep reads as 'a stutter glitch transition' z +3.19, 'a digital glitch' +3.18 and 'a zipper' +2.56, and the tick's top 3 includes 'a digital glitch' +2.53. Its level is capped at 1.0 (sweep -41.5 LUFS). Its dark, muffled role is covered better by felt-pad (Velvet). Composite 6.04, effectively tied with felt-hush; dropped for diversity."
+    },
+    {
+      "name": "dialsoft-pawl",
+      "why": "Its sweep has 2-5 kHz energy share -2.5 dB, as concentrated in the harsh band as the current Dial (-2.4; ref -12.7). It has the weakest key-release match of the field (z +3.07). Forced choice gives 'a digital glitch' 15% and 18% bad terms in total. Tick top 3 includes 'an error buzz' +2.56."
+    },
+    {
+      "name": "dialsoft-settle",
+      "why": "It has the worst tick readings: 'a digital glitch' +2.73 and 'an error buzz' +2.69 in the top 4, and 16% bad terms in forced choice. Its sweep reads 'a digital glitch' +2.9 and 'an error buzz' +2.38. The late low thud leaves -9.7 dB of energy after 8 ms (ref -16.1)."
+    },
+    {
+      "name": "dialsoft-housing",
+      "why": "It has the largest bad share in forced choice (21%, of which glitch is 18%), a tonal ratio of 21.8 dB at 561 Hz, and a band shape 6.7 dB from the ref. Its sweep reads 'a digital glitch' +2.82 and 'a crackling fire' +2.62, and AudioSet tags it 'Fart' 0.12. With all three dialsoft candidates out, the finalists cover 3 of the 4 directions (breath, felt, tock)."
+    },
+    {
+      "name": "tock-round",
+      "why": "CLAP hears it as a different sound from the reference (cosine 0.49, the lowest of the field). Its tick top 5 includes 'a snare hit' +2.76, 'a digital glitch' +2.57 and 'a kick drum' +2.34. Its sweep reads 'a digital glitch' +2.95. Its crest is 22.8 dB."
+    },
+    {
+      "name": "tock-wood",
+      "why": "Its CLAP cosine to the ref is 0.52. It has almost nothing below 250 Hz (-22.3 dB) and a band shape 7.3 dB from the ref. Its sweep's top reading is 'a stutter glitch transition' +3.27. Composite rank 11 of 12."
+    }
+  ],
+  "method": "1) Reproduction. I re-rendered all 12 recipes with softlib.write and sweep.write_sweep into judge/. Every tick and every sweep matches the designer's WAV sample for sample (np.array_equal). Every recipe uses only the softlib keys: length, seed, level, post_lowpass and calls of strike/thump with documented parameters. I re-measured all metrics with metrics.py, and the claimed numbers reproduced exactly.\n2) Listening. ONE earshot process (EARSHOT_THREADS=2, about 20 s) ran describe on every tick, every sweep, the ref, the ref sweep, the current Dial and its sweep. It also ran match(tick, 'a soft key release click') with 15 alts, ab(ref, tick, query) for every tick, and api.measure on every sweep. The alts include 'a single mechanical keyboard key press', which takes much of the forced-choice share. That is why my key-release percentages are lower than the designers' claims (for example breath-hush 30% here vs 87% claimed); the bad-term shares are comparable.\n3) Originality. I computed the max normalised cross-correlation of each tick with ref.wav. All are between 0.20 and 0.34, below the 0.5 threshold, so none is suspicious. Between candidates, breath-hush and breath-feather are 0.71, the rest at most 0.46.\n4) Ranking. I averaged per-criterion ranks into four groups:\n- softness: tonal ratio, attack, crest.\n- earshot cleanliness: worst bad-term z in the tick's top 5, forced-choice share of glitch/buzz/beep/kick/kalimba/triangle/bell/ding/glass/water, key-release z.\n- sweep gentleness: worst bad-term z in the sweep's top 5, and the sweep's 2-5 kHz energy share.\n- closeness to the ref: CLAP cosine from ab, and RMS distance of the six band shares.\nExtra model-free checks: local tonal prominence over 1/3 octave, energy after 8 ms and its tonality, and the momentary-loudness maximum of each levelled sweep. After levelling, every sweep's momentary maximum is -37.1 to -37.8 LUFS (ref -37.6), so none builds up harshly. No candidate rings like the Dial (Dial: tonal 31.9 dB, -30 dB fall at 44 ms; every candidate's -30 dB fall is 26 ms or less).\nComposite order: hush 3.3, dome 4.8, feather 5.2, air 5.8, puff 6.0, felt-hush 6.1, pad 6.3, pawl 7.6, round 7.9, settle 8.0, wood 8.1, housing 8.3. I swapped puff for pad because puff's sweep reads glitch/zipper and pad adds the dark end of the range.\n5) Loudness. The target is the ref's own samples through sweep.sweep, measured by api.measure: -41.3 LUFS (the current Dial's sweep is -33.7). For each candidate, level = min(1, 10^((target - LUFS at level 1)/20)). I rendered each sweep at that level and measured it again: all reach -41.3, except felt-dome, which is capped at level 1.0 and measures -41.7 (0.4 dB under, inside the 0.5 dB tolerance).\nFiles:\n- Levelled recipes, ticks and sweeps: /private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/<name>-lvl.json, <name>-lvl.wav and <name>-sweep-lvl.wav.\n- Reference sweep: /private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/ref-sweep.wav (for measurement only, never to ship).\n- Full table: /private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/report.json.\nCaveat: every candidate sweep, and the ref sweep at a lower z (+2.2), picks up some 'stutter/digital glitch' reading. This seems to come from fast dry click trains in general, so it was scored relative to the others, not as an outright fail.",
+  "reference_sweep_lufs": -41.3
+}

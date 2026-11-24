@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>YummyOrange – convert files in the middle of a drag</title>
+  <meta name="description" content="YummyOrange is a radial menu for files on the Mac. Halfway through a drag, tap a modifier key and a wheel of petals opens under the pointer; drop the file on one to convert, compress, trim or share it. New files can hang on a glowing line under the notch.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#FBF8F5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141113" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="YummyOrange">
+  <meta property="og:title" content="YummyOrange – convert files in the middle of a drag">
+  <meta property="og:description" content="A wheel of formats and tools that opens under your pointer halfway through a drag, on the Mac.">
+  <meta property="og:url" content="https://yummyorange.com/">
+  <link rel="canonical" href="https://yummyorange.com/">
+  <meta property="og:image" content="https://yummyorange.com/assets/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The YummyOrange icon beside a wheel of petals opening under a dragged file">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preload" as="image" href="assets/icon-256.webp" type="image/webp">
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/config.js"></script>
+  <script src="js/site.js" defer></script>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-compress" viewBox="0 0 16 16"><path d="M2.5 2.5 6.5 6.5M6.5 3.2v3.3H3.2M13.5 13.5l-4-4M9.5 12.8V9.5h3.3"/></symbol>
+    <symbol id="i-resize" viewBox="0 0 16 16"><path d="M6.5 6.5l-4-4M2.5 5.8V2.5h3.3M9.5 9.5l4 4M13.5 10.2v3.3h-3.3"/></symbol>
+    <symbol id="i-metadata" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/><path d="m2.5 2.5 11 11"/></symbol>
+    <symbol id="i-half" viewBox="0 0 16 16"><path d="M2.5 8h11M8 1.5v4M6 3.8 8 5.6l2-1.8M8 14.5v-4M6 12.2l2-1.8 2 1.8"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 16 16"><path d="M4.5 7h6.5v6.5H4.5zM4 4.6a5 5 0 0 1 7.6-.9M11.8 1.6v2.3H9.5"/></symbol>
+    <symbol id="i-text" viewBox="0 0 16 16"><path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3M5 6h6M5 8h6M5 10h4"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 16 16"><path d="M2 2.5h12v11H2zM4.5 5h7v6h-7z"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 16 16"><path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3M5.5 5.5h2v2h-2zM8.5 8.5h2v2h-2zM5.5 8.5h2v2h-2zM8.5 5.5h2v2h-2z"/></symbol>
+    <symbol id="i-adjust" viewBox="0 0 16 16"><path d="M2 4.5h6.2M11.8 4.5H14M2 11.5h1.2M6.8 11.5H14"/><circle cx="10" cy="4.5" r="1.8"/><circle cx="5" cy="11.5" r="1.8"/></symbol>
+    <symbol id="i-annotate" viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3zM9 4l3 3"/></symbol>
+    <symbol id="i-crop" viewBox="0 0 16 16"><path d="M4 1.5V12h10.5M1.5 4H12v10.5"/></symbol>
+    <symbol id="i-redact" viewBox="0 0 16 16"><path d="M2 3.5h12M2 7h8M2 10.5h12M2 14h6" stroke-width="2.2"/></symbol>
+    <symbol id="i-background" viewBox="0 0 16 16"><path d="M2 6l6-3 6 3-6 3zM2 10l6 3 6-3"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0M8 12 5.6 8.6"/></symbol>
+    <symbol id="i-speed" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0M8 12l3.4-2.4"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 16 16"><path d="M2.5 6H5l3.5-3v10L5 10H2.5zM11 6l3 4M14 6l-3 4"/></symbol>
+    <symbol id="i-note" viewBox="0 0 16 16"><path d="M6 12.5v-9l7-1.5v9"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="11" r="1.5"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 16 16"><path d="M2.5 7v2M5 5v6M7.5 2.5v11M10 5v6M12.5 6.5v3"/></symbol>
+    <symbol id="i-trim" viewBox="0 0 16 16"><path d="M5.5 2.5h-2v11h2M10.5 2.5h2v11h-2M7 8h2"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 16 16"><path d="M2 5h2.5l1.2-1.8h4.6L11.5 5H14v8H2z"/><circle cx="8" cy="8.8" r="2.3"/></symbol>
+    <symbol id="i-bleep" viewBox="0 0 16 16"><path d="M2 6h2.5L8 3v10l-3.5-3H2zM10.8 5.6a3.4 3.4 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4"/></symbol>
+    <symbol id="i-split" viewBox="0 0 16 16"><circle cx="4" cy="4.5" r="2"/><circle cx="4" cy="11.5" r="2"/><path d="M5.7 5.6 14 12M5.7 10.4 14 4"/></symbol>
+    <symbol id="i-channels" viewBox="0 0 16 16"><path d="M3 4v8M6 6v4M10 6v4M13 4v8"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 16 16"><path d="M3 13V9M6.5 13V4M10 13V7M13.5 13v-3"/></symbol>
+    <symbol id="i-pages" viewBox="0 0 16 16"><path d="M2.5 2.5h6v8h-6zM7.5 5.5h6v8h-6z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 16 16"><path d="M3.5 7.5h9V14h-9zM5.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16"><path d="M2.5 2.5h4.5V7H2.5zM9 2.5h4.5V7H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 16 16"><path d="M2 3h12v3H2zM3 6v7.5h10V6M6.5 9h3"/></symbol>
+    <symbol id="i-editpdf" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM5.5 7h5M8 7v5"/></symbol>
+    <symbol id="i-slide" viewBox="0 0 16 16"><path d="M1.5 3h13v8.5h-13zM8 11.5V14M5.5 14h5M4 6h8M4 8.5h5"/></symbol>
+    <symbol id="i-extract" viewBox="0 0 16 16"><path d="M2.5 6.5h11v7h-11zM8 11V1.8M5.6 4.2 8 1.8l2.4 2.4"/></symbol>
+    <symbol id="i-makepdf" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM8 7v5M5.5 9.5h5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16"><path d="M5.5 5.5h8v8h-8zM10.5 5.5v-3h-8v8h3"/></symbol>
+    <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3M7 4.6l1.2-1.2a2.8 2.8 0 0 1 4 4L11 8.6M9 11.4l-1.2 1.2a2.8 2.8 0 0 1-4-4L5 7.4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.5 4V13h13V5.5H8L6.5 3.5h-5z"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M1.5 3h13v10h-13zM4 6.5 6 8 4 9.5M7.5 10H10"/></symbol>
+    <symbol id="i-airdrop" viewBox="0 0 16 16"><circle cx="8" cy="9" r="1.3"/><path d="M5.2 11.8a4 4 0 1 1 5.6 0M3.1 13.9a7 7 0 1 1 9.8 0"/></symbol>
+    <symbol id="i-move" viewBox="0 0 16 16"><path d="M1.5 4V13h13V5.5H8L6.5 3.5h-5zM5.5 9.5h5M8.5 7.5l2 2-2 2"/></symbol>
+    <symbol id="i-zip" viewBox="0 0 16 16"><path d="M3.5 1.5h9v13h-9zM8 2v1M7 3.5h1M8 4.5h1M7 5.5h1M8 6.5h1M7 8h2v3H7z"/></symbol>
+    <symbol id="i-float" viewBox="0 0 16 16"><path d="M10 2l4 4-2 1-2.5 2.5.5 3L8.5 14 2 7.5 3.5 6l3 .5L9 4zM5.2 10.8 2 14"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 16 16"><path d="M8 2.5v11M3.5 9 8 13.5 12.5 9"/></symbol>
+    <symbol id="i-close" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="m3 8.5 3 3 7-7"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 16 16"><path d="M5.5 3.5v9M10.5 3.5v9" stroke-width="2.2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.8 8z" fill="currentColor"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2M2.5 9.5v4h11v-4"/></symbol>
+    <symbol id="i-person" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></symbol>
+    <symbol id="i-original" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 16 16"><path d="M2 4.5h12v8H2zM4.5 7h1M7.5 7h1M10.5 7h1M5 10h6"/></symbol>
+    <symbol id="g-menubar" viewBox="-2 -2 68 68"><g fill="currentColor"><path opacity=".62" d="M37.59 17.72L40.44 12.77Q44.96 4.95 40.78 3.31A30 30 0 0 0 23.22 3.31Q19.04 4.95 23.56 12.77L26.41 17.72Q27.29 19.23 28.98 18.84A13.5 13.5 0 0 1 35.02 18.84Q36.71 19.23 37.59 17.72Z"/><path d="M49.93 28.10L55.64 28.10Q64.68 28.10 64 23.66A30 30 0 0 0 55.23 8.46Q51.72 5.65 47.20 13.47L44.34 18.42Q43.47 19.93 44.66 21.21A13.5 13.5 0 0 1 47.68 26.44Q48.18 28.10 49.93 28.10Z"/><path opacity=".62" d="M41.57 43.98L44.43 48.93Q48.95 56.75 52.46 53.94A30 30 0 0 0 61.23 38.74Q61.91 34.30 52.87 34.30L47.16 34.30Q45.41 34.30 44.90 35.96A13.5 13.5 0 0 1 41.89 41.19Q40.70 42.47 41.57 43.98Z"/><path opacity=".62" d="M26.41 46.28L23.56 51.23Q19.04 59.05 23.22 60.69A30 30 0 0 0 40.78 60.69Q44.96 59.05 40.44 51.23L37.59 46.28Q36.71 44.77 35.02 45.16A13.5 13.5 0 0 1 28.98 45.16Q27.29 44.77 26.41 46.28Z"/><path opacity=".62" d="M16.84 34.30L11.13 34.30Q2.09 34.30 2.77 38.74A30 30 0 0 0 11.54 53.94Q15.05 56.75 19.57 48.93L22.43 43.98Q23.30 42.47 22.11 41.19A13.5 13.5 0 0 1 19.10 35.96Q18.59 34.30 16.84 34.30Z"/><path opacity=".62" d="M22.43 20.02L19.57 15.07Q15.05 7.25 11.54 10.06A30 30 0 0 0 2.77 25.26Q2.09 29.70 11.13 29.70L16.84 29.70Q18.59 29.70 19.10 28.04A13.5 13.5 0 0 1 22.11 22.81Q23.30 21.53 22.43 20.02Z"/><circle cx="32" cy="32" r="9"/></g></symbol>
+  </defs>
+</svg>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top" aria-label="YummyOrange, back to top">
+      <img src="assets/icon-256.webp" width="28" height="28" alt="">
+      <span>YummyOrange</span>
+    </a>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#clothesline">Clothesline</a>
+      <a href="#wheels">Wheels</a>
+      <a href="#editors">Editors</a>
+      <a href="#faq">Questions</a>
+    </nav>
+    <a class="btn btn-small" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download</span><span class="dl-pending">Coming soon</span></a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero wrap" id="top" aria-labelledby="hero-title">
+    <img class="hero-icon" src="assets/icon-256.webp" width="128" height="128" alt="The YummyOrange icon: a cream six-petal wheel on a dahlia-pink tile">
+    <h1 id="hero-title">Convert files in the middle of a&nbsp;drag</h1>
+    <p class="lede">Drag any file and, before you let go, tap <kbd class="k">⇧</kbd> <kbd class="k">⌘</kbd> or <kbd class="k">⌃</kbd>. A wheel opens under the pointer: drop the file on a petal to convert it, edit it or send it on.</p>
+    <div class="cta-row">
+      <a class="btn" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download for Mac</span><span class="dl-pending">Download coming soon</span></a>
+      <a class="btn btn-quiet" href="#playground">Try it on this page</a>
+    </div>
+    <p class="hero-meta"><span data-config-text="minimumOS">macOS 13 Ventura or later</span>, <span data-config-text="chip">Apple silicon</span> · Nothing is uploaded</p>
+  </section>
+
+  <!-- Playground -->
+  <section class="playground wrap" id="playground" aria-labelledby="pg-title">
+    <h2 id="pg-title" class="visually-hidden">Try the wheel</h2>
+    <div class="scene" id="scene" data-state="idle">
+      <div class="scene-note" aria-hidden="true">
+        <span class="note-text" id="scene-note-text">Grab a file and drag</span>
+        <svg class="note-arrow" viewBox="0 0 120 90" width="120" height="90"><path d="M104 8C96 40 66 66 18 72M18 72l13-11M18 72l15 6" pathLength="1"/></svg>
+      </div>
+
+      <ul class="files" aria-label="Files on a sample desktop" aria-describedby="pg-help">
+        <li style="--x:10%;--y:28%"><button class="file" type="button" data-file="lake">
+          <span class="file-icon thumb"><img src="assets/lake.webp" width="96" height="60" alt="" draggable="false"></span>
+          <span class="file-name">lake.png</span></button></li>
+        <li style="--x:23%;--y:62%"><button class="file" type="button" data-file="sunset">
+          <span class="file-icon thumb video"><img src="assets/sunset.webp" width="96" height="60" alt="" draggable="false"><span class="dur" aria-hidden="true">0:12</span></span>
+          <span class="file-name">sunset.mp4</span></button></li>
+        <li style="--x:36%;--y:26%"><button class="file" type="button" data-file="interview">
+          <span class="file-icon doc" data-kind="wav"><span class="doc-art wave"></span><span class="doc-badge" aria-hidden="true">WAV</span></span>
+          <span class="file-name">interview.wav</span></button></li>
+        <li style="--x:49%;--y:62%"><button class="file" type="button" data-file="estimate">
+          <span class="file-icon doc" data-kind="pdf"><span class="doc-art lines"></span><span class="doc-badge" aria-hidden="true">PDF</span></span>
+          <span class="file-name">estimate.pdf</span></button></li>
+        <li style="--x:62%;--y:26%"><button class="file" type="button" data-file="letter">
+          <span class="file-icon doc" data-kind="docx"><span class="doc-art lines"></span><span class="doc-badge" aria-hidden="true">DOCX</span></span>
+          <span class="file-name">letter.docx</span></button></li>
+        <li style="--x:75%;--y:62%"><button class="file" type="button" data-file="budget">
+          <span class="file-icon doc" data-kind="xlsx"><span class="doc-art cells"></span><span class="doc-badge" aria-hidden="true">XLSX</span></span>
+          <span class="file-name">budget.xlsx</span></button></li>
+        <li style="--x:88%;--y:26%"><button class="file" type="button" data-file="novel">
+          <span class="file-icon book"><span class="book-title"></span></span>
+          <span class="file-name">novel.epub</span></button></li>
+        <li style="--x:90%;--y:62%"><button class="file" type="button" data-file="trip">
+          <span class="file-icon folder"></span>
+          <span class="file-name">Trip</span></button></li>
+      </ul>
+
+      <div class="keybar" role="group" aria-label="Wheel keys">
+        <button class="keybtn" type="button" data-mode="convert" aria-keyshortcuts="Shift">
+          <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
+          <span class="keybtn-label">Convert</span>
+        </button>
+        <button class="keybtn" type="button" data-mode="tools" aria-keyshortcuts="Meta">
+          <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
+          <span class="keybtn-label">Tools</span>
+        </button>
+        <button class="keybtn" type="button" data-mode="actions" aria-keyshortcuts="Control">
+          <span class="cap" aria-hidden="true"><span class="cap-sym">⌃</span><span class="cap-name">control</span></span>
+          <span class="keybtn-label">Actions</span>
+        </button>
+      </div>
+
+      <div class="wheel-layer" id="wheel-layer"></div>
+      <div class="result-shelf" id="result-shelf" hidden></div>
+    </div>
+    <p class="scene-caption">A simulation: nothing leaves this page. In the app the same moves work on files in Finder, on your desktop, anywhere.</p>
+    <p class="visually-hidden" id="pg-help">Drag a file, then press Shift for Convert, Command for Tools, or Control for Actions. Or focus a file and press Enter, or tap a key below the files. Use the arrow keys to choose a petal, Enter to apply and Escape to close.</p>
+    <div class="visually-hidden" id="pg-live" role="status" aria-live="polite"></div>
+  </section>
+
+  <!-- Clothesline -->
+  <section class="section clothesline-section" id="clothesline" aria-labelledby="cl-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="cl-title">The Clothesline</h2>
+        <p>New files can hang on a glowing string under the notch, like polaroids on a line. Rest the pointer in the notch and the line drops; move away and it goes back up.</p>
+      </header>
+
+      <div class="screen" id="screen">
+        <div class="menubar" aria-hidden="true">
+          <span class="mb-dot"></span><span class="mb-pill w2"></span><span class="mb-pill"></span><span class="mb-pill"></span><span class="mb-pill w3"></span>
+          <span class="mb-spacer"></span>
+          <svg class="mb-glyph"><use href="#g-menubar"/></svg><span class="mb-pill"></span><span class="mb-pill"></span><span class="mb-time">9:41</span>
+        </div>
+        <button class="notch" id="notch" type="button" aria-expanded="false" aria-controls="line-cards">
+          <span class="visually-hidden">Show the Clothesline</span>
+          <span class="notch-fill" aria-hidden="true"></span>
+        </button>
+        <svg class="line-svg" id="line-svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="string-grad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#F7C878"/>
+              <stop offset="0.45" stop-color="#F09AA0"/>
+              <stop offset="1" stop-color="#E2669C"/>
+            </linearGradient>
+            <filter id="string-glow" x="-5%" y="-200%" width="110%" height="500%">
+              <feGaussianBlur stdDeviation="3"/>
+            </filter>
+          </defs>
+          <path class="string-glow" id="string-glow-path" d=""/>
+          <path class="string" id="string-path" d=""/>
+        </svg>
+        <ul class="line-cards" id="line-cards" aria-label="Files on the Clothesline"></ul>
+        <div class="screen-note" id="screen-note" aria-hidden="true">
+          <svg class="note-arrow up" viewBox="0 0 120 90" width="96" height="72"><path d="M14 82C30 50 62 22 104 14M104 14l-15-4M104 14l-8 13" pathLength="1"/></svg>
+          <span class="note-text" id="screen-note-text">Rest the pointer in the notch</span>
+        </div>
+        <button class="desk-file" id="desk-file" type="button" aria-describedby="cl-help">
+          <span class="file-icon doc" data-kind="md"><span class="doc-art lines"></span><span class="doc-badge" aria-hidden="true">MD</span></span>
+          <span class="file-name">notes.md</span>
+        </button>
+        <button class="shot-btn" id="shot-btn" type="button">Copy a screenshot</button>
+      </div>
+      <p class="scene-caption">On a Mac without a notch, the middle of the menu bar works the same. The line keeps the newest 50 files, and each card only points to its file: the file stays where it is.</p>
+      <p class="visually-hidden" id="cl-help">Drag notes.md up to the notch to hang it, or focus it and press Enter. On the line, use the left and right arrow keys to select a card, Option with an arrow to move it, Delete to take it off, Command Z to put it back.</p>
+      <div class="visually-hidden" id="cl-live" role="status" aria-live="polite"></div>
+
+      <figure class="realthing">
+        <div class="realthing-frame">
+          <video id="line-video" muted loop playsinline preload="none" width="1440" height="250"
+                 poster="assets/line-poster.webp" data-dark-src="assets/line-dark.mp4" data-dark-poster="assets/line-poster-dark.webp" data-src="assets/line.mp4"
+                 aria-label="The Clothesline rendered by YummyOrange: the string drops from the notch with lake.png, lake.webp, sunset.mp4, sunset.gif, estimate.pdf, estimate.docx, interview.m4a and notes.md hanging from wooden pins, pulls back up, and drops again when the pointer rests in the notch."></video>
+          <button class="video-toggle" type="button" id="line-video-toggle">
+            <svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg><span>Pause</span>
+          </button>
+        </div>
+        <figcaption>The real thing, rendered offscreen by YummyOrange itself.</figcaption>
+      </figure>
+
+      <div class="split cl-more">
+        <div class="split-copy">
+          <h3>Or on a shelf, or in Finder</h3>
+          <p><strong>Show New Files</strong> in the menu-bar menu decides where results appear: on a small shelf beside the pointer, on the Clothesline, selected in Finder, or nowhere at all. A shelf holds every file one job made, ready to drag into an email or the next app.</p>
+          <p>The <strong>Float</strong> action parks any file on a shelf that stays above your windows.</p>
+        </div>
+        <div class="split-art shelves-art">
+          <picture>
+            <source srcset="assets/menu-dark.webp" media="(prefers-color-scheme: dark)">
+            <img class="shot shot-menu" src="assets/menu.webp" width="804" height="592" loading="lazy" decoding="async" alt="YummyOrange’s menu-bar menu with Show New Files open: On a Shelf, On the Clothesline, In Finder, Don’t Show">
+          </picture>
+          <picture>
+            <source srcset="assets/shelf-dark.webp" media="(prefers-color-scheme: dark)">
+            <img class="shot shot-shelf" src="assets/shelf.webp" width="368" height="420" loading="lazy" decoding="async" alt="A results shelf holding three new files, 1.1 MB">
+          </picture>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Explorer: every kind of file, every wheel -->
+  <section class="section wrap" id="wheels" aria-labelledby="wheels-title">
+    <header class="section-head">
+      <h2 id="wheels-title">Every file gets its own wheel</h2>
+      <p>YummyOrange looks at what you’re dragging and offers only what fits it. Choose a file, then a key, and point at a petal.</p>
+    </header>
+
+    <div class="explorer">
+      <div class="ex-kinds" role="tablist" aria-label="Kind of file" aria-orientation="vertical" id="kind-tabs"></div>
+      <div class="ex-panel" id="explorer" role="tabpanel" tabindex="-1">
+        <div class="ex-stage">
+          <div class="ex-keys" role="group" aria-label="Wheel" id="ex-keys">
+            <button class="keybtn" type="button" data-mode="convert" aria-pressed="true">
+              <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
+              <span class="keybtn-label">Convert</span>
+            </button>
+            <button class="keybtn" type="button" data-mode="tools" aria-pressed="false">
+              <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
+              <span class="keybtn-label">Tools</span>
+            </button>
+            <button class="keybtn" type="button" data-mode="actions" aria-pressed="false">
+              <span class="cap" aria-hidden="true"><span class="cap-sym">⌃</span><span class="cap-name">control</span></span>
+              <span class="keybtn-label">Actions</span>
+            </button>
+          </div>
+          <div class="explorer-wheel" id="ex-wheel"></div>
+          <p class="explorer-caption" id="ex-caption" aria-live="polite"></p>
+        </div>
+        <dl class="ex-facts" id="ex-facts"></dl>
+      </div>
+    </div>
+    <p class="fine ex-fine">Each result is a new file beside the original, named for what was done: <span class="mono">lake.webp</span>, <span class="mono">lake compressed.jpg</span>, <span class="mono">lake rotated.png</span>. A number is added only when that name is already taken, as in <span class="mono">lake 2.webp</span>. The file you dropped is never changed.</p>
+  </section>
+
+  <!-- Editors -->
+  <section class="section wrap" id="editors" aria-labelledby="editors-title">
+    <header class="section-head">
+      <h2 id="editors-title">Some tools open a window</h2>
+      <p>Trim, Split, Crop, Redact, Edit PDF and a few more open an editor: a film strip or waveform, a crop frame, a page you can type on. Save writes a new file next to the original.</p>
+    </header>
+    <div class="tabs tabs-compact" role="tablist" aria-label="Editor" id="editor-tabs">
+      <button role="tab" type="button" id="ed-tab-split" aria-controls="editor-panel" aria-selected="true" tabindex="0" data-editor="split">Split</button>
+      <button role="tab" type="button" id="ed-tab-trim" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="trim">Trim</button>
+      <button role="tab" type="button" id="ed-tab-crop" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="crop">Crop</button>
+      <button role="tab" type="button" id="ed-tab-pdf" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="pdf">Edit PDF</button>
+    </div>
+    <div class="editor-panel" id="editor-panel" role="tabpanel" aria-labelledby="ed-tab-split">
+      <div class="editor-shot">
+        <picture>
+          <source id="editor-src-dark" srcset="assets/ed-split-dark.webp" media="(prefers-color-scheme: dark)">
+          <img id="editor-img" src="assets/ed-split.webp" width="1400" height="997" loading="lazy" decoding="async" alt="The Split window for sunset.mp4: the video, a timeline with a film strip and waveform cut into three parts">
+        </picture>
+      </div>
+      <div class="editor-copy" id="editor-copy">
+        <h3>Split</h3>
+        <p>A window like a video editor’s. Put splits on the timeline with the scissors or <kbd class="k">⌘</kbd><kbd class="k">B</kbd>, or split evenly. Save writes each part as its own file: <span class="mono">sunset part 1.mp4</span>, <span class="mono">sunset part 2.mp4</span>…</p>
+        <p class="fine">Cuts land on the exact frame you chose.</p>
+      </div>
+    </div>
+    <ul class="chips" aria-label="All editors">
+      <li>Video: Trim, Split, Crop, Redact, Snapshot, Bleep, Speed, Channels</li>
+      <li>Audio: Trim, Split, Bleep, Speed, Channels, Visualize</li>
+      <li>Images: Adjust, Annotate, Crop, Redact</li>
+      <li>PDF: Edit PDF, Organize</li>
+    </ul>
+  </section>
+
+  <!-- Privacy -->
+  <section class="section wrap privacy" id="privacy" aria-labelledby="privacy-title">
+    <header class="section-head">
+      <h2 id="privacy-title">Work happens where the file is</h2>
+      <p>Your files never leave the folder they’re in. YummyOrange reads each one right there and writes the result beside it, with its own code and the frameworks built into macOS.</p>
+    </header>
+    <ul class="privacy-points">
+      <li><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg><div><h3>No uploads</h3><p>Nothing is sent to a server. Document importers never fetch anything from the network either.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg><div><h3>No account, no tracking</h3><p>Nothing to sign up for, and no analytics in the app.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-original"/></svg><div><h3>Originals stay as they were</h3><p>Every result is a new file. Redacted copies carry none of the original’s hidden details.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg><div><h3>No Accessibility access needed</h3><p>The gesture works without it. Only the optional “Hold the key first” asks for it.</p></div></li>
+    </ul>
+    <p class="fine"><a href="privacy.html">Privacy policy</a> for the app and this site.</p>
+  </section>
+
+  <!-- Download -->
+  <section class="section wrap" id="download" aria-labelledby="download-title">
+    <div class="download">
+      <div class="download-copy">
+        <img src="assets/icon-256.webp" width="88" height="88" alt="" loading="lazy">
+        <h2 id="download-title">Get YummyOrange</h2>
+        <p class="pending-only">The first release is on its way. The download appears here as soon as it’s ready.</p>
+        <ol class="steps">
+          <li>Open the disk image and drag YummyOrange to Applications.</li>
+          <li>Open YummyOrange. It waits in the menu bar until you drag a file, and the first time it shows a short tour with a sample photo to practise on.</li>
+          <li data-unless-config="notarized">If macOS says it can’t check YummyOrange for malicious software, open System Settings › Privacy &amp; Security, click <strong>Open Anyway</strong> next to YummyOrange, then open it again.</li>
+        </ol>
+      </div>
+      <div class="download-card">
+        <dl class="specs">
+          <div><dt>Version</dt><dd data-config-text="version">1.0.0</dd></div>
+          <div data-if-config="price"><dt>Price</dt><dd data-config-text="price"></dd></div>
+          <div><dt>Size</dt><dd data-config-text="size">7 MB</dd></div>
+          <div><dt>Requires</dt><dd><span data-config-text="minimumOS">macOS 13 Ventura or later</span> on a Mac with <span data-config-text="chip">Apple silicon</span></dd></div>
+        </dl>
+        <p class="ffmpeg-note">Audio and video need ffmpeg, a free tool you add with Homebrew. <a href="#faq-extras">How to add it</a></p>
+        <a class="btn btn-wide" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download YummyOrange.dmg</span><span class="dl-pending">Download coming soon</span></a>
+        <p class="fine"><a href="release-notes.html">Release notes</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section wrap" id="faq" aria-labelledby="faq-title">
+    <header class="section-head">
+      <h2 id="faq-title">Questions</h2>
+    </header>
+    <div class="faq">
+      <details>
+        <summary>How do I open a wheel?</summary>
+        <p>Start dragging a file, then press ⇧ Shift, ⌘ Command or ⌃ Control. You can also hold the key first and then drag, and let go of the key once the wheel is up. Pressing another wheel’s key switches wheels, Esc closes the wheel, and , (comma) opens Settings.</p>
+      </details>
+      <details>
+        <summary>Why doesn’t ⇧ or ⌘ work on a file that’s already selected?</summary>
+        <p>Finder treats ⇧ or ⌘ on a selected file as “deselect”, so no drag starts. Turn on Settings › Wheels › Hold the key first and YummyOrange holds that click back until it knows you meant to drag. That option needs Accessibility access; nothing else does. With ⌃, start the drag first, since macOS treats ⌃-click as a right-click.</p>
+      </details>
+      <details>
+        <summary>Where do converted files go?</summary>
+        <p>Next to the original, named for what was done: <span class="mono">lake.webp</span>, <span class="mono">lake compressed.jpg</span>. If that name is already taken, a number is added, as in <span class="mono">lake 2.webp</span>. The original is never changed. New files open on a shelf near the pointer, or on the Clothesline, in Finder, or nowhere, as you choose in Show New Files.</p>
+      </details>
+      <details>
+        <summary>Does macOS ask for any permissions?</summary>
+        <p>Only in a few places, and only once. macOS asks before YummyOrange first saves into your Desktop, Documents or Downloads folder, or onto an external drive. If you hang copied screenshots on the Clothesline, it asks before YummyOrange reads the first one. Launch at Login may need your OK in System Settings › General › Login Items. Accessibility access is needed only for Hold the key first.</p>
+      </details>
+      <details>
+        <summary>Do my files leave my Mac?</summary>
+        <p>No. YummyOrange converts with its own code, the frameworks in macOS and, for audio and video, the ffmpeg on your Mac. There’s no account, no server and no analytics.</p>
+      </details>
+      <details id="faq-extras">
+        <summary>Do I need to install anything else?</summary>
+        <p>Images, PDFs, documents, ebooks, slides, spreadsheets, subtitles and archives work out of the box. Audio and video need ffmpeg, a free tool: with <a href="https://brew.sh">Homebrew</a> installed, run <span class="mono">brew install ffmpeg</span> in Terminal. YummyOrange finds it in <span class="mono">/opt/homebrew/bin</span>, <span class="mono">/usr/local/bin</span> or <span class="mono">~/.local/bin</span>. Saving pictures as WebP also needs <span class="mono">brew install webp</span>, unless your ffmpeg can already write WebP.</p>
+      </details>
+      <details>
+        <summary>Can I change the keys?</summary>
+        <p>Yes. Each wheel’s key can be changed or turned off in Settings, which also has the wheel’s look (Glass or Metallic), the petal sound (Dial, Click, Wood, Pop or Glass, or off) and haptics.</p>
+      </details>
+      <details>
+        <summary>Does YummyOrange update itself?</summary>
+        <p>Yes. A few times a day YummyOrange checks whether a new version is out and lets you know; choose Update in its menu-bar menu (or click the notification), read what’s new, then Install Update, and it downloads the update, checks that it is signed by its developer and notarized by Apple, replaces itself and restarts. If an editor window has unsaved changes, it asks first. Nothing is installed until you choose to, and your settings stay. Check for Updates… in the menu looks right away, and Settings › General can turn the automatic check off. New versions are also listed in the <a href="release-notes.html">release notes</a>.</p>
+      </details>
+      <details>
+        <summary>Which Macs does it run on?</summary>
+        <p>Macs with Apple silicon and macOS 13 Ventura or later. The app is about 7 MB and lives in the menu bar.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <a class="brand" href="#top"><img src="assets/icon-256.webp" width="24" height="24" alt="" loading="lazy"><span>YummyOrange</span></a>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="#download">Download</a>
+      <a href="release-notes.html">Release notes</a>
+      <a href="privacy.html">Privacy policy</a>
+      <a href="#faq">Questions</a>
+      <a data-config-mailto="supportEmail" hidden>Contact</a>
+    </nav>
+    <p class="fine">© 2026 YummyOrange. Mac and macOS are trademarks of Apple Inc.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,118 @@
+{
+ "length": 0.06,
+ "calls": [
+  {
+   "fn": "strike",
+   "t0": 0,
+   "gain": 0.07,
+   "rise": 0.005,
+   "burst": 0.004,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 150
+  },
+  {
+   "fn": "strike",
+   "t0": 0.005,
+   "gain": 1.0,
+   "rise": 0.004,
+   "burst": 0.0026,
+   "noise": 1.0,
+   "lowpass": 1500,
+   "highpass": 150
+  },
+  {
+   "fn": "thump",
+   "t0": 0.005,
+   "gain": 0.13,
+   "f0": 300,
+   "f1": 190,
+   "ftau": 0.003,
+   "decay": 0.003,
+   "rise": 0.0035
+  },
+  {
+   "fn": "strike",
+   "t0": 0.013,
+   "gain": 0.028,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.017,
+   "gain": 0.0196,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.022,
+   "gain": 0.0224,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.027,
+   "gain": 0.0154,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.033,
+   "gain": 0.014,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.039,
+   "gain": 0.0112,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.046,
+   "gain": 0.0098,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  },
+  {
+   "fn": "strike",
+   "t0": 0.053,
+   "gain": 0.007,
+   "rise": 0.0008,
+   "burst": 0.0012,
+   "noise": 1.0,
+   "lowpass": 1700,
+   "highpass": 200
+  }
+ ],
+ "post_lowpass": 4500,
+ "seed": 1592691515,
+ "level": 0.794
+}

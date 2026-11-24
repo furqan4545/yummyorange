@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>YummyOrange social card</title>
+<!-- The 1200 × 630 picture shown when the site is shared. Render it with tools/make-og-image.js; it writes
+     public/assets/og-image.jpg. Pictures: the app icon and the app's own render of the Convert wheel. -->
+<style>
+  html, body { margin: 0; }
+  body { width: 1200px; height: 630px; overflow: hidden; }
+  .card {
+    position: relative; width: 1200px; height: 630px; overflow: hidden;
+    background: radial-gradient(90% 70% at 50% 118%, #FFE1A1 0%, rgba(255, 225, 161, 0.7) 30%, rgba(255, 225, 161, 0) 68%), #E2669C;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; color: #2A0F1F;
+  }
+  .copy { position: absolute; left: 88px; top: 112px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 20px; }
+  .brand img { width: 104px; height: 104px; border-radius: 24px; box-shadow: 0 12px 30px rgba(60, 10, 35, 0.28); }
+  .brand span { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; }
+  h1 { margin: 44px 0 0; font-size: 64px; line-height: 1.04; font-weight: 600; letter-spacing: -0.03em; }
+  .keys { display: flex; gap: 12px; margin-top: 36px; }
+  .cap { display: inline-grid; grid-template-rows: 1fr auto; min-width: 70px; height: 56px; padding: 6px 9px 7px; box-sizing: border-box; border-radius: 10px; background: linear-gradient(#2B2B2B, #191919); color: #FFF; box-shadow: 0 4px 0 #0A0A0A; }
+  .cap b { justify-self: end; font-size: 17px; font-weight: 400; line-height: 1; }
+  .cap i { align-self: end; font-style: normal; font-size: 14px; line-height: 1; }
+  .wheel { position: absolute; right: 64px; top: 75px; width: 480px; height: 480px; border-radius: 50%; overflow: hidden; box-shadow: 0 24px 60px rgba(60, 10, 35, 0.3); }
+  .wheel img { width: 696px; height: 696px; margin: -108px; display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="copy">
+      <div class="brand"><img src="../../Design/app-icon/AppIcon-1024.png" alt=""><span>YummyOrange</span></div>
+      <h1>Convert files in the middle of a drag</h1>
+      <div class="keys"><span class="cap"><b>⇧</b><i>shift</i></span><span class="cap"><b>⌘</b><i>command</i></span><span class="cap"><b>⌃</b><i>control</i></span></div>
+    </div>
+    <div class="wheel"><img src="../unused-assets/wheel-convert.webp" alt=""></div>
+  </div>
+</body>
+</html>

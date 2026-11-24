@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B9A3D6"/>
+      <stop offset="0.38" stop-color="#EBA3C2"/>
+      <stop offset="0.62" stop-color="#FFD3A8"/>
+      <stop offset="0.66" stop-color="#FFE7B8"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7C9A8"/>
+      <stop offset="0.35" stop-color="#E59ABB"/>
+      <stop offset="1" stop-color="#7E5C9E"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF8EC"/>
+      <stop offset="0.55" stop-color="#FFF1D6"/>
+      <stop offset="1" stop-color="#FFE1A1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C77AA8"/><stop offset="1" stop-color="#B57BB0"/></linearGradient>
+    <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A5C96"/><stop offset="1" stop-color="#875A93"/></linearGradient>
+    <linearGradient id="m3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5E3F6E"/><stop offset="1" stop-color="#4A3460"/></linearGradient>
+  </defs>
+  <rect width="1600" height="660" fill="url(#sky)"/>
+  <circle cx="1060" cy="560" r="210" fill="url(#sun)"/>
+  <circle cx="1060" cy="560" r="86" fill="#FFF7E8"/>
+  <path d="M0 610 L130 520 L230 560 L380 430 L520 540 L640 470 L760 560 L900 500 L1040 590 L1180 520 L1330 585 L1460 500 L1600 560 L1600 660 L0 660 Z" fill="url(#m1)" opacity="0.85"/>
+  <path d="M0 660 L0 600 L170 560 L300 610 L470 520 L620 600 L800 545 L980 640 L1120 590 L1300 640 L1450 590 L1600 620 L1600 660 Z" fill="url(#m2)"/>
+  <path d="M0 660 L0 630 L120 610 L260 650 L420 600 L560 655 L1600 660 Z" fill="url(#m3)"/>
+  <path d="M1600 660 L1600 610 L1490 630 L1380 600 L1240 655 Z" fill="url(#m3)"/>
+  <rect y="660" width="1600" height="340" fill="url(#water)"/>
+  <g opacity="0.35" fill="#FFF4EA">
+    <rect x="980" y="690" width="160" height="5" rx="2.5"/>
+    <rect x="1005" y="716" width="110" height="4" rx="2"/>
+    <rect x="960" y="748" width="200" height="4" rx="2"/>
+    <rect x="1020" y="786" width="80" height="3" rx="1.5"/>
+    <rect x="990" y="830" width="140" height="3" rx="1.5"/>
+    <rect x="300" y="760" width="90" height="3" rx="1.5"/>
+    <rect x="610" y="840" width="120" height="3" rx="1.5"/>
+    <rect x="1320" y="900" width="150" height="3" rx="1.5"/>
+  </g>
+  <path d="M0 1000 L0 880 C180 860 300 900 420 930 C520 955 560 1000 560 1000 Z" fill="#3E2B52"/>
+  <path d="M1600 1000 L1600 900 C1450 890 1340 940 1260 1000 Z" fill="#3E2B52"/>
+  <g fill="none" stroke="#5E3F6E" stroke-width="5" stroke-linecap="round">
+    <path d="M600 300 q14 -12 28 0 q14 -12 28 0"/>
+    <path d="M676 340 q10 -9 20 0 q10 -9 20 0"/>
+    <path d="M560 360 q8 -7 16 0 q8 -7 16 0"/>
+  </g>
+</svg>

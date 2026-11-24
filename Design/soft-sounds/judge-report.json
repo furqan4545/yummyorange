@@ -1,0 +1,1348 @@
+{
+ "target_reference_sweep_lufs": -41.3,
+ "current_dial_sweep_lufs": -33.7,
+ "reference_tick": {
+  "rms_dbfs": -42.2,
+  "crest_db": 25.1,
+  "attack_ms": 0.3,
+  "fall_ms": [
+   12.0,
+   22.0,
+   54.0
+  ],
+  "tonal_peak_db": 16.7,
+  "centroid_hz": 7795,
+  "bands": {
+   "0-250": -10.6,
+   "250-1000": -11.9,
+   "1000-3000": -12.2,
+   "3000-6000": -12.4,
+   "6000-12000": -2.0,
+   "12000-24000": -10.0
+  },
+  "length_ms": 60.0
+ },
+ "reference_earshot": "0.06 s short transient (attack 3 ms, decays in 52 ms). Sounds most like: a soft key release click (z +3.8), an enter key press (z +3.2), a single mechanical keyboard key press (z +2.9) [clear reading]. Other readings: a pen click (foley, z +2.6), a mouse click (ui, z +2.3). AudioSet tagger unsure (Sound effect 0.07). peak -17.1 dBFS, brightness 6.4 kHz, bandwidth 20.5 kHz, mono.",
+ "reference_sweep_earshot": "5.12 s busy, 3.1 onsets/s, noise-like (attack 3 ms, decays in 46 ms). Sounds most like: a fidget toy clicking (z +2.7), a pen click (z +2.6), a rubber stretch (z +2.6) [plausible reading]. Other readings: a scroll wheel tick (ui, z +2.6), a stutter glitch transition (transitions, z +2.2). AudioSet: Creak 0.37, Scissors 0.06. peak -17.1 dBFS, -41.3 LUFS, brightness 7.1 kHz, bandwidth 20.5 kHz, digital silence between sounds, mono.",
+ "reference_sweep_2k5k_share_db": -12.7,
+ "current_dial_sweep_2k5k_share_db": -2.4,
+ "finalists": [
+  {
+   "name": "breath-hush",
+   "title": "Hush",
+   "description": "A soft key release with a faint low bump.",
+   "level": 0.933,
+   "sweep_lufs_after": -41.3,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-hush-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-hush-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-hush-sweep-lvl.wav"
+  },
+  {
+   "name": "felt-dome",
+   "title": "Felt",
+   "description": "A muted key press, soft and rounded.",
+   "level": 1.0,
+   "sweep_lufs_after": -41.7,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-dome-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-dome-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-dome-sweep-lvl.wav"
+  },
+  {
+   "name": "breath-feather",
+   "title": "Feather",
+   "description": "An airy, soft-edged tick with almost no low end.",
+   "level": 0.759,
+   "sweep_lufs_after": -41.3,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-feather-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-feather-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/breath-feather-sweep-lvl.wav"
+  },
+  {
+   "name": "tock-air",
+   "title": "Air",
+   "description": "A light, airy tick with no low thud.",
+   "level": 0.861,
+   "sweep_lufs_after": -41.3,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/tock-air-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/tock-air-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/tock-air-sweep-lvl.wav"
+  },
+  {
+   "name": "felt-hush",
+   "title": "Tap",
+   "description": "A light, mellow tap with no thump.",
+   "level": 0.759,
+   "sweep_lufs_after": -41.3,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-hush-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-hush-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-hush-sweep-lvl.wav"
+  },
+  {
+   "name": "felt-pad",
+   "title": "Velvet",
+   "description": "A dark, rounded tap with a soft low thump.",
+   "level": 0.794,
+   "sweep_lufs_after": -41.3,
+   "leveled_recipe": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-pad-lvl.json",
+   "leveled_tick": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-pad-lvl.wav",
+   "leveled_sweep": "/private/tmp/claude-501/-Users-topg--claude-spares-spare-SqqS9M/9d8b61e8-e691-4af4-9a35-1a837c92ded3/scratchpad/sound/soft/judge/felt-pad-sweep-lvl.wav"
+  }
+ ],
+ "table": {
+  "breath-hush": {
+   "direction": "breath",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.271,
+   "rms_dbfs": -41.5,
+   "crest_db": 24.4,
+   "attack_ms": 1.9,
+   "fall_ms_20_30_40": [
+    12.0,
+    26.0,
+    42.0
+   ],
+   "tonal_peak_db": 15.5,
+   "local_tonal_db_third_oct": 8.8,
+   "local_tonal_hz": 15422,
+   "tail_after_8ms_energy_db": -15.4,
+   "tail_tonal_db": 16.8,
+   "centroid_hz": 6330,
+   "bands_db": {
+    "0-250": -9.7,
+    "250-1000": -11.2,
+    "1000-3000": -8.8,
+    "3000-6000": -6.8,
+    "6000-12000": -4.2,
+    "12000-24000": -10.2
+   },
+   "band_rms_dist_to_ref_db": 2.9,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.22
+    ],
+    [
+     "a single mechanical keyboard key press",
+     3.04
+    ],
+    [
+     "an error buzz",
+     2.5
+    ],
+    [
+     "a digital glitch",
+     2.27
+    ],
+    [
+     "a snare hit",
+     2.26
+    ]
+   ],
+   "tick_bad_max_z": 2.5,
+   "earshot_tick_brightness_hz": 7330,
+   "earshot_tick_decay_ms": 39.0,
+   "match_z": 3.22,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.3,
+   "match_p_mech_key": 0.67,
+   "match_p_bad": 0.031,
+   "ab_ref_cosine": 0.655,
+   "ab_ref_summary": "A = ref.wav, B = breath-hush.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.2). CLAP hears them as related (cosine 0.66). B is with less low end (energy below 250 Hz -8 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a ratchet clicking",
+     2.53
+    ],
+    [
+     "a fidget toy clicking",
+     2.49
+    ],
+    [
+     "a wood creak",
+     2.48
+    ],
+    [
+     "a stutter glitch transition",
+     2.43
+    ],
+    [
+     "a creaking door",
+     2.38
+    ]
+   ],
+   "sweep_bad_max_z": 2.43,
+   "sweep_brightness_hz": 7784,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.587
+    },
+    {
+     "label": "Sound effect",
+     "p": 0.086
+    },
+    {
+     "label": "Coin (dropping)",
+     "p": 0.05
+    }
+   ],
+   "sweep_lufs_level1": -40.7,
+   "sweep_2k5k_share_db": -9.1,
+   "sweep_centroid_hz": 6460,
+   "level": 0.933,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.2,
+   "sweep_short_term_max_after": -40.4,
+   "finalist": true
+  },
+  "breath-puff": {
+   "direction": "breath",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.34,
+   "rms_dbfs": -40.6,
+   "crest_db": 23.5,
+   "attack_ms": 2.1,
+   "fall_ms_20_30_40": [
+    8.0,
+    14.0,
+    20.0
+   ],
+   "tonal_peak_db": 16.2,
+   "local_tonal_db_third_oct": 8.7,
+   "local_tonal_hz": 14655,
+   "tail_after_8ms_energy_db": -14.3,
+   "tail_tonal_db": 41.3,
+   "centroid_hz": 4784,
+   "bands_db": {
+    "0-250": -8.3,
+    "250-1000": -7.4,
+    "1000-3000": -9.2,
+    "3000-6000": -6.9,
+    "6000-12000": -5.2,
+    "12000-24000": -13.2
+   },
+   "band_rms_dist_to_ref_db": 3.8,
+   "length_ms": 45.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.37
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.75
+    ],
+    [
+     "a digital glitch",
+     2.53
+    ],
+    [
+     "a stutter glitch transition",
+     2.39
+    ],
+    [
+     "a punchy impact hit",
+     2.36
+    ]
+   ],
+   "tick_bad_max_z": 2.53,
+   "earshot_tick_brightness_hz": 4529,
+   "earshot_tick_decay_ms": 23.0,
+   "match_z": 3.37,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.63,
+   "match_p_mech_key": 0.24,
+   "match_p_bad": 0.089,
+   "ab_ref_cosine": 0.614,
+   "ab_ref_summary": "A = ref.wav, B = breath-puff.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.3). CLAP hears them as related (cosine 0.61). B is darker (brightness 4.5 kHz vs 6.4 kHz), shorter (sounding length 0.03 s vs 0.06 s), with a shorter tail (23 ms vs 52 ms) and with more low end (energy below 250 Hz -1 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a stutter glitch transition",
+     3.19
+    ],
+    [
+     "a digital glitch",
+     3.18
+    ],
+    [
+     "a zipper",
+     2.56
+    ],
+    [
+     "a scroll wheel tick",
+     2.53
+    ],
+    [
+     "a ratchet clicking",
+     2.46
+    ]
+   ],
+   "sweep_bad_max_z": 3.19,
+   "sweep_brightness_hz": 7699,
+   "sweep_audioset": [
+    {
+     "label": "Sound effect",
+     "p": 0.04
+    }
+   ],
+   "sweep_lufs_level1": -41.5,
+   "sweep_2k5k_share_db": -8.8,
+   "sweep_centroid_hz": 4905,
+   "level": 1.0,
+   "level_capped": true,
+   "sweep_lufs_after": -41.5,
+   "sweep_delta_to_target": -0.2,
+   "sweep_momentary_max_after": -37.5,
+   "sweep_short_term_max_after": -40.6
+  },
+  "breath-feather": {
+   "direction": "breath",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.288,
+   "rms_dbfs": -40.7,
+   "crest_db": 23.6,
+   "attack_ms": 3.5,
+   "fall_ms_20_30_40": [
+    12.0,
+    24.0,
+    42.0
+   ],
+   "tonal_peak_db": 12.6,
+   "local_tonal_db_third_oct": 9.3,
+   "local_tonal_hz": 8657,
+   "tail_after_8ms_energy_db": -16.6,
+   "tail_tonal_db": 12.2,
+   "centroid_hz": 7938,
+   "bands_db": {
+    "0-250": -16.2,
+    "250-1000": -19.6,
+    "1000-3000": -10.5,
+    "3000-6000": -6.5,
+    "6000-12000": -3.0,
+    "12000-24000": -8.3
+   },
+   "band_rms_dist_to_ref_db": 4.7,
+   "length_ms": 70.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.31
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.83
+    ],
+    [
+     "an error buzz",
+     2.58
+    ],
+    [
+     "a crisp interface click",
+     2.23
+    ],
+    [
+     "a pen click",
+     2.21
+    ]
+   ],
+   "tick_bad_max_z": 2.58,
+   "earshot_tick_brightness_hz": 11893,
+   "earshot_tick_decay_ms": 36.0,
+   "match_z": 3.31,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.52,
+   "match_p_mech_key": 0.38,
+   "match_p_bad": 0.045,
+   "ab_ref_cosine": 0.611,
+   "ab_ref_summary": "A = ref.wav, B = breath-feather.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.3). CLAP hears them as related (cosine 0.61). B is 2 dB louder, brighter (brightness 11.9 kHz vs 6.4 kHz) and with less low end (energy below 250 Hz -19 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a ratchet clicking",
+     3.13
+    ],
+    [
+     "a fidget toy clicking",
+     3.09
+    ],
+    [
+     "a stutter glitch transition",
+     2.63
+    ],
+    [
+     "coins dropping",
+     2.56
+    ],
+    [
+     "a digital glitch",
+     2.55
+    ]
+   ],
+   "sweep_bad_max_z": 2.63,
+   "sweep_brightness_hz": 10172,
+   "sweep_audioset": [
+    {
+     "label": "Sound effect",
+     "p": 0.221
+    }
+   ],
+   "sweep_lufs_level1": -38.9,
+   "sweep_2k5k_share_db": -8.0,
+   "sweep_centroid_hz": 8035,
+   "level": 0.759,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.6,
+   "sweep_short_term_max_after": -40.5,
+   "finalist": true
+  },
+  "dialsoft-settle": {
+   "direction": "dialsoft",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.213,
+   "rms_dbfs": -40.4,
+   "crest_db": 23.3,
+   "attack_ms": 1.0,
+   "fall_ms_20_30_40": [
+    12.0,
+    18.0,
+    22.0
+   ],
+   "tonal_peak_db": 17.4,
+   "local_tonal_db_third_oct": 10.1,
+   "local_tonal_hz": 1916,
+   "tail_after_8ms_energy_db": -9.7,
+   "tail_tonal_db": 38.8,
+   "centroid_hz": 5777,
+   "bands_db": {
+    "0-250": -9.2,
+    "250-1000": -9.6,
+    "1000-3000": -8.7,
+    "3000-6000": -5.7,
+    "6000-12000": -5.8,
+    "12000-24000": -9.8
+   },
+   "band_rms_dist_to_ref_db": 3.6,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.31
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.94
+    ],
+    [
+     "a digital glitch",
+     2.73
+    ],
+    [
+     "an error buzz",
+     2.69
+    ],
+    [
+     "an enter key press",
+     2.55
+    ]
+   ],
+   "tick_bad_max_z": 2.73,
+   "earshot_tick_brightness_hz": 3678,
+   "earshot_tick_decay_ms": 23.0,
+   "match_z": 3.31,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.41,
+   "match_p_mech_key": 0.41,
+   "match_p_bad": 0.162,
+   "ab_ref_cosine": 0.61,
+   "ab_ref_summary": "A = ref.wav, B = dialsoft-settle.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.3). CLAP hears them as related (cosine 0.61). B is 2 dB louder, darker (brightness 3.7 kHz vs 6.4 kHz), with a shorter tail (23 ms vs 52 ms) and with more low end (energy below 250 Hz -2 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.9
+    ],
+    [
+     "a stutter glitch transition",
+     2.69
+    ],
+    [
+     "a wood creak",
+     2.64
+    ],
+    [
+     "a rubber stretch",
+     2.58
+    ],
+    [
+     "an error buzz",
+     2.38
+    ]
+   ],
+   "sweep_bad_max_z": 2.9,
+   "sweep_brightness_hz": 8237,
+   "sweep_audioset": [
+    {
+     "label": "Tick",
+     "p": 0.059
+    }
+   ],
+   "sweep_lufs_level1": -39.7,
+   "sweep_2k5k_share_db": -6.5,
+   "sweep_centroid_hz": 5654,
+   "level": 0.832,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.3,
+   "sweep_short_term_max_after": -40.4
+  },
+  "dialsoft-housing": {
+   "direction": "dialsoft",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.212,
+   "rms_dbfs": -41.0,
+   "crest_db": 23.9,
+   "attack_ms": 1.3,
+   "fall_ms_20_30_40": [
+    10.0,
+    12.0,
+    14.0
+   ],
+   "tonal_peak_db": 21.8,
+   "local_tonal_db_third_oct": 7.9,
+   "local_tonal_hz": 11675,
+   "tail_after_8ms_energy_db": -26.5,
+   "tail_tonal_db": 35.0,
+   "centroid_hz": 2799,
+   "bands_db": {
+    "0-250": -10.1,
+    "250-1000": -6.4,
+    "1000-3000": -3.8,
+    "3000-6000": -7.6,
+    "6000-12000": -12.8,
+    "12000-24000": -15.2
+   },
+   "band_rms_dist_to_ref_db": 6.7,
+   "length_ms": 65.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.12
+    ],
+    [
+     "a snare hit",
+     2.7
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.66
+    ],
+    [
+     "an error buzz",
+     2.56
+    ],
+    [
+     "a digital glitch",
+     2.55
+    ]
+   ],
+   "tick_bad_max_z": 2.56,
+   "earshot_tick_brightness_hz": 5500,
+   "earshot_tick_decay_ms": 16.0,
+   "match_z": 3.12,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.44,
+   "match_p_mech_key": 0.32,
+   "match_p_bad": 0.207,
+   "ab_ref_cosine": 0.622,
+   "ab_ref_summary": "A = ref.wav, B = dialsoft-housing.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.1). CLAP hears them as related (cosine 0.62). B is darker (brightness 5.5 kHz vs 6.4 kHz), shorter (sounding length 0.02 s vs 0.06 s) and with a shorter tail (16 ms vs 52 ms).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.82
+    ],
+    [
+     "a stutter glitch transition",
+     2.75
+    ],
+    [
+     "a crackling fire",
+     2.62
+    ],
+    [
+     "a record scratch",
+     2.57
+    ],
+    [
+     "a rubber stretch",
+     2.54
+    ]
+   ],
+   "sweep_bad_max_z": 2.82,
+   "sweep_brightness_hz": 5946,
+   "sweep_audioset": [
+    {
+     "label": "Fart",
+     "p": 0.12
+    }
+   ],
+   "sweep_lufs_level1": -40.2,
+   "sweep_2k5k_share_db": -4.5,
+   "sweep_centroid_hz": 2907,
+   "level": 0.881,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.1,
+   "sweep_short_term_max_after": -40.4
+  },
+  "dialsoft-pawl": {
+   "direction": "dialsoft",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.215,
+   "rms_dbfs": -40.4,
+   "crest_db": 23.4,
+   "attack_ms": 1.4,
+   "fall_ms_20_30_40": [
+    8.0,
+    10.0,
+    12.0
+   ],
+   "tonal_peak_db": 16.4,
+   "local_tonal_db_third_oct": 8.4,
+   "local_tonal_hz": 14693,
+   "tail_after_8ms_energy_db": -31.4,
+   "tail_tonal_db": 29.8,
+   "centroid_hz": 6001,
+   "bands_db": {
+    "0-250": -14.2,
+    "250-1000": -16.3,
+    "1000-3000": -5.3,
+    "3000-6000": -4.4,
+    "6000-12000": -9.8,
+    "12000-24000": -7.6
+   },
+   "band_rms_dist_to_ref_db": 5.9,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.07
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.73
+    ],
+    [
+     "an error buzz",
+     2.56
+    ],
+    [
+     "a digital glitch",
+     2.54
+    ],
+    [
+     "an enter key press",
+     2.44
+    ]
+   ],
+   "tick_bad_max_z": 2.56,
+   "earshot_tick_brightness_hz": 6614,
+   "earshot_tick_decay_ms": 15.0,
+   "match_z": 3.07,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.33,
+   "match_p_mech_key": 0.39,
+   "match_p_bad": 0.179,
+   "ab_ref_cosine": 0.642,
+   "ab_ref_summary": "A = ref.wav, B = dialsoft-pawl.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.0). CLAP hears them as related (cosine 0.64). B is 2 dB louder, shorter (sounding length 0.02 s vs 0.06 s), with a shorter tail (15 ms vs 52 ms) and with less low end (energy below 250 Hz -10 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a stutter glitch transition",
+     2.72
+    ],
+    [
+     "a digital glitch",
+     2.63
+    ],
+    [
+     "a crackling fire",
+     2.59
+    ],
+    [
+     "a ratchet clicking",
+     2.5
+    ],
+    [
+     "a scroll wheel tick",
+     2.33
+    ]
+   ],
+   "sweep_bad_max_z": 2.72,
+   "sweep_brightness_hz": 8499,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.063
+    }
+   ],
+   "sweep_lufs_level1": -39.3,
+   "sweep_2k5k_share_db": -2.5,
+   "sweep_centroid_hz": 5624,
+   "level": 0.794,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.3,
+   "sweep_short_term_max_after": -40.5
+  },
+  "felt-dome": {
+   "direction": "felt",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.198,
+   "rms_dbfs": -42.0,
+   "crest_db": 25.0,
+   "attack_ms": 3.2,
+   "fall_ms_20_30_40": [
+    12.0,
+    16.0,
+    48.0
+   ],
+   "tonal_peak_db": 21.6,
+   "local_tonal_db_third_oct": 7.0,
+   "local_tonal_hz": 8426,
+   "tail_after_8ms_energy_db": -27.5,
+   "tail_tonal_db": 19.7,
+   "centroid_hz": 2812,
+   "bands_db": {
+    "0-250": -10.0,
+    "250-1000": -5.5,
+    "1000-3000": -5.0,
+    "3000-6000": -8.0,
+    "6000-12000": -9.1,
+    "12000-24000": -16.0
+   },
+   "band_rms_dist_to_ref_db": 5.8,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.47
+    ],
+    [
+     "a single mechanical keyboard key press",
+     3.31
+    ],
+    [
+     "an error buzz",
+     2.53
+    ],
+    [
+     "a snare hit",
+     2.37
+    ],
+    [
+     "a digital glitch",
+     2.29
+    ]
+   ],
+   "tick_bad_max_z": 2.53,
+   "earshot_tick_brightness_hz": 6052,
+   "earshot_tick_decay_ms": 14.0,
+   "match_z": 3.47,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.27,
+   "match_p_mech_key": 0.72,
+   "match_p_bad": 0.01,
+   "ab_ref_cosine": 0.695,
+   "ab_ref_summary": "A = ref.wav, B = felt-dome.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.4). CLAP hears them as related (cosine 0.69). B is with a shorter tail (14 ms vs 52 ms) and with less low end (energy below 250 Hz -11 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.93
+    ],
+    [
+     "a stutter glitch transition",
+     2.83
+    ],
+    [
+     "a rubber stretch",
+     2.54
+    ],
+    [
+     "an error buzz",
+     2.4
+    ],
+    [
+     "a wood creak",
+     2.32
+    ]
+   ],
+   "sweep_bad_max_z": 2.93,
+   "sweep_brightness_hz": 6135,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.333
+    },
+    {
+     "label": "Sound effect",
+     "p": 0.083
+    },
+    {
+     "label": "Crackle",
+     "p": 0.053
+    }
+   ],
+   "sweep_lufs_level1": -41.7,
+   "sweep_2k5k_share_db": -5.2,
+   "sweep_centroid_hz": 2929,
+   "level": 1.0,
+   "level_capped": true,
+   "sweep_lufs_after": -41.7,
+   "sweep_delta_to_target": -0.4,
+   "sweep_momentary_max_after": -37.8,
+   "sweep_short_term_max_after": -40.8,
+   "finalist": true
+  },
+  "felt-pad": {
+   "direction": "felt",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.218,
+   "rms_dbfs": -38.9,
+   "crest_db": 21.8,
+   "attack_ms": 2.4,
+   "fall_ms_20_30_40": [
+    14.0,
+    18.0,
+    48.0
+   ],
+   "tonal_peak_db": 29.0,
+   "local_tonal_db_third_oct": 13.4,
+   "local_tonal_hz": 5889,
+   "tail_after_8ms_energy_db": -27.5,
+   "tail_tonal_db": 24.8,
+   "centroid_hz": 1501,
+   "bands_db": {
+    "0-250": -7.3,
+    "250-1000": -3.9,
+    "1000-3000": -6.1,
+    "3000-6000": -8.8,
+    "6000-12000": -16.9,
+    "12000-24000": -22.1
+   },
+   "band_rms_dist_to_ref_db": 9.1,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.45
+    ],
+    [
+     "a single mechanical keyboard key press",
+     3.08
+    ],
+    [
+     "an error buzz",
+     2.44
+    ],
+    [
+     "a snare hit",
+     2.29
+    ],
+    [
+     "a digital glitch",
+     2.2
+    ]
+   ],
+   "tick_bad_max_z": 2.44,
+   "earshot_tick_brightness_hz": 4333,
+   "earshot_tick_decay_ms": 12.0,
+   "match_z": 3.45,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.48,
+   "match_p_mech_key": 0.5,
+   "match_p_bad": 0.014,
+   "ab_ref_cosine": 0.649,
+   "ab_ref_summary": "A = ref.wav, B = felt-pad.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.4). CLAP hears them as related (cosine 0.65). B is darker (brightness 4.3 kHz vs 6.4 kHz) and with a shorter tail (12 ms vs 52 ms).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.69
+    ],
+    [
+     "a wood creak",
+     2.69
+    ],
+    [
+     "a stutter glitch transition",
+     2.62
+    ],
+    [
+     "a rubber stretch",
+     2.54
+    ],
+    [
+     "a balloon squeak",
+     2.38
+    ]
+   ],
+   "sweep_bad_max_z": 2.69,
+   "sweep_brightness_hz": 4562,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.649
+    },
+    {
+     "label": "Sound effect",
+     "p": 0.059
+    }
+   ],
+   "sweep_lufs_level1": -39.3,
+   "sweep_2k5k_share_db": -7.0,
+   "sweep_centroid_hz": 1638,
+   "level": 0.794,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.3,
+   "sweep_short_term_max_after": -40.4,
+   "finalist": true
+  },
+  "felt-hush": {
+   "direction": "felt",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.213,
+   "rms_dbfs": -39.7,
+   "crest_db": 22.6,
+   "attack_ms": 1.8,
+   "fall_ms_20_30_40": [
+    14.0,
+    18.0,
+    52.0
+   ],
+   "tonal_peak_db": 18.9,
+   "local_tonal_db_third_oct": 11.3,
+   "local_tonal_hz": 6293,
+   "tail_after_8ms_energy_db": -25.5,
+   "tail_tonal_db": 16.5,
+   "centroid_hz": 3407,
+   "bands_db": {
+    "0-250": -17.2,
+    "250-1000": -10.1,
+    "1000-3000": -2.6,
+    "3000-6000": -7.6,
+    "6000-12000": -9.1,
+    "12000-24000": -14.5
+   },
+   "band_rms_dist_to_ref_db": 6.2,
+   "length_ms": 60.0,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.38
+    ],
+    [
+     "a single mechanical keyboard key press",
+     3.07
+    ],
+    [
+     "an error buzz",
+     2.31
+    ],
+    [
+     "a hand clap",
+     2.25
+    ],
+    [
+     "a digital glitch",
+     2.19
+    ]
+   ],
+   "tick_bad_max_z": 2.31,
+   "earshot_tick_brightness_hz": 6873,
+   "earshot_tick_decay_ms": 19.0,
+   "match_z": 3.38,
+   "match_rank": 2,
+   "match_p_vs_alts": 0.42,
+   "match_p_mech_key": 0.55,
+   "match_p_bad": 0.014,
+   "ab_ref_cosine": 0.688,
+   "ab_ref_summary": "A = ref.wav, B = felt-hush.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.3). CLAP hears them as related (cosine 0.69). B is 2 dB louder, with a shorter tail (19 ms vs 52 ms) and with less low end (energy below 250 Hz -19 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.81
+    ],
+    [
+     "a stutter glitch transition",
+     2.76
+    ],
+    [
+     "a rubber stretch",
+     2.67
+    ],
+    [
+     "a wood creak",
+     2.35
+    ],
+    [
+     "a balloon squeak",
+     2.33
+    ]
+   ],
+   "sweep_bad_max_z": 2.81,
+   "sweep_brightness_hz": 6664,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.504
+    },
+    {
+     "label": "Sound effect",
+     "p": 0.079
+    },
+    {
+     "label": "Mechanisms",
+     "p": 0.072
+    }
+   ],
+   "sweep_lufs_level1": -38.9,
+   "sweep_2k5k_share_db": -3.9,
+   "sweep_centroid_hz": 3533,
+   "level": 0.759,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.3,
+   "sweep_short_term_max_after": -40.4,
+   "finalist": true
+  },
+  "tock-round": {
+   "direction": "tock",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.245,
+   "rms_dbfs": -39.8,
+   "crest_db": 22.8,
+   "attack_ms": 1.2,
+   "fall_ms_20_30_40": [
+    8.0,
+    16.0,
+    22.0
+   ],
+   "tonal_peak_db": 19.1,
+   "local_tonal_db_third_oct": 9.3,
+   "local_tonal_hz": 5865,
+   "tail_after_8ms_energy_db": -20.7,
+   "tail_tonal_db": 24.9,
+   "centroid_hz": 6775,
+   "bands_db": {
+    "0-250": -14.9,
+    "250-1000": -5.5,
+    "1000-3000": -10.0,
+    "3000-6000": -8.0,
+    "6000-12000": -7.0,
+    "12000-24000": -6.4
+   },
+   "band_rms_dist_to_ref_db": 4.5,
+   "length_ms": 75.9,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.4
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.84
+    ],
+    [
+     "a snare hit",
+     2.76
+    ],
+    [
+     "a digital glitch",
+     2.57
+    ],
+    [
+     "a kick drum",
+     2.34
+    ]
+   ],
+   "tick_bad_max_z": 2.57,
+   "earshot_tick_brightness_hz": 7432,
+   "earshot_tick_decay_ms": 19.0,
+   "match_z": 3.4,
+   "match_rank": 2,
+   "match_p_vs_alts": 0.61,
+   "match_p_mech_key": 0.28,
+   "match_p_bad": 0.079,
+   "ab_ref_cosine": 0.493,
+   "ab_ref_summary": "A = ref.wav, B = tock-round.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.4). CLAP hears them as different sounds (cosine 0.49). B is 3 dB louder, brighter (brightness 7.4 kHz vs 6.4 kHz), with a shorter tail (19 ms vs 52 ms) and with less low end (energy below 250 Hz -21 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a digital glitch",
+     2.95
+    ],
+    [
+     "a rubber stretch",
+     2.85
+    ],
+    [
+     "a stutter glitch transition",
+     2.84
+    ],
+    [
+     "a wood creak",
+     2.3
+    ],
+    [
+     "a record scratch",
+     2.28
+    ]
+   ],
+   "sweep_bad_max_z": 2.95,
+   "sweep_brightness_hz": 9152,
+   "sweep_audioset": [
+    {
+     "label": "Sound effect",
+     "p": 0.044
+    }
+   ],
+   "sweep_lufs_level1": -38.6,
+   "sweep_2k5k_share_db": -7.5,
+   "sweep_centroid_hz": 6005,
+   "level": 0.733,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.4,
+   "sweep_short_term_max_after": -40.5
+  },
+  "tock-wood": {
+   "direction": "tock",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.199,
+   "rms_dbfs": -40.8,
+   "crest_db": 23.7,
+   "attack_ms": 1.2,
+   "fall_ms_20_30_40": [
+    8.0,
+    12.0,
+    16.0
+   ],
+   "tonal_peak_db": 21.0,
+   "local_tonal_db_third_oct": 7.6,
+   "local_tonal_hz": 8323,
+   "tail_after_8ms_energy_db": -21.1,
+   "tail_tonal_db": 36.4,
+   "centroid_hz": 3619,
+   "bands_db": {
+    "0-250": -22.3,
+    "250-1000": -2.5,
+    "1000-3000": -9.3,
+    "3000-6000": -9.0,
+    "6000-12000": -10.6,
+    "12000-24000": -10.2
+   },
+   "band_rms_dist_to_ref_db": 7.3,
+   "length_ms": 78.5,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.44
+    ],
+    [
+     "a single mechanical keyboard key press",
+     2.95
+    ],
+    [
+     "a crisp interface click",
+     2.72
+    ],
+    [
+     "a digital glitch",
+     2.59
+    ],
+    [
+     "a stutter glitch transition",
+     2.58
+    ]
+   ],
+   "tick_bad_max_z": 2.59,
+   "earshot_tick_brightness_hz": 6674,
+   "earshot_tick_decay_ms": 17.0,
+   "match_z": 3.44,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.46,
+   "match_p_mech_key": 0.36,
+   "match_p_bad": 0.086,
+   "ab_ref_cosine": 0.519,
+   "ab_ref_summary": "A = ref.wav, B = tock-wood.wav. A is slightly closer to 'a soft key release click' (z A +3.8, B +3.4). CLAP hears them as related (cosine 0.52). B is shorter (sounding length 0.02 s vs 0.06 s), with a shorter tail (17 ms vs 52 ms) and with less low end (energy below 250 Hz -38 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a stutter glitch transition",
+     3.27
+    ],
+    [
+     "a digital glitch",
+     2.72
+    ],
+    [
+     "a scroll wheel tick",
+     2.69
+    ],
+    [
+     "a ratchet clicking",
+     2.39
+    ],
+    [
+     "a keyboard typing fast",
+     2.37
+    ]
+   ],
+   "sweep_bad_max_z": 3.27,
+   "sweep_brightness_hz": 7554,
+   "sweep_audioset": [
+    {
+     "label": "Creak",
+     "p": 0.048
+    }
+   ],
+   "sweep_lufs_level1": -39.9,
+   "sweep_2k5k_share_db": -10.0,
+   "sweep_centroid_hz": 3252,
+   "level": 0.851,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.2,
+   "sweep_short_term_max_after": -40.4
+  },
+  "tock-air": {
+   "direction": "tock",
+   "reproduces": true,
+   "bad_keys": [],
+   "xcorr_ref": 0.211,
+   "rms_dbfs": -40.7,
+   "crest_db": 23.6,
+   "attack_ms": 1.3,
+   "fall_ms_20_30_40": [
+    6.0,
+    10.0,
+    12.0
+   ],
+   "tonal_peak_db": 20.0,
+   "local_tonal_db_third_oct": 9.6,
+   "local_tonal_hz": 14253,
+   "tail_after_8ms_energy_db": -30.5,
+   "tail_tonal_db": 36.2,
+   "centroid_hz": 9173,
+   "bands_db": {
+    "0-250": -26.0,
+    "250-1000": -4.9,
+    "1000-3000": -14.8,
+    "3000-6000": -11.1,
+    "6000-12000": -7.6,
+    "12000-24000": -4.2
+   },
+   "band_rms_dist_to_ref_db": 7.7,
+   "length_ms": 71.8,
+   "earshot_tick_top5": [
+    [
+     "a soft key release click",
+     3.56
+    ],
+    [
+     "a single mechanical keyboard key press",
+     3.24
+    ],
+    [
+     "an enter key press",
+     2.78
+    ],
+    [
+     "a scroll wheel tick",
+     2.65
+    ],
+    [
+     "a camera shutter click",
+     2.46
+    ]
+   ],
+   "tick_bad_max_z": null,
+   "earshot_tick_brightness_hz": 8248,
+   "earshot_tick_decay_ms": 13.0,
+   "match_z": 3.56,
+   "match_rank": 1,
+   "match_p_vs_alts": 0.4,
+   "match_p_mech_key": 0.52,
+   "match_p_bad": 0.009,
+   "ab_ref_cosine": 0.63,
+   "ab_ref_summary": "A = ref.wav, B = tock-air.wav. Neither is closer to 'a soft key release click' (z A +3.8, B +3.5). CLAP hears them as related (cosine 0.63). B is 2 dB louder, brighter (brightness 8.2 kHz vs 6.4 kHz), with a shorter tail (13 ms vs 52 ms) and with less low end (energy below 250 Hz -45 dB vs -5 dB).",
+   "sweep_top5": [
+    [
+     "a stutter glitch transition",
+     3.37
+    ],
+    [
+     "a digital glitch",
+     2.94
+    ],
+    [
+     "a scroll wheel tick",
+     2.82
+    ],
+    [
+     "a keyboard typing fast",
+     2.55
+    ],
+    [
+     "a ratchet clicking",
+     2.38
+    ]
+   ],
+   "sweep_bad_max_z": 3.37,
+   "sweep_brightness_hz": 10511,
+   "sweep_audioset": [
+    {
+     "label": "Sound effect",
+     "p": 0.056
+    }
+   ],
+   "sweep_lufs_level1": -40.0,
+   "sweep_2k5k_share_db": -13.0,
+   "sweep_centroid_hz": 7671,
+   "level": 0.861,
+   "level_capped": false,
+   "sweep_lufs_after": -41.3,
+   "sweep_delta_to_target": 0.0,
+   "sweep_momentary_max_after": -37.6,
+   "sweep_short_term_max_after": -40.5,
+   "finalist": true
+  }
+ },
+ "rejected": {
+  "breath-puff": "Sweep reads as 'a stutter glitch transition' z +3.19 / 'a digital glitch' +3.18 / 'a zipper' +2.56; tick top-3 includes 'a digital glitch' +2.53; level capped at 1.0. Its dark role is covered better by felt-pad.",
+  "dialsoft-pawl": "Sweep energy share 2-5 kHz is -2.5 dB, as concentrated in the harsh band as the current Dial (-2.4; ref -12.7); weakest key-release match (z +3.07); forced choice 15% digital glitch, 18% bad terms in total.",
+  "dialsoft-settle": "Worst tick readings: 'a digital glitch' +2.73 and 'an error buzz' +2.69 in the top 4; forced choice 16% bad terms; sweep reads 'a digital glitch' +2.9 and 'an error buzz' +2.38; the late thud leaves -9.7 dB of energy after 8 ms (ref -16.1).",
+  "dialsoft-housing": "Most bad forced-choice share (21%, glitch 18%); tonal 21.8 dB at 561 Hz; sweep reads 'a digital glitch' +2.82, 'a crackling fire' and AudioSet 'Fart' 0.12; band shape 6.7 dB from ref.",
+  "tock-round": "CLAP hears it as a different sound from the ref (cosine 0.49, the lowest); tick top 5 includes 'a snare hit' +2.76, 'a digital glitch' +2.57 and 'a kick drum' +2.34; sweep 'a digital glitch' +2.95.",
+  "tock-wood": "CLAP cosine to ref 0.52; nearly nothing below 250 Hz (-22.3 dB) and band shape 7.3 dB from ref; sweep reads 'a stutter glitch transition' +3.27 first."
+ },
+ "method": "see StructuredOutput method"
+}

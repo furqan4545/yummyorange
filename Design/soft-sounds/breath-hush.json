@@ -1,0 +1,51 @@
+{
+ "length": 0.06,
+ "seed": 1592644001,
+ "post_lowpass": 11000.0,
+ "calls": [
+  {
+   "fn": "strike",
+   "t0": 0.0,
+   "gain": 0.1585,
+   "burst": 0.00415,
+   "noise": 1.0,
+   "rise": 0.00415,
+   "tilt": 0,
+   "highpass": 3229.0,
+   "lowpass": 3000
+  },
+  {
+   "fn": "strike",
+   "t0": 0.0042,
+   "gain": 1.0,
+   "burst": 0.00115,
+   "noise": 1.0,
+   "rise": 0.001,
+   "tilt": 0,
+   "highpass": 3593.0,
+   "lowpass": 6357.0
+  },
+  {
+   "fn": "thump",
+   "t0": 0.0044,
+   "gain": 0.0647,
+   "f0": 316.0,
+   "f1": 71.0,
+   "ftau": 0.00642,
+   "decay": 0.00343,
+   "rise": 0.00194
+  },
+  {
+   "fn": "strike",
+   "t0": 0.0042,
+   "gain": 0.0448,
+   "burst": 0.015,
+   "noise": 1.0,
+   "rise": 0.001,
+   "tilt": 0,
+   "highpass": 900.0,
+   "lowpass": 2000.0
+  }
+ ],
+ "level": 0.933
+}
