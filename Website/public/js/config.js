@@ -7,7 +7,7 @@
    The object keeps its old internal name, window.DROPWHEEL: Tools/updates/release.sh looks for it in the live site's
    config.js to make sure UPDATE_FEED_URL points at this site. Visitors never see it. */
 window.DROPWHEEL = {
-  version: "1.0.4",
+  version: "1.0.5",
   dmgURL: "downloads/YummyOrange.dmg",              // the notarized DMG, e.g. "downloads/YummyOrange.dmg" or a full https:// URL
   notarized: true,        // true once the app in the DMG is notarized and stapled (hides the Open Anyway step)
   price: "",               // e.g. "Free" or "$9.99"; the Price row stays hidden while empty

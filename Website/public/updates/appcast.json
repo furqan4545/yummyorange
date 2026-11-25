@@ -1,12 +1,12 @@
 {
-  "build" : "5",
-  "length" : 4256183,
+  "build" : "6",
+  "length" : 4280720,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T19:01:18Z",
-  "releaseNotes" : "Nothing to install for audio and video: if your Mac has no ffmpeg, YummyOrange downloads its own (about 11 MB, once).",
+  "published" : "2026-11-25T20:55:58Z",
+  "releaseNotes" : "Edit PDF works on scanned pages: text you change is replaced on the page, in the closest matching font.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "7616b2df792a9db267cd1b663830e51ab6138a926e7f29cd402b3220a217511b",
-  "signature" : "QgZnWMIcI91MRV09cRbWEpwPn7qCXZ6AvoZc4TlCvSohQy2nO993s7eN7BwjP8Qfzo5gvuASL6I2nOwz8osoDw==",
-  "url" : "../downloads/YummyOrange-1.0.4-5.zip",
-  "version" : "1.0.4"
+  "sha256" : "3e32f2e0f7936b51a3a564466b3e9d86e5b93d36e3ff9ea68a685dfe1bc5926a",
+  "signature" : "uiyuTaQQ7TwPjMPPU15EF8VN091QmZftpe7lbJQPmre9ycaNg9Bp7MIqqohR9GHXSJ+Xx5ojK756flp38NbMAQ==",
+  "url" : "../downloads/YummyOrange-1.0.5-6.zip",
+  "version" : "1.0.5"
 }
