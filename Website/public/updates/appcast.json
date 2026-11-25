@@ -1,12 +1,12 @@
 {
-  "build" : "3",
-  "length" : 4209555,
+  "build" : "4",
+  "length" : 4209545,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T11:36:06Z",
-  "releaseNotes" : "Settings › About shows the YummyOrange icon and Epoxlab LLC. New copies start with the Pop sound and haptics off.",
+  "published" : "2026-11-25T11:49:48Z",
+  "releaseNotes" : "YummyOrange now looks for updates every hour, so you hear about new versions sooner.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "0eb3503794392a2ff502461ace3f4ce1dcebf0dae6d4ea56a422d26465b7cb5f",
-  "signature" : "GEVUCyhXVz4qdCIkWc9/9I1yLAn+xWU6Nd+T0R1GmuCU+XBK6r1Ac2fa3+b0C0no2cwBgd2YLkgi0ZbaAZKyDg==",
-  "url" : "../downloads/YummyOrange-1.0.2-3.zip",
-  "version" : "1.0.2"
+  "sha256" : "d5c74be24650b09de3575954c788e36ae6ad03b59af49e9b6984fdd7b4a99dc3",
+  "signature" : "6YxxE+zgnVvpldmCTPv8JfYOvR4y0eZcerh62jr7i1iiAT1DiXr5hSgwalb23Mhj8FhGLjddirzG7fVfh+wEAA==",
+  "url" : "../downloads/YummyOrange-1.0.3-4.zip",
+  "version" : "1.0.3"
 }
