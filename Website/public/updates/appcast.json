@@ -1,12 +1,12 @@
 {
-  "build" : "4",
-  "length" : 4209545,
+  "build" : "5",
+  "length" : 4256183,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T11:49:48Z",
-  "releaseNotes" : "YummyOrange now looks for updates every hour, so you hear about new versions sooner.",
+  "published" : "2026-11-25T19:01:18Z",
+  "releaseNotes" : "Nothing to install for audio and video: if your Mac has no ffmpeg, YummyOrange downloads its own (about 11 MB, once).",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "d5c74be24650b09de3575954c788e36ae6ad03b59af49e9b6984fdd7b4a99dc3",
-  "signature" : "6YxxE+zgnVvpldmCTPv8JfYOvR4y0eZcerh62jr7i1iiAT1DiXr5hSgwalb23Mhj8FhGLjddirzG7fVfh+wEAA==",
-  "url" : "../downloads/YummyOrange-1.0.3-4.zip",
-  "version" : "1.0.3"
+  "sha256" : "7616b2df792a9db267cd1b663830e51ab6138a926e7f29cd402b3220a217511b",
+  "signature" : "QgZnWMIcI91MRV09cRbWEpwPn7qCXZ6AvoZc4TlCvSohQy2nO993s7eN7BwjP8Qfzo5gvuASL6I2nOwz8osoDw==",
+  "url" : "../downloads/YummyOrange-1.0.4-5.zip",
+  "version" : "1.0.4"
 }
