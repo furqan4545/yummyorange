@@ -691,5 +691,5 @@ elif (( TEST_RELEASE )); then
 else
   print "\nYummyOrange $VERSION ($BUILD_NUMBER) is ready ($(minutes $(( SECONDS - RELEASE_STARTED )))). Add its notes to"
   print "Website/public/release-notes.html, then commit and push Website/public; once Vercel has deployed it, installed copies"
-  print "find the update within six hours."
+  print "find the update within an hour."
 fi

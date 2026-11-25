@@ -475,7 +475,7 @@ struct UpdatesRow: View {
 /// The words under Check for updates automatically (what it does, or why this copy can't) and in the Updates row.
 enum UpdateSetting {
     static func detail(_ unavailableReason: String?) -> String {
-        unavailableReason ?? "Looks for new versions a few times a day and tells you when one is available. Nothing installs until you choose."
+        unavailableReason ?? "Looks for a new version every hour and tells you when one is out. Nothing installs until you choose."
     }
 
     /// Why this copy can't update, what the updater is doing, the update it found, or when it last checked.

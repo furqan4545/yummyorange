@@ -658,20 +658,20 @@ enum UpdaterTests {
     static func policy(_ c: Checker) {
         Settings.defaults = SettingsMemoryStore()
         let now = Date(timeIntervalSince1970: 2_000_000_000)
-        c.check("a check is due with none before, 6 h after the last, or when the clock went back; not after 5 h",
+        c.check("a check is due with none before, an hour after the last, or when the clock went back; not after 50 minutes",
                 UpdatePolicy.isDue(lastCheck: nil, now: now, every: UpdatePolicy.interval)
-                && UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-6 * 3600), now: now, every: UpdatePolicy.interval)
+                && UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-3600), now: now, every: UpdatePolicy.interval)
                 && UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(3600), now: now, every: UpdatePolicy.interval)
-                && !UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-5 * 3600), now: now, every: UpdatePolicy.interval))
-        c.check("after a check that got no answer, the next is tried 15 minutes later, not 6 hours (nor at once, over and over)",
+                && !UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-50 * 60), now: now, every: UpdatePolicy.interval))
+        c.check("after a check that got no answer, the next is tried 15 minutes later, not an hour (nor at once, over and over)",
                 !UpdatePolicy.isDue(lastCheck: nil, lastAttempt: now.addingTimeInterval(-10 * 60), now: now, every: UpdatePolicy.interval)
                 && UpdatePolicy.isDue(lastCheck: nil, lastAttempt: now.addingTimeInterval(-15 * 60), now: now, every: UpdatePolicy.interval)
-                && UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-7 * 3600), lastAttempt: now.addingTimeInterval(-16 * 60), now: now, every: UpdatePolicy.interval)
-                && !UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-3600), lastAttempt: now.addingTimeInterval(-3600), now: now, every: UpdatePolicy.interval)
+                && UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-2 * 3600), lastAttempt: now.addingTimeInterval(-16 * 60), now: now, every: UpdatePolicy.interval)
+                && !UpdatePolicy.isDue(lastCheck: now.addingTimeInterval(-30 * 60), lastAttempt: now.addingTimeInterval(-30 * 60), now: now, every: UpdatePolicy.interval)
                 && UpdatePolicy.isDue(lastCheck: nil, lastAttempt: now.addingTimeInterval(3600), now: now, every: UpdatePolicy.interval)
                 && UpdatePolicy.retry == 15 * 60)
         c.check("the schedule: 10 s after launch, every 6 h, on wake if the last check is an hour old, a 24-hour snooze",
-                UpdatePolicy.launchDelay == 10 && UpdatePolicy.interval == 6 * 3600 && UpdatePolicy.wakeGap == 3600 && UpdatePolicy.snooze == 24 * 3600
+                UpdatePolicy.launchDelay == 10 && UpdatePolicy.interval == 3600 && UpdatePolicy.wakeGap == 3600 && UpdatePolicy.snooze == 24 * 3600
                 && UpdatePolicy.tick <= 15 * 60)
         let two = item(build: "2"), three = item(version: "1.0.2", build: "3")
         c.check("a new update is announced", UpdatePolicy.shouldNotify(two, now: now) && UpdatePolicy.showsMenuItem(two))
@@ -1250,7 +1250,7 @@ enum UpdaterTests {
         updater.reschedule(launch: false)
         c.check("the automatic checks follow the setting (on: scheduled; off: stopped)", on && !updater.isScheduled)
         c.check("Settings explains it, or says why this copy can’t update",
-                UpdateSetting.detail(nil) == "Looks for new versions a few times a day and tells you when one is available. Nothing installs until you choose."
+                UpdateSetting.detail(nil) == "Looks for a new version every hour and tells you when one is out. Nothing installs until you choose."
                 && UpdateSetting.detail("Not here.") == "Not here.")
         let about = idleUpdater()
         let at = Date(timeIntervalSince1970: 2_000_000_000)

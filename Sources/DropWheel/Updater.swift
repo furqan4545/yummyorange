@@ -959,7 +959,7 @@ enum UpdatePreferences {
         get { (defaults.object(forKey: Key.lastCheck) as? Double).map(Date.init(timeIntervalSince1970:)) }
         set { defaults.set(newValue?.timeIntervalSince1970, forKey: Key.lastCheck) }
     }
-    /// The last check started, answered or not (offline, say), so a failed one is tried again soon, not in 6 hours.
+    /// The last check started, answered or not (offline, say), so a failed one is tried again soon, not in an hour.
     static var lastAttempt: Date? {
         get { (defaults.object(forKey: Key.lastAttempt) as? Double).map(Date.init(timeIntervalSince1970:)) }
         set { defaults.set(newValue?.timeIntervalSince1970, forKey: Key.lastAttempt) }
@@ -968,8 +968,8 @@ enum UpdatePreferences {
 
 enum UpdatePolicy {
     static let launchDelay: TimeInterval = 10
-    static let interval: TimeInterval = 6 * 3600
-    /// How often the timer looks whether a check is due (a 6-hour timer would drift while the Mac sleeps).
+    static let interval: TimeInterval = 3600
+    /// How often the timer looks whether a check is due (an hourly timer would drift while the Mac sleeps).
     static let tick: TimeInterval = 15 * 60
     /// After a check that failed (no network, say), the next one is tried this much later.
     static let retry: TimeInterval = 15 * 60
@@ -1691,7 +1691,7 @@ final class Updater {
         let manual = phase == .checking(manual: true)
         phase = .idle
         if manual { ui.endProgress(nil) }
-        // Only an answer counts as a check: after a failure the timer tries again in 15 minutes, not 6 hours.
+        // Only an answer counts as a check: after a failure the timer tries again in 15 minutes, not an hour.
         if case .success = result { UpdatePreferences.lastCheck = now() }
         switch result {
         case .success(.available(let item)):

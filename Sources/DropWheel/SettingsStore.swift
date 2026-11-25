@@ -226,7 +226,7 @@ enum Settings {
         set { store(newValue, Key.welcomeCard) }
     }
 
-    /// Look for a new version at launch, every 6 hours and on wake (Settings › General). Check for Updates… in the
+    /// Look for a new version at launch, every hour and on wake (Settings › General). Check for Updates… in the
     /// menu works either way.
     static var checkForUpdatesAutomatically: Bool {
         get { bool(Key.autoUpdate, true) }
