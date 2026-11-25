@@ -41,6 +41,7 @@ enum PDFEditTests {
             try addDeleteClean(c, dir)
             try documentsAndCLI(c, dir)
             try realFixtures(c, dir)
+            try scannedText(c, dir)
             try hostileFiles(c, dir)
             c.lines.append("time \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         } catch {
@@ -871,14 +872,14 @@ enum PDFEditTests {
             let d2 = try Data(contentsOf: out)
             c.check(text(d2, 0).contains("Reviewed") && d2.prefix(scan.count) == scan, "scan: added text saved incrementally")
         }
-        // OCR text over a scan: banner and the hidden-text note; edits change only the searchable text.
+        // OCR text over a blank scan (no ink to read): the edit is still drawn, in a plain font, and searchable.
         let so = try session(ocrPDF(), "ocr.pdf", dir)
         c.check(so.banners(page: 0) == [.ocrOnly], "OCR: banner “\(PDFEditBanner.ocrOnly.message)”")
         if let id = line(so, "Scanned words") {
-            c.check(so.notes(id) == [.hiddenText], "OCR: note “\(PDFLineNote.hiddenText.message)”")
+            c.check(so.notes(id) == [.scannedText(font: "Helvetica")], "OCR: note “\(PDFLineNote.scannedText(font: "Helvetica").message)”")
             try so.setText("Scanned text", for: id)
             let out = try so.save()
-            c.check(text((try Data(contentsOf: out)), 0).contains("Scanned text"), "OCR: hidden text edited and searchable")
+            c.check(text((try Data(contentsOf: out)), 0).contains("Scanned text"), "OCR: edited text drawn and searchable")
         }
         // Remove replaced text: the old wording is gone from every stream, the picture is the same.
         let sc = try session(report, "clean.pdf", dir)

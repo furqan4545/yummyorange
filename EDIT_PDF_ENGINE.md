@@ -1,6 +1,6 @@
 # Edit PDF engine: API for the window builder
 
-Everything here is in `Sources/DropWheel/` and is checked by `--selftest pdf-edit` (193 checks). The engine never
+Everything here is in `Sources/DropWheel/` and is checked by `--selftest pdf-edit` (267 checks). The engine never
 writes the input file. Its output is always "<name> edited.pdf", and Save writes nothing unless the result passes the
 verification gate.
 
@@ -9,6 +9,7 @@ verification gate.
 | `PDFEditTool.swift` | `PDFEditTool` (the FeatureModule): the petal, the `present` hook, the command-line `run`, self-test routing |
 | `PDFEditSession.swift` | `PDFEditSession` (the API below), `PDFEditBuilder` (edits → one incremental update), `PDFEditAnalysis` (reads the candidate back) |
 | `PDFContentRuns.swift` | `PDFPageContent`: runs, lines, images, glyph quads, `PDFEditGeometry` |
+| `PDFEditScanText.swift` | `PDFScanText`, `PDFScanLook`: OCR lines over a scan (paper and ink colour, baseline, word starts and the closest installed font, read from the picture) |
 | `PDFEditFonts.swift` | `PDFEditFont` (decode, encode, evidence), `PDFFontMatch` (installed or closest font, editor font), `PDFTransplant` |
 | `PDFEditVerify.swift` | the gate |
 | `PDFObjectFile.swift`, `PDFObjectWriter.swift` | object parser, incremental writer, compaction writer |
@@ -91,7 +92,7 @@ and the self-test checks that.
 | `quad`, `originalQuad` | `quad` is re-read from the candidate after an edit. The outline grows and shrinks with the new text. |
 | `origin`, `direction`, `angle`, `pointSize`, `color` | Position, angle, size and colour for the inline editor. `color` is sRGB, from the run's fill colour. |
 | `availability` | `.editable` or `.readOnly(reason)` (§4) |
-| `notes: [PDFLineNote]` | Inspector notes, each with `.message`: `.hiddenText`, `.clippingText`, `.drawnGlyphs` (Type 3), `.rotated(angle)` (not a multiple of 90°: edit in a popover) |
+| `notes: [PDFLineNote]` | Inspector notes, each with `.message`: `.hiddenText` (invisible text with no picture under it), `.scannedText(font:)` (OCR over a scan: see §5a), `.clippingText`, `.drawnGlyphs` (Type 3), `.rotated(angle)` (not a multiple of 90°: edit in a popover) |
 | `fontDescription` | The font source line of the inspector, for example "Embedded subset of Monaco", "Helvetica, a standard PDF font", "Arial, not embedded" or "Glyphs drawn by the PDF itself (…)". |
 | `substitutions: [PDFFontSubstitution]` | Characters taken from a font on this Mac. `.description` gives "5 characters from Monaco (this Mac)", "… (closest match on this Mac)", or "…, approximate size" for Type 3 fonts. |
 | `spacing`, `scope` | The edit's current spacing and scope |
@@ -205,7 +206,7 @@ the inline NSTextView while the line is being edited. It is cached per line unti
 
 **Banners:**
 - `session.banners(page: i) -> [PDFEditBanner]` gives `.signed`, `.certified`, `.scanned` (an image covers at least
-  half the page and there is no text), `.ocrOnly` (the image is covered by hidden text only) and `.unreadable(why)`.
+  half the page and there is no text), `.ocrOnly` (the image is covered by hidden text only; edits there are drawn over the picture, §5a) and `.unreadable(why)`.
 - `session.banner(for: id)` gives `.sharedText(pages: n)` for the selected line; pair it with All Pages and Only This Page.
 - Each banner's `.message` is the sentence to show, for example "This text appears on 2 pages." or "This PDF is signed.
   Saving keeps the signed version, but viewers will show it was changed after signing."
@@ -255,3 +256,26 @@ program is `Contents/MacOS/YummyOrange`.
 - The `x` and `y` of `add` are page-space points.
 
 The command prints the output path.
+
+## 5a. Scanned pages with OCR text
+
+OCR text is invisible (render mode 3) over a picture, so changing only that text changes nothing you can see. For a
+hidden line on a horizontal baseline whose centre sits on a placed image, `session.scanLook(id)` reads the original
+page's pixels under the line (cached per line; `info` only reads it for edited lines, `editorFont` reads it on demand):
+
+- **Paper:** the most common colour inside the OCR box (a highlighted line keeps its highlight). **Ink:** the mean of
+  the pixels near the darkest. The cover is the ink box plus a little room, widened to the OCR box, kept inside the
+  line's band (never past halfway to the lines above and below, or to other text on the same baseline).
+- **Baseline:** the lowest well-filled row of ink. **Words:** ink columns split at gaps over 0.16 em.
+- **Font:** every installed upright member (regular to bold) of a list of common families is drawn word by word on the
+  picture's words, sized so the words are as wide as the ink. Score: overlap with a pixel of tolerance, less a weight
+  term (stroke thickness, and the amount of ink). A font already chosen for another line of the document wins within
+  0.02, so one typeface doesn't come out in two lookalikes. `DW_SCAN_DEBUG=1` prints every score.
+
+The builder then deletes the invisible text (as Delete does), paints the cover in the paper colour, and draws the new
+text visibly in the matched font, size and ink colour, all in the appended stream (covers first, then each line's text
+object, then Add Text). Unchanged words at the start of the line keep their own pixels: the cover starts at the first
+changed word and those words are written again as invisible text, so the line reads back whole. Delete covers the line.
+Fit Width squeezes the new words to the old ink width. The gate counts the covers as changed areas, checks ink under
+every new visible glyph and reads the text back. The old words stay in the picture under the cover (Remove replaced
+text takes out the old OCR text, not pixels).

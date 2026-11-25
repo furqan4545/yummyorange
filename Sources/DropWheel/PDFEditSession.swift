@@ -88,6 +88,8 @@ enum PDFLineAvailability: Equatable {
 enum PDFLineNote: Equatable {
     /// Invisible text (render mode 3), usually OCR over a scan.
     case hiddenText
+    /// OCR text over a scan whose picture can be read: edits are painted over the picture.
+    case scannedText(font: String)
     /// Text used as a clipping path: only characters its font already has can be typed.
     case clippingText
     /// A Type 3 font: new characters come from a font on this Mac at an approximate size.
@@ -98,6 +100,7 @@ enum PDFLineNote: Equatable {
     var message: String {
         switch self {
         case .hiddenText: return "Hidden OCR text. Edits change only the searchable text."
+        case .scannedText(let font): return "Scanned text. Changes cover the old words in the picture and use \(font), the closest font on this Mac."
         case .clippingText: return "This text shapes a clipping path, so only characters its font already has can be typed."
         case .drawnGlyphs: return "This font is drawn by the PDF itself. New characters come from a font on this Mac and are approximate."
         case .rotated(let a): return "This text is rotated \(Int(a.rounded()))°."
@@ -184,7 +187,7 @@ enum PDFEditBanner: Equatable {
         case .signed: return "This PDF is signed. Saving keeps the signed version, but viewers will show it was changed after signing."
         case .certified: return "This PDF is certified against changes, so its text can’t be edited."
         case .scanned: return "This page is a scanned image. Its text can’t be edited, but you can add text."
-        case .ocrOnly: return "This page is a scanned image with recognized text. Edits change only the hidden, searchable text."
+        case .ocrOnly: return "This page is a scanned image with recognized text. Edited text covers the old words in the picture."
         case .sharedText(let n): return "This text appears on \(n) pages."
         case .unreadable(let why): return why
         }
@@ -224,6 +227,8 @@ final class PDFEditSession {
     private var blankedPreviews: [PDFLineID: PDFDocument] = [:]
     private var hiddenAddPreviews: [UUID: PDFDocument] = [:]
     private var evidenceComplete = false
+    /// Per OCR line over a scan: how it looks in the picture (nil when it isn't one, or can't be read).
+    private var scanLooks: [PDFLineID: PDFScanLook?] = [:]
     private var formPagesCache: [Int: Set<Int>]?
 
     var pageCount: Int { pages.count }
@@ -335,7 +340,7 @@ final class PDFEditSession {
         let c = content(page: id.page)
         var n: [PDFLineNote] = []
         let rs = l.runs.map { c.runs[$0] }
-        if l.hidden { n.append(.hiddenText) }
+        if l.hidden { n.append(scanLook(id).map { .scannedText(font: $0.fontDisplayName) } ?? .hiddenText) }
         if rs.contains(where: { $0.renderMode >= 4 }) { n.append(.clippingText) }
         if rs.contains(where: { c.font(of: $0)?.kind == .type3 }) { n.append(.drawnGlyphs) }
         let a = l.angle.truncatingRemainder(dividingBy: 90)
@@ -559,10 +564,16 @@ final class PDFEditSession {
         case .delete?: text = ""; deleted = true
         default: break
         }
+        // The picture is read when the line is edited or opened for typing (editorFont), not for every line listed.
+        let scan = e != nil ? scanLook(id) : cachedScanLook(id)
+        let quad = st?.quad ?? l.quad
         return PDFLineInfo(id: id, originalText: l.text, text: text, isEdited: e != nil, isDeleted: deleted,
-                           quad: st?.quad ?? l.quad, originalQuad: l.quad, origin: l.origin, direction: l.direction, angle: l.angle,
-                           pointSize: l.pointSize, color: PDFEditSession.color(firstRun?.fill ?? [0]), availability: availability(id),
-                           notes: notes(id), fontDescription: font?.sourceDescription ?? "Unknown font",
+                           quad: quad, originalQuad: l.quad, origin: scan?.origin ?? l.origin, direction: l.direction, angle: l.angle,
+                           pointSize: scan?.style.size ?? l.pointSize,
+                           color: scan?.style.color ?? PDFEditSession.color(firstRun?.fill ?? [0]), availability: availability(id),
+                           notes: notes(id),
+                           fontDescription: scan.map { "Scanned text, drawn in \($0.fontDisplayName) (closest match on this Mac)" }
+                               ?? font?.sourceDescription ?? "Unknown font",
                            substitutions: build?.lineSubstitutions[id] ?? [], spacing: e?.spacingValue ?? .flow,
                            scope: e?.scopeValue ?? .thisPage, sharedPages: sharedPages(id), overflow: st?.overflow ?? 0,
                            fitScale: build?.fitScales[id] ?? 1)
@@ -570,6 +581,7 @@ final class PDFEditSession {
 
     /// The font the inline editor types in, sized in page points (multiply by the zoom).
     func editorFont(_ id: PDFLineID) -> (font: NSFont, source: PDFEditorFontSource) {
+        if let scan = scanLook(id), let f = NSFont(name: scan.style.fontName, size: CGFloat(scan.style.size)) { return (f, .similar) }
         guard let l = line(id), let r = l.runs.first else { return (NSFont.systemFont(ofSize: 12), .system) }
         let c = content(page: id.page)
         return PDFFontMatch.editorFont(for: c.font(of: c.runs[r]), size: CGFloat(max(1, l.pointSize)))
@@ -627,6 +639,18 @@ final class PDFEditSession {
         return (b, currentAnalysis() ?? PDFEditAnalysis(session: self, build: b))
     }
 
+    /// The look if it has been worked out already (nil otherwise, without reading the picture).
+    func cachedScanLook(_ id: PDFLineID) -> PDFScanLook? { scanLooks[id] ?? nil }
+
+    /// How an OCR line over a scan looks in the picture; nil for every other line.
+    func scanLook(_ id: PDFLineID) -> PDFScanLook? {
+        if let cached = scanLooks[id] { return cached }
+        let used = Set(scanLooks.values.compactMap { $0?.style.fontName })
+        let look = PDFScanText.look(self, id, preferred: used)
+        scanLooks[id] = .some(look)
+        return look
+    }
+
     // MARK: Building
 
     /// Every page has been read once, so codes used anywhere count as evidence.
@@ -672,6 +696,10 @@ struct PDFEditBuild {
     /// Pages with an Add Text stream: the object number of the appended stream.
     let addedStreams: [Int: Int]
     let addIDsByPage: [Int: [UUID]]
+    /// Per page, scanned (OCR) lines whose new text the appended stream draws, in drawing order, before any added text.
+    var scanLinesByPage: [Int: [PDFLineID]] = [:]
+    /// Per page, the paper-coloured covers painted over old scanned words.
+    var scanCovers: [Int: [CGRect]] = [:]
 }
 
 /// Turns the edit list into one incremental update.
@@ -750,6 +778,44 @@ final class PDFEditBuilder {
         var newText: String
     }
 
+    /// An OCR line over a scan: its invisible text is deleted, the old ink covered and the new text drawn visibly.
+    private struct ScanPlan {
+        let id: PDFLineID
+        var look: PDFScanLook
+        /// Nil for a delete (cover only).
+        let text: String?
+        let spacing: PDFSpacing
+        let request: Int?
+        /// Unchanged words before the edit: left as they are in the picture and written as invisible text, so the
+        /// line still reads whole.
+        var keptText: String? = nil
+        var keptRequest: Int? = nil
+        var keptOrigin: CGPoint = .zero
+    }
+
+    /// Narrows a scanned line's edit to its first changed word: the cover starts there and only the words from
+    /// there on are drawn. Nil when the whole line is redrawn.
+    private func narrowed(_ look: PDFScanLook, old: String, new: String) -> (look: PDFScanLook, kept: String, drawn: String)? {
+        guard let starts = look.wordStarts else { return nil }
+        let o = old.split(separator: " ").map(String.init), n = new.split(separator: " ").map(String.init)
+        guard starts.count == o.count else { return nil }
+        var p = 0
+        while p < o.count, p < n.count, o[p] == n[p] { p += 1 }
+        guard p > 0, p < o.count, p < n.count else { return nil }
+        let drawn = n[p...].joined(separator: " ")
+        let font = CTFontCreateWithName(look.style.fontName as CFString, CGFloat(look.style.size), nil)
+        let lead = PDFScanText.inkBounds(drawn, font).minX
+        let x = starts[p]
+        let pad = max(0.75, 0.06 * look.style.size)
+        var l = look
+        let c = look.cover
+        let x0 = max(c.minX, x - pad)
+        l = PDFScanLook(cover: CGRect(x: x0, y: c.minY, width: c.maxX - x0, height: c.height), paper: look.paper, ink: look.ink,
+                        style: look.style, origin: CGPoint(x: x - (lead.isFinite ? lead : 0), y: look.origin.y),
+                        inkWidth: Double(look.inkRight - x), wordStarts: look.wordStarts, inkRight: look.inkRight)
+        return (l, n[..<p].joined(separator: " "), drawn)
+    }
+
     private struct AddPlan {
         let id: UUID
         let page: Int
@@ -767,12 +833,36 @@ final class PDFEditBuilder {
         }
         var plans: [LinePlan] = []
         var adds: [AddPlan] = []
+        var scans: [ScanPlan] = []
         for e in edits {
             switch e {
             case .text(let id, let text, let spacing, let scope):
-                plans.append(try plan(id, newText: text, spacing: spacing, scope: scope, delete: false))
+                if let look = session.scanLook(id) {
+                    let shown = String(text.reversed().drop(while: { $0 == " " }).reversed())
+                    if PDFTransplant.isEmoji(shown) { throw ConversionError.unsupported("Emoji can’t be added as PDF text.") }
+                    plans.append(try plan(id, newText: "", spacing: .keep, scope: scope, delete: true))
+                    if shown.trimmingCharacters(in: .whitespaces).isEmpty {
+                        scans.append(ScanPlan(id: id, look: look, text: nil, spacing: spacing, request: nil))
+                    } else if let old = session.line(id)?.text, let nw = narrowed(look, old: old, new: shown) {
+                        let f = CTFontCreateWithName(look.style.fontName as CFString, 100, nil)
+                        requests.append(PDFTransplant.Request(text: nw.kept + " ", font: f))
+                        let keptReq = requests.count - 1
+                        requests.append(PDFTransplant.Request(text: nw.drawn, font: f))
+                        var sp = ScanPlan(id: id, look: nw.look, text: shown, spacing: spacing, request: requests.count - 1)
+                        sp.keptText = nw.kept
+                        sp.keptRequest = keptReq
+                        sp.keptOrigin = look.origin
+                        scans.append(sp)
+                    } else {
+                        requests.append(PDFTransplant.Request(text: shown, font: CTFontCreateWithName(look.style.fontName as CFString, 100, nil)))
+                        scans.append(ScanPlan(id: id, look: look, text: shown, spacing: spacing, request: requests.count - 1))
+                    }
+                } else {
+                    plans.append(try plan(id, newText: text, spacing: spacing, scope: scope, delete: false))
+                }
             case .delete(let id, let scope):
                 plans.append(try plan(id, newText: "", spacing: .keep, scope: scope, delete: true))
+                if let look = session.scanLook(id) { scans.append(ScanPlan(id: id, look: look, text: nil, spacing: .keep, request: nil)) }
             case .add(let id, let page, let origin, let text, let style):
                 let ct = CTFontCreateWithName(style.fontName as CFString, 100, nil)
                 requests.append(PDFTransplant.Request(text: text.replacingOccurrences(of: "\n", with: " "), font: ct))
@@ -786,12 +876,18 @@ final class PDFEditBuilder {
         if !requests.isEmpty { transplant = try PDFTransplant.draw(requests) }
         for i in plans.indices where !plans[i].pieces.isEmpty { try resolveTransplants(&plans[i]) }
         for p in plans { try emit(p) }
+        for sp in scans { if let t = sp.text { expected[sp.id] = t } }
         var addedStreams: [Int: Int] = [:]
         var addIDs: [Int: [UUID]] = [:]
-        for page in Set(adds.map(\.page)).sorted() {
+        var scanLines: [Int: [PDFLineID]] = [:]
+        var scanCovers: [Int: [CGRect]] = [:]
+        for page in Set(adds.map(\.page) + scans.map(\.id.page)).sorted() {
             let list = adds.filter { $0.page == page }
-            addedStreams[page] = try emitAdds(list, page: page)
+            let pageScans = scans.filter { $0.id.page == page }
+            addedStreams[page] = try emitAdds(list, scans: pageScans, page: page)
             addIDs[page] = list.map(\.id)
+            scanLines[page] = pageScans.filter { $0.text != nil }.map(\.id)
+            scanCovers[page] = pageScans.map(\.look.cover)
         }
         let renames = try writeTargets()
         for (pi, d) in pendingPages { update.put(session.pages[pi].number, .dict(d), generation: session.pages[pi].generation) }
@@ -803,7 +899,8 @@ final class PDFEditBuilder {
         for (t, list) in groupedSplices() { spliceMap[t] = list.map { ($0.range, $0.bytes.count) } }
         return PDFEditBuild(data: data, written: written, editedPages: editedPages, splices: spliceMap, renames: renames,
                             lineSubstitutions: lineSubs, addSubstitutions: addSubs, substitutedFonts: substitutedFonts,
-                            fitScales: fitScales, expectedText: expected, addedStreams: addedStreams, addIDsByPage: addIDs)
+                            fitScales: fitScales, expectedText: expected, addedStreams: addedStreams, addIDsByPage: addIDs,
+                            scanLinesByPage: scanLines, scanCovers: scanCovers)
     }
 
     /// Common prefix and suffix in glyph units; the middle replaces the units between.
@@ -1246,8 +1343,11 @@ final class PDFEditBuilder {
 
     /// q … Q around the page's own content (plus Q for any q it leaves open), then the new text in its own
     /// q … Q. Returns the appended stream's object number.
-    private func emitAdds(_ list: [AddPlan], page pi: Int) throws -> Int {
-        guard let t = transplant else { throw ConversionError.toolFailed("Couldn’t prepare the text to add.") }
+    private func emitAdds(_ list: [AddPlan], scans: [ScanPlan] = [], page pi: Int) throws -> Int {
+        let t = transplant
+        if t == nil && (!list.isEmpty || scans.contains { $0.request != nil }) {
+            throw ConversionError.toolFailed("Couldn’t prepare the text to add.")
+        }
         let page = session.pages[pi]
         let c = session.content(page: pi)
         editedPages.insert(pi)
@@ -1255,11 +1355,53 @@ final class PDFEditBuilder {
         let cosA = cos(angle), sinA = sin(angle)
         func f(_ d: Double) -> String { PDFNumber.format(d) }
         var body = "\n" + String(repeating: "Q\n", count: max(0, c.unbalancedSaves) + 1)
+        // Scanned lines: paper over the old words, then the new words in the closest font (page space, horizontal).
+        for sp in scans {
+            let r = sp.look.cover, p = sp.look.paper
+            body += "q \(f(p[0])) \(f(p[1])) \(f(p[2])) rg \(f(r.minX)) \(f(r.minY)) \(f(r.width)) \(f(r.height)) re f Q\n"
+        }
+        for sp in scans {
+            guard let req = sp.request, let t else { continue }
+            let st = sp.look.style
+            let segs = t.segments[req]
+            let width = segs.reduce(0) { $0 + $1.width } * st.size
+            var scale = 1.0
+            if sp.spacing == .fit, width > 0 { scale = min(1.3, max(0.7, sp.look.inkWidth / width)) }
+            if scale != 1 { fitScales[sp.id] = scale }
+            body += "q BT 0 Tc 0 Tw 0 Ts \(f(st.red)) \(f(st.green)) \(f(st.blue)) rg "
+            // Kept words: invisible, where the scan shows them (squeezed to end where the redrawn words start).
+            if let kr = sp.keptRequest {
+                let kSegs = t.segments[kr]
+                let kw = kSegs.reduce(0) { $0 + $1.width } * st.size
+                let room = Double(sp.look.origin.x - sp.keptOrigin.x)
+                let kScale = kw > 0 && room > 0 ? min(4, max(0.25, room / kw)) : 1
+                body += "3 Tr \(f(100 * kScale)) Tz 1 0 0 1 \(f(sp.keptOrigin.x)) \(f(sp.keptOrigin.y)) Tm "
+                for seg in kSegs {
+                    let number = try copiedFont(seg.scratchFont)
+                    let key = "page:\(pi)|\(number)"
+                    let name = fontNames[key] ?? mergeFontIntoPage(pi, font: number)
+                    fontNames[key] = name
+                    body += "/\(name) \(f(st.size)) Tf "
+                    body += String(decoding: PDFValue.string(seg.bytes, hex: true).serialized(), as: UTF8.self) + " Tj "
+                }
+            }
+            body += "0 Tr \(f(100 * scale)) Tz 1 0 0 1 \(f(sp.look.origin.x)) \(f(sp.look.origin.y)) Tm "
+            for seg in segs {
+                let number = try copiedFont(seg.scratchFont)
+                let key = "page:\(pi)|\(number)"
+                let name = fontNames[key] ?? mergeFontIntoPage(pi, font: number)
+                fontNames[key] = name
+                body += "/\(name) \(f(st.size)) Tf "
+                body += String(decoding: PDFValue.string(seg.bytes, hex: true).serialized(), as: UTF8.self) + " Tj "
+            }
+            body += "ET Q\n"
+        }
         for a in list {
             let st = a.style
             body += "q BT 0 Tc 0 Tw 100 Tz 0 Ts 0 Tr \(f(st.red)) \(f(st.green)) \(f(st.blue)) rg "
             body += "\(f(cosA)) \(f(sinA)) \(f(-sinA)) \(f(cosA)) \(f(a.origin.x)) \(f(a.origin.y)) Tm "
             var subs: [PDFFontSubstitution] = []
+            guard let t else { continue }
             for seg in t.segments[a.request] {
                 let number = try copiedFont(seg.scratchFont)
                 let key = "page:\(pi)|\(number)"
@@ -1468,6 +1610,7 @@ final class PDFEditAnalysis {
         var dirtyRects: [CGRect] = []
         var glyphRects: [CGRect] = []
         var mapped: [Int: [PDFTextRun]] = [:]
+        var overlayRuns: [PDFLineID: [PDFTextRun]] = [:]
         var occurrence: [String: Int] = [:]
         for r in orig.runs {
             let obj = orig.streams[r.stream].objectNumber
@@ -1503,19 +1646,24 @@ final class PDFEditAnalysis {
             let added = cand.runs.filter { cand.streams[$0.stream].objectNumber == close }
             for n in added {
                 dirtyRects.append(PDFEditAnalysis.generous(cand, n))
+                if n.renderMode == 3 || n.renderMode == 7 { continue }
                 for (gi, g) in n.glyphs.enumerated() where !g.text.allSatisfy(\.isWhitespace) && g.width > 0 {
                     glyphRects.append(PDFEditGeometry.bounds(cand.quad(n, from: gi, to: gi + 1)))
                 }
             }
-            // One text object per added text, in edit order.
+            // One text object per scanned line's new text, then one per added text, in edit order.
+            let scanIDs = build.scanLinesByPage[pi] ?? []
             let ids = build.addIDsByPage[pi] ?? []
             var byObject: [Int: [PDFTextRun]] = [:]
             for n in added { byObject[n.textObject, default: []].append(n) }
-            for (k, key) in byObject.keys.sorted().enumerated() where k < ids.count {
+            for (k, key) in byObject.keys.sorted().enumerated() {
+                if k < scanIDs.count { overlayRuns[scanIDs[k]] = byObject[key]!; continue }
+                guard k - scanIDs.count < ids.count else { break }
                 let pts = byObject[key]!.flatMap { cand.quad($0) }
-                addedQuads[ids[k]] = PDFEditAnalysis.boxQuad(pts, direction: byObject[key]!.first.map { PDFEditAnalysis.direction($0) } ?? CGVector(dx: 1, dy: 0))
+                addedQuads[ids[k - scanIDs.count]] = PDFEditAnalysis.boxQuad(pts, direction: byObject[key]!.first.map { PDFEditAnalysis.direction($0) } ?? CGVector(dx: 1, dy: 0))
             }
         }
+        dirtyRects += build.scanCovers[pi] ?? []
         dirty[pi] = dirtyRects.filter { !$0.isNull }
         newGlyphs[pi] = glyphRects.filter { !$0.isNull && $0.width > 0 && $0.height > 0 }
 
@@ -1527,8 +1675,8 @@ final class PDFEditAnalysis {
             var spans: [(Double, Double)] = []
             let dir = line.direction
             func along(_ p: CGPoint) -> Double { p.x * dir.dx + p.y * dir.dy }
-            for ri in line.runs {
-                for n in mapped[ri] ?? [] {
+            for n in overlayRuns[id] ?? line.runs.flatMap({ mapped[$0] ?? [] }) {
+                do {
                     guard let lastVisible = n.glyphs.lastIndex(where: { !$0.isSpace && !$0.text.allSatisfy(\.isWhitespace) }) else { continue }
                     pts += cand.quad(n, from: 0, to: lastVisible + 1)
                     for (gi, g) in n.glyphs.enumerated() where !g.isSpace && !g.text.allSatisfy(\.isWhitespace) {

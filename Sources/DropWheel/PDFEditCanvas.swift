@@ -855,6 +855,8 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
         switch target {
         case .line(let id):
             if id.page != page { show(page: id.page) }
+            // A scanned line's font, size and baseline come from its picture: read it before asking for the line.
+            _ = session.scanLook(id)
             guard let info = session.info(id), info.availability.isEditable else { select(.line(id)); return }
             let angle = screenAngle(info.originalQuad)
             let rest = angle.truncatingRemainder(dividingBy: 90)
