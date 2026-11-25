@@ -23,8 +23,10 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="preload" as="image" href="assets/icon-256.webp" type="image/webp">
   <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/editors.css">
   <script src="js/config.js"></script>
   <script src="js/site.js" defer></script>
+  <script src="js/editors.js" defer></script>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true" focusable="false">
@@ -77,6 +79,9 @@
     <symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2M2.5 9.5v4h11v-4"/></symbol>
     <symbol id="i-person" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></symbol>
     <symbol id="i-original" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3"/></symbol>
+    <symbol id="i-no-upload" viewBox="0 0 16 16"><path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2M2.5 9.5v4h11v-4M1.5 1.5l13 13"/></symbol>
+    <symbol id="i-no-person" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0M1.5 1.5l13 13"/></symbol>
+    <symbol id="i-original-ok" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3M5.6 9.6l1.7 1.7 3.2-3.4"/></symbol>
     <symbol id="i-key" viewBox="0 0 16 16"><path d="M2 4.5h12v8H2zM4.5 7h1M7.5 7h1M10.5 7h1M5 10h6"/></symbol>
     <symbol id="i-sound-on" viewBox="0 0 16 16"><path d="M1.75 6h2.5l3.5-3v10l-3.5-3h-2.5zM10.4 5.9a3 3 0 0 1 0 4.2M12.4 3.9a5.8 5.8 0 0 1 0 8.2"/></symbol>
     <symbol id="i-sound-off" viewBox="0 0 16 16"><path d="M1.75 6h2.5l3.5-3v10l-3.5-3h-2.5zM10.6 6.1l3.6 3.8M14.2 6.1l-3.6 3.8"/></symbol>
@@ -304,33 +309,59 @@
   <section class="section wrap" id="editors" aria-labelledby="editors-title">
     <header class="section-head">
       <h2 id="editors-title">Some tools open a window</h2>
-      <p>Trim, Split, Crop, Redact, Edit PDF and a few more open an editor: a film strip or waveform, a crop frame, a page you can type on. Save writes a new file next to the original.</p>
+      <p>Try them right here. Save writes a new file next to the original.</p>
     </header>
-    <div class="tabs tabs-compact" role="tablist" aria-label="Editor" id="editor-tabs">
-      <button role="tab" type="button" id="ed-tab-split" aria-controls="editor-panel" aria-selected="true" tabindex="0" data-editor="split">Split</button>
-      <button role="tab" type="button" id="ed-tab-trim" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="trim">Trim</button>
-      <button role="tab" type="button" id="ed-tab-crop" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="crop">Crop</button>
-      <button role="tab" type="button" id="ed-tab-pdf" aria-controls="editor-panel" aria-selected="false" tabindex="-1" data-editor="pdf">Edit PDF</button>
+    <div class="tabs tabs-compact" role="tablist" aria-label="Editor" id="ed-tabs">
+      <button role="tab" type="button" id="ed-tab-split" aria-controls="ed-panel" aria-selected="true" tabindex="0" data-ed="split">Split</button>
+      <button role="tab" type="button" id="ed-tab-trim" aria-controls="ed-panel" aria-selected="false" tabindex="-1" data-ed="trim">Trim</button>
+      <button role="tab" type="button" id="ed-tab-crop" aria-controls="ed-panel" aria-selected="false" tabindex="-1" data-ed="crop">Crop</button>
+      <button role="tab" type="button" id="ed-tab-pdf" aria-controls="ed-panel" aria-selected="false" tabindex="-1" data-ed="pdf">Edit PDF</button>
     </div>
-    <div class="editor-panel" id="editor-panel" role="tabpanel" aria-labelledby="ed-tab-split">
-      <div class="editor-shot">
+    <div class="ed-panel" id="ed-panel" role="tabpanel" aria-labelledby="ed-tab-split">
+      <div class="ed-stage" id="ed-stage">
         <picture>
-          <source id="editor-src-dark" srcset="assets/ed-split-dark.webp" media="(prefers-color-scheme: dark)">
-          <img id="editor-img" src="assets/ed-split.webp" width="1400" height="997" loading="lazy" decoding="async" alt="The Split window for sunset.mp4: the video, a timeline with a film strip and waveform cut into three parts">
+          <source srcset="assets/ed-split-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="assets/ed-split.webp" width="1400" height="997" loading="lazy" decoding="async" alt="The Split window for sunset.mp4: the video, a timeline with a film strip and waveform cut into three parts">
         </picture>
       </div>
-      <div class="editor-copy" id="editor-copy">
+      <div class="ed-copy" id="ed-copy">
         <h3>Split</h3>
-        <p>A window like a video editor’s. Put splits on the timeline with the scissors or <kbd class="k">⌘</kbd><kbd class="k">B</kbd>, or split evenly. Save writes each part as its own file: <span class="mono">sunset part 1.mp4</span>, <span class="mono">sunset part 2.mp4</span>…</p>
-        <p class="fine">Cuts land on the exact frame you chose.</p>
+        <p>Cut one video into parts. Each part is saved as its own file.</p>
       </div>
     </div>
-    <ul class="chips" aria-label="All editors">
-      <li>Video: Trim, Split, Crop, Redact, Snapshot, Bleep, Speed, Channels</li>
-      <li>Audio: Trim, Split, Bleep, Speed, Channels, Visualize</li>
-      <li>Images: Adjust, Annotate, Crop, Redact</li>
-      <li>PDF: Edit PDF, Organize</li>
-    </ul>
+    <div class="ed-list">
+      <div>
+        <h3>Video</h3>
+        <ul>
+          <li><button type="button" class="ed-try" data-ed-go="trim" aria-label="Try Trim">Trim</button></li>
+          <li><button type="button" class="ed-try" data-ed-go="split" aria-label="Try Split">Split</button></li>
+          <li>Crop</li><li>Redact</li><li>Snapshot</li><li>Bleep</li><li>Speed</li><li>Channels</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Audio</h3>
+        <ul>
+          <li><button type="button" class="ed-try" data-ed-go="trim" aria-label="Try Trim">Trim</button></li>
+          <li><button type="button" class="ed-try" data-ed-go="split" aria-label="Try Split">Split</button></li>
+          <li>Bleep</li><li>Speed</li><li>Channels</li><li>Visualize</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Images</h3>
+        <ul>
+          <li>Adjust</li><li>Annotate</li>
+          <li><button type="button" class="ed-try" data-ed-go="crop" aria-label="Try Crop">Crop</button></li>
+          <li>Redact</li>
+        </ul>
+      </div>
+      <div>
+        <h3>PDF</h3>
+        <ul>
+          <li><button type="button" class="ed-try" data-ed-go="pdf" aria-label="Try Edit PDF">Edit PDF</button></li>
+          <li>Organize</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
   <!-- Privacy -->
@@ -357,10 +388,10 @@
         </div>
       </div>
       <ul class="priv-facts">
-        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span>No uploads</li>
-        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg></span>No account</li>
-        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-original"/></svg></span>Originals untouched</li>
-        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg></span>No special permissions</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-no-upload"/></svg></span>No uploads</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-no-person"/></svg></span>No account</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-metadata"/></svg></span>No tracking</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-original-ok"/></svg></span>Originals untouched</li>
       </ul>
     </div>
   </section>
@@ -452,7 +483,7 @@
       <a href="#faq">Questions</a>
       <a data-config-mailto="supportEmail" hidden>Talk to the founder</a>
     </nav>
-    <p class="footer-legal"><span>© 2026 Epoxlab LLC. YummyOrange is made by <a href="https://epoxlab.com">Epoxlab</a>.</span> <span>Mac and macOS are trademarks of Apple Inc.</span></p>
+    <p class="footer-legal"><span>© 2026 <a href="https://epoxlab.com">Epoxlab LLC</a>, maker of YummyOrange.</span> <span>Mac and macOS are trademarks of Apple Inc.</span></p>
   </div>
 </footer>
 </body>

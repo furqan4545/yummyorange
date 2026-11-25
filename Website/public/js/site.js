@@ -2049,44 +2049,7 @@
     new ResizeObserver(() => { geom(); layoutSlots(true); render(0); if (running) kick(); }).observe(screen);
   }
 
-  // ---------- Editors ----------
-  const edTabs = $('#editor-tabs');
-  if (edTabs) {
-    const ED = {
-      split: { img: 'ed-split', h: 997, alt: 'The Split window for sunset.mp4: the video, a timeline with a film strip and waveform cut into three parts',
-        title: 'Split', body: 'A window like a video editor’s. Put splits on the timeline with the scissors or <kbd class="k">⌘</kbd><kbd class="k">B</kbd>, or split evenly. Save writes each part as its own file: <span class="mono">sunset part 1.mp4</span>, <span class="mono">sunset part 2.mp4</span>…', fine: 'Cuts land on the exact frame you chose.' },
-      trim: { img: 'ed-trim', h: 997, alt: 'The Trim window for sunset.mp4: Set Start and Set End, a film strip with in and out handles, and the waveform',
-        title: 'Trim', body: 'A film strip or waveform with in and out handles, for video and audio. Cuts are exact and stay in the file’s own format.', fine: 'Bleep, Speed and Channels open in the same kind of window.' },
-      crop: { img: 'ed-crop', h: 982, alt: 'The Crop window for lake.png: a crop frame with handles over the picture, aspect presets in the toolbar',
-        title: 'Crop', body: 'Drag a corner or an edge, or pick an aspect preset; quarter turns are one click. Return saves.', fine: 'Adjust, Annotate and Redact share this window’s toolbar and Save.' },
-      pdf: { img: 'ed-pdf', h: 997, alt: 'The Edit PDF window for estimate.pdf: page thumbnails, the page with editable text, and an inspector',
-        title: 'Edit PDF', body: 'Click a line on the page and change its text in place, in its own font, or add new text. Saves <span class="mono">estimate edited.pdf</span>; the original is untouched.', fine: 'Organize opens a page grid: reorder, rotate, duplicate, delete, insert.' },
-    };
-    const img = $('#editor-img'), src = $('#editor-src-dark'), copy = $('#editor-copy'), panel = $('#editor-panel');
-    const selectTab = tabs(edTabs, (t) => {
-      const e = ED[t.dataset.editor];
-      // Swap the picture only once the new one is decoded, so there is never a blank frame.
-      const dark = mqDark.matches ? '-dark' : '';
-      const next = new Image();
-      next.src = `assets/${e.img}${dark}.webp`;
-      const swap = () => { src.srcset = `assets/${e.img}-dark.webp`; img.src = `assets/${e.img}.webp`; img.alt = e.alt; img.height = e.h; };
-      (next.decode ? next.decode() : Promise.resolve()).then(swap, swap);
-      copy.innerHTML = `<h3>${e.title}</h3><p>${e.body}</p><p class="fine">${e.fine}</p>`;
-      panel.setAttribute('aria-labelledby', t.id);
-    });
-    // Preload the other editor pictures once the section is near, so switching is instant.
-    new IntersectionObserver((en, o) => {
-      if (en[0].isIntersecting) {
-        const dark = mqDark.matches ? '-dark' : '';
-        Object.values(ED).forEach((e) => { const i = new Image(); i.src = `assets/${e.img}${dark}.webp`; });
-        o.disconnect();
-      }
-    }, { rootMargin: '400px' }).observe(edTabs);
-    window.addEventListener('dw:editor', (ev) => {
-      const t = $(`[data-editor="${ev.detail}"]`, edTabs);
-      if (t) selectTab(t, false);
-    });
-  }
+  // The editor windows live in js/editors.js
 
   // ---------- The Clothesline loop (rendered by the app) ----------
   const video = $('#line-video');
