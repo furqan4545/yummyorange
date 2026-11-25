@@ -336,16 +336,33 @@
   <!-- Privacy -->
   <section class="section wrap privacy" id="privacy" aria-labelledby="privacy-title">
     <header class="section-head">
-      <h2 id="privacy-title">Work happens where the file is</h2>
-      <p>Your files never leave the folder they’re in. YummyOrange reads each one right there and writes the result beside it, with its own code and the frameworks built into macOS.</p>
+      <h2 id="privacy-title">Your files stay on your Mac</h2>
     </header>
-    <ul class="privacy-points">
-      <li><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg><div><h3>No uploads</h3><p>Nothing is sent to a server. Document importers never fetch anything from the network either.</p></div></li>
-      <li><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg><div><h3>No account, no tracking</h3><p>Nothing to sign up for, and no analytics in the app.</p></div></li>
-      <li><svg class="ic" aria-hidden="true"><use href="#i-original"/></svg><div><h3>Originals stay as they were</h3><p>Every result is a new file. Redacted copies carry none of the original’s hidden details.</p></div></li>
-      <li><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg><div><h3>No Accessibility access needed</h3><p>The gesture works without it. Only the optional “Hold the key first” asks for it.</p></div></li>
-    </ul>
-    <p class="fine"><a href="privacy.html">Privacy policy</a> for the app and this site.</p>
+    <div class="priv">
+      <!-- The picture: lake.jpg goes through the wheel and lake.webp lands beside it, on the Mac; the cloud is crossed out -->
+      <div class="priv-art" role="img" aria-label="On a Mac, the photo lake.jpg goes through the wheel and a new file, lake.webp, appears beside it. The original stays. Nothing goes up to the cloud.">
+        <svg class="priv-cloud" viewBox="0 0 48 34" aria-hidden="true"><path class="pc-cloud" d="M14 27h21a8 8 0 0 0 1-15.9 11 11 0 0 0-20.6 1.1A7.5 7.5 0 0 0 14 27Z"/><path class="pc-gap" d="M7 4l34 27"/><path class="pc-slash" d="M7 4l34 27"/></svg>
+        <div class="priv-mac">
+          <div class="priv-screen">
+            <span class="priv-menubar"></span><span class="priv-notch"></span>
+            <div class="priv-flow">
+              <span class="priv-file"><span class="priv-thumb"><img src="assets/lake.webp" alt="" loading="lazy"></span><span class="priv-name">lake.jpg</span></span>
+              <svg class="priv-arrow" viewBox="0 0 28 12"><path d="M1 6h24M20.5 1.5 25 6l-4.5 4.5"/></svg>
+              <svg class="priv-wheel" viewBox="0 0 64 64"><circle class="pw-ring" cx="32" cy="32" r="31"/><circle class="pw-petals" cx="32" cy="32" r="20" pathLength="60" transform="rotate(-30 32 32)"/><circle class="pw-hl" cx="32" cy="32" r="20" pathLength="60" transform="rotate(-30 32 32)"/><circle class="pw-cap" cx="32" cy="32" r="9"/></svg>
+              <svg class="priv-arrow priv-arrow-out" viewBox="0 0 28 12"><path d="M1 6h24M20.5 1.5 25 6l-4.5 4.5"/></svg>
+              <span class="priv-file priv-new"><span class="priv-thumb"><img src="assets/lake.webp" alt="" loading="lazy"></span><span class="priv-name">lake.webp</span></span>
+            </div>
+          </div>
+          <div class="priv-base"></div>
+        </div>
+      </div>
+      <ul class="priv-facts">
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span>No uploads</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg></span>No account</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-original"/></svg></span>Originals untouched</li>
+        <li><span class="priv-ic"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg></span>No special permissions</li>
+      </ul>
+    </div>
   </section>
 
   <!-- Download -->
@@ -435,7 +452,7 @@
       <a href="#faq">Questions</a>
       <a data-config-mailto="supportEmail" hidden>Talk to the founder</a>
     </nav>
-    <p class="fine">© 2026 YummyOrange. Mac and macOS are trademarks of Apple Inc.</p>
+    <p class="footer-legal"><span>© 2026 Epoxlab LLC. YummyOrange is made by <a href="https://epoxlab.com">Epoxlab</a>.</span> <span>Mac and macOS are trademarks of Apple Inc.</span></p>
   </div>
 </footer>
 </body>

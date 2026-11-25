@@ -606,14 +606,6 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
 .chips li { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); font-size: 0.875rem; }
 
-/* ---------- Privacy ---------- */
-
-.privacy-points { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 32px; }
-@media (max-width: 960px) { .privacy-points { grid-template-columns: 1fr 1fr; } }
-.privacy-points li { display: flex; gap: 14px; padding: 20px; border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); }
-.privacy-points .ic { color: var(--ink); margin-top: 1px; }
-.privacy-points p { margin-top: 4px; color: var(--text-2); font-size: 0.9375rem; line-height: 1.45; }
-
 /* ---------- Download ---------- */
 
 .download { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; padding: 48px; border-radius: 28px; background: var(--surface); border: 1px solid var(--line); }
@@ -641,15 +633,7 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .faq details[open] summary::after { rotate: 225deg; translate: 0 3px; }
 .faq details p { padding: 0 0 20px; color: var(--text-2); max-width: 46rem; }
 
-/* ---------- Footer ---------- */
-
-.footer { margin-top: var(--section-gap); border-top: 1px solid var(--line); }
-.footer-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 32px; padding-top: 28px; padding-bottom: 40px; }
-.footer .brand img { border-radius: 6px; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-.footer-links a { color: var(--text-2); text-decoration: none; font-size: 0.9375rem; }
-.footer-links a:hover { color: var(--text); text-decoration: underline; }
-.footer .fine { margin: 0 0 0 auto; }
+/* Privacy and Footer: see the end of this file */
 
 /* ---------- Release notes and privacy pages ---------- */
 
@@ -691,7 +675,6 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
   .ex-panel { padding: 12px 0 0; }
   /* The wheel uses the card's padding too, so its names stay at 11 px on a 390 px phone */
   .ex-stage .explorer-wheel { width: calc(100% + 20px); max-width: none; margin-inline: -10px; }
-  .privacy-points { grid-template-columns: 1fr; }
 
   .scene { height: 560px; }
   .files { inset: 72px 6px auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 0; justify-items: center; }
@@ -753,4 +736,112 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
   .note-arrow path { stroke-dashoffset: 0; }
   .btn:active, .shot-btn:active, .sound-toggle:active { transform: none; }
+}
+
+/* ==========================================================================
+   Privacy picture and footer
+   (owned here: the #privacy section of index.html and the footer on every page)
+   ========================================================================== */
+
+/* ---------- Privacy: a photo goes through the wheel and the new file lands beside it, on the Mac ---------- */
+
+.priv {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: center; gap: 56px;
+  margin-top: 32px; padding: 48px 56px; border-radius: var(--radius-scene);
+  background: var(--surface); border: 1px solid var(--line);
+}
+/* --priv-travel: from the wheel's centre to the new file's centre, so the file comes out of the wheel */
+.priv-art { position: relative; padding-top: 40px; --priv-travel: 134px; view-timeline-name: --priv; }
+.priv-mac { width: 100%; max-width: 500px; margin-inline: auto; }
+.priv-screen {
+  position: relative; overflow: hidden; aspect-ratio: 16 / 10;
+  border: 10px solid #1A171A; border-bottom-width: 14px; border-radius: 18px 18px 6px 6px;
+  background: linear-gradient(135deg, var(--wall-a), var(--wall-b) 55%, var(--wall-c));
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+.priv-menubar { position: absolute; inset: 0 0 auto; height: 14px; background: var(--menubar); }
+.priv-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 16%; height: 14px; border-radius: 0 0 6px 6px; background: #1A171A; }
+.priv-base {
+  position: relative; height: 14px; margin-inline: -7%; border-radius: 3px 3px 14px 14px;
+  background: linear-gradient(#E6E1E4, #BCB5B9); box-shadow: 0 12px 20px -12px rgba(40, 20, 30, 0.45);
+}
+@media (prefers-color-scheme: dark) { .priv-base { background: linear-gradient(#77707A, #4E484F); } }
+.priv-base::before { content: ""; position: absolute; left: 50%; top: 0; translate: -50% 0; width: 18%; height: 5px; border-radius: 0 0 6px 6px; background: rgba(0, 0, 0, 0.12); }
+.priv-flow { position: absolute; inset: 14px 0 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.priv-file { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.priv-thumb { display: block; width: 96px; height: 64px; padding: 3px; background: #FFF; border-radius: 6px; box-shadow: 0 4px 12px rgba(60, 10, 35, 0.22); }
+.priv-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+.priv-name { padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--plum) 72%, transparent); color: #FFF; font-size: 0.75rem; font-weight: 500; line-height: 1.35; white-space: nowrap; }
+.priv-new .priv-name { background: var(--accent-deep); }
+.priv-arrow { width: 28px; height: 12px; flex: none; fill: none; stroke: var(--mb-ink); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.priv-wheel { width: 76px; height: 76px; flex: none; filter: drop-shadow(0 6px 14px rgba(60, 10, 35, 0.25)); }
+.pw-ring { fill: var(--w-border); }
+.pw-petals, .pw-hl { fill: none; stroke-width: 17; stroke-dashoffset: -0.55; }
+.pw-petals { stroke: var(--w-petal-in); stroke-dasharray: 8.9 1.1; }
+.pw-hl { stroke: var(--accent); stroke-dasharray: 8.9 51.1; }
+.pw-cap { fill: var(--w-cap); }
+/* The cloud, crossed out: nothing goes up */
+.priv-cloud { position: absolute; top: 0; right: 4%; width: 60px; height: auto; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.pc-cloud, .pc-slash { stroke: var(--text-3); stroke-width: 1.75; }
+.pc-gap { stroke: var(--surface); stroke-width: 6; }
+
+.priv-facts { display: grid; gap: 20px; }
+.priv-facts li { display: flex; align-items: center; gap: 14px; font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.priv-ic { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); }
+
+/* One moment, tied to the scroll so it can't run ahead of you: the wheel's petal lights, then the new file comes
+   out of the wheel to sit beside the original. Transform and opacity only; without support or with Reduce Motion,
+   the finished picture shows. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .pw-hl, .priv-arrow-out, .priv-new { animation: linear both; animation-timeline: --priv; }
+    .pw-hl { animation-name: priv-fade; animation-range: entry 45% entry 70%; }
+    .priv-arrow-out { animation-name: priv-fade; animation-range: entry 68% entry 82%; }
+    .priv-new { animation-name: priv-out; animation-range: entry 70% entry 100%; }
+  }
+}
+@keyframes priv-fade { from { opacity: 0; } }
+@keyframes priv-out { from { opacity: 0; transform: translateX(calc(-1 * var(--priv-travel))) scale(0.4); } }
+
+/* ---------- Footer: brand and links on one row, the legal line under a hairline, all on one left edge ---------- */
+
+.footer { margin-top: var(--section-gap); border-top: 1px solid var(--line); }
+.footer-inner {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 20px 40px;
+  padding-top: 32px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+.footer .brand img { border-radius: 6px; }
+.footer-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 28px; }
+.footer-links a { padding-block: 6px; color: var(--text-2); text-decoration: none; font-size: 0.9375rem; line-height: 1.4; }
+.footer-links a:hover { color: var(--text); text-decoration: underline; }
+.footer-legal { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 0.8125rem; line-height: 1.5; }
+.footer-legal a { color: inherit; text-decoration-color: var(--line-strong); }
+.footer-legal a:hover { color: var(--text); text-decoration-color: currentColor; }
+
+@media (max-width: 960px) {
+  .priv { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 40px 32px 32px; }
+  .priv-facts { grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+}
+@media (max-width: 760px) {
+  .priv { margin-top: 24px; padding: 20px 16px 24px; border-radius: var(--radius-card); gap: 24px; }
+  .priv-art { padding-top: 30px; --priv-travel: 88px; }
+  .priv-screen { border-width: 6px 6px 9px; border-radius: 12px 12px 4px 4px; }
+  .priv-menubar, .priv-notch { height: 10px; }
+  .priv-flow { inset: 10px 0 0; gap: 6px; }
+  .priv-thumb { width: 64px; height: 43px; padding: 2px; border-radius: 5px; }
+  .priv-wheel { width: 52px; height: 52px; }
+  .priv-arrow { width: 18px; }
+  .priv-name { padding: 1px 5px; font-size: 0.6875rem; }
+  .priv-cloud { width: 42px; right: 2%; }
+  .priv-facts { gap: 12px 16px; }
+  .priv-facts li { gap: 10px; font-size: 1rem; }
+  .priv-ic { width: 36px; height: 36px; }
+  .priv-ic .ic { width: 18px; height: 18px; }
+
+  /* Stacked and left-aligned; links in two columns, each 44 px tall to tap */
+  .footer-inner { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-top: 28px; padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .footer-links { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .footer-links a { display: flex; align-items: center; min-height: 44px; padding-block: 0; }
+  .footer-legal { padding-top: 16px; }
+  .footer-legal span { display: block; text-wrap: balance; }
 }
