@@ -1,12 +1,12 @@
 {
-  "build" : "1",
-  "length" : 4182160,
+  "build" : "2",
+  "length" : 4209201,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T06:28:06Z",
-  "releaseNotes" : "The first release of YummyOrange.",
+  "published" : "2026-11-25T09:27:50Z",
+  "releaseNotes" : "Talk to the Founder… is in the menu. Update notices you won’t miss. ⌥ Option is now the Actions key. A faster menu, and Settings shows each pane’s name.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "874c126979eeb3db68e1256c96983952089df59295b96e056cf91ae3560935b8",
-  "signature" : "XKtZMtysOMUhzxllSmPQIckhdJQGhBuoLzgPhGQeeLinQgRCkVUFSH+NYboHn4ucFQzdB15lmDSTmr7uceCXBg==",
-  "url" : "../downloads/YummyOrange-1.0.0-1.zip",
-  "version" : "1.0.0"
+  "sha256" : "1e353c2fb6bc81b6cce1c163dddd35be6c71873f56b865c5258811fb44d8e64a",
+  "signature" : "zkLm9gTacf4cefBj049I0eVQa9WztnSErXK9AphZCCzfB2av2BbT9qy9qMjuFOgMMNqpKspPzAUyLaBrEXbkBw==",
+  "url" : "../downloads/YummyOrange-1.0.1-2.zip",
+  "version" : "1.0.1"
 }
