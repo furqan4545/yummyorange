@@ -407,6 +407,7 @@ struct SettingsSectionView: View {
                         Text("YummyOrange").font(.title2.weight(.semibold))
                         Text(AboutInfo.versionText).foregroundStyle(.secondary)
                         Text("Drag files, tap a key, drop on a petal.").font(.callout).foregroundStyle(.secondary)
+                        Text("© 2026 Epoxlab LLC").font(.caption).foregroundStyle(.tertiary)
                     }
                 }
                 .padding(.vertical, 4)
@@ -569,9 +570,18 @@ private struct ToolRow: View {
     }
 }
 
-/// The app's mark: the menu-bar symbol on an accent tile.
+/// The app's icon (AppIcon.icns in the bundle); a development build without one shows the menu-bar symbol on an
+/// accent tile instead.
 private struct AppIconView: View {
     var body: some View {
+        if Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") != nil {
+            Image(nsImage: NSApp.applicationIconImage).resizable().interpolation(.high).accessibilityHidden(true)
+        } else {
+            placeholder
+        }
+    }
+
+    private var placeholder: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(LinearGradient(colors: [Color.accentColor.opacity(0.85), Color.accentColor],

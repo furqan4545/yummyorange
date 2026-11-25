@@ -252,13 +252,13 @@ enum Settings {
 
     /// Which tick plays (Settings › Look › Sound).
     static var petalSoundStyle: PetalSoundStyle {
-        get { defaults.string(forKey: Key.soundStyle).flatMap(PetalSoundStyle.init(rawValue:)) ?? .dial }
+        get { defaults.string(forKey: Key.soundStyle).flatMap(PetalSoundStyle.init(rawValue:)) ?? .pop }
         set { store(newValue.rawValue, Key.soundStyle) }
     }
 
     /// A haptic tap on Force Touch trackpads when the highlighted petal changes.
     static var haptics: Bool {
-        get { bool(Key.haptics, true) }
+        get { bool(Key.haptics, false) }
         set { store(newValue, Key.haptics) }
     }
 

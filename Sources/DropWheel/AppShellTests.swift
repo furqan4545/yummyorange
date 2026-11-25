@@ -1020,8 +1020,8 @@ enum AppShellTests {
         let suite = SettingsMemoryStore()
         Settings.defaults = suite
         defer { Settings.defaults = saved }
-        c.check("fresh defaults", Settings.resultsDestination == .shelf && Settings.showProgressHUD && Settings.petalSounds && Settings.haptics
-                && Settings.wheelStyle == .glass && Settings.wheelKeys == .defaults && Settings.petalSoundStyle == .dial)
+        c.check("fresh defaults", Settings.resultsDestination == .shelf && Settings.showProgressHUD && Settings.petalSounds && !Settings.haptics
+                && Settings.wheelStyle == .glass && Settings.wheelKeys == .defaults && Settings.petalSoundStyle == .pop)
         var posted = 0
         let token = NotificationCenter.default.addObserver(forName: Settings.didChange, object: nil, queue: nil) { _ in posted += 1 }
         Settings.wheelStyle = .metallic
@@ -1056,7 +1056,7 @@ enum AppShellTests {
         c.check("the petal sound saves (one notification)", Settings.petalSoundStyle == .wood
                 && suite.string(forKey: "petalSound") == "wood" && posted == 1, "posted \(posted)")
         suite.set("kazoo", forKey: "petalSound")
-        c.check("an unknown petal sound falls back to Dial", Settings.petalSoundStyle == .dial)
+        c.check("an unknown petal sound falls back to Pop", Settings.petalSoundStyle == .pop)
         suite.set("banana", forKey: "wheelStyle")
         suite.set("hyper", forKey: "wheelKey.convert")
         suite.set("command", forKey: "wheelKey.actions")
