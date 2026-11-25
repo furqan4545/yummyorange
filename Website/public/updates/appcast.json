@@ -1,12 +1,12 @@
 {
-  "build" : "2",
-  "length" : 4209201,
+  "build" : "3",
+  "length" : 4209555,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T09:27:50Z",
-  "releaseNotes" : "Talk to the Founder… is in the menu. Update notices you won’t miss. ⌥ Option is now the Actions key. A faster menu, and Settings shows each pane’s name.",
+  "published" : "2026-11-25T11:36:06Z",
+  "releaseNotes" : "Settings › About shows the YummyOrange icon and Epoxlab LLC. New copies start with the Pop sound and haptics off.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "1e353c2fb6bc81b6cce1c163dddd35be6c71873f56b865c5258811fb44d8e64a",
-  "signature" : "zkLm9gTacf4cefBj049I0eVQa9WztnSErXK9AphZCCzfB2av2BbT9qy9qMjuFOgMMNqpKspPzAUyLaBrEXbkBw==",
-  "url" : "../downloads/YummyOrange-1.0.1-2.zip",
-  "version" : "1.0.1"
+  "sha256" : "0eb3503794392a2ff502461ace3f4ce1dcebf0dae6d4ea56a422d26465b7cb5f",
+  "signature" : "GEVUCyhXVz4qdCIkWc9/9I1yLAn+xWU6Nd+T0R1GmuCU+XBK6r1Ac2fa3+b0C0no2cwBgd2YLkgi0ZbaAZKyDg==",
+  "url" : "../downloads/YummyOrange-1.0.2-3.zip",
+  "version" : "1.0.2"
 }
