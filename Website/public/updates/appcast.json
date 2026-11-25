@@ -1,0 +1,12 @@
+{
+  "build" : "1",
+  "length" : 4182160,
+  "minimumSystemVersion" : "13.0",
+  "published" : "2026-11-25T06:28:06Z",
+  "releaseNotes" : "The first release of YummyOrange.",
+  "releaseNotesURL" : "../release-notes.html",
+  "sha256" : "874c126979eeb3db68e1256c96983952089df59295b96e056cf91ae3560935b8",
+  "signature" : "XKtZMtysOMUhzxllSmPQIckhdJQGhBuoLzgPhGQeeLinQgRCkVUFSH+NYboHn4ucFQzdB15lmDSTmr7uceCXBg==",
+  "url" : "../downloads/YummyOrange-1.0.0-1.zip",
+  "version" : "1.0.0"
+}

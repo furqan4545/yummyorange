@@ -8,8 +8,8 @@
    config.js to make sure UPDATE_FEED_URL points at this site. Visitors never see it. */
 window.DROPWHEEL = {
   version: "1.0.0",
-  dmgURL: "",              // the notarized DMG, e.g. "downloads/YummyOrange.dmg" or a full https:// URL
-  notarized: false,        // true once the app in the DMG is notarized and stapled (hides the Open Anyway step)
+  dmgURL: "downloads/YummyOrange.dmg",              // the notarized DMG, e.g. "downloads/YummyOrange.dmg" or a full https:// URL
+  notarized: true,        // true once the app in the DMG is notarized and stapled (hides the Open Anyway step)
   price: "",               // e.g. "Free" or "$9.99"; the Price row stays hidden while empty
   size: "7 MB",
   minimumOS: "macOS 13 Ventura or later",

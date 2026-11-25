@@ -15,5 +15,5 @@
 #                    taken by someone else, and every copy built with it keeps asking it). build.sh builds it into every
 #                    copy, and release.sh refuses any other address.
 TEAM_ID=37P86CG9SS
-UPDATE_PUBLIC_KEY=
+UPDATE_PUBLIC_KEY=x0+Nz9bkAmcEGsTmGNtMNIyi7VDLj8pChh0gMol//NM= 06Fovg3YaXjVAMJfUrtHjzMmmxgp4N+Slx3G5ULen9g=
 FEED_URL=https://yummyorange.com/updates/appcast.json
