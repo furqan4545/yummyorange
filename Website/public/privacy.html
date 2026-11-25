@@ -27,16 +27,19 @@
 
 <main id="main" class="wrap doc-page">
   <h1>Privacy policy</h1>
-  <p class="doc-meta">Last changed 25 November 2026</p>
+  <p class="doc-meta">Last changed 26 November 2026</p>
 
   <p class="doc-lede">YummyOrange is made by <a href="https://epoxlab.com">Epoxlab LLC</a>. It works on your files where they are, on your Mac, and doesn’t collect, send or sell anything about you or your files.</p>
 
   <h2>The app</h2>
   <ul class="doc-list">
     <li><strong>Your files stay on your Mac.</strong> YummyOrange reads a file in its own folder and writes the result beside it. Nothing is uploaded, and document importers never fetch anything from the network.</li>
-    <li><strong>Update checks.</strong> The app’s only network requests of its own ask this website (yummyorange.com) whether a new version of YummyOrange is out (the update information and its signature), about once an hour, and download it when you choose to install it. The requests name the app and its version; their other headers are the same for every copy (the language is always English), and they carry no identifier, no cookies and nothing about your files. Like any request they reach the website’s host from your address (see below). When an update is installed, macOS also checks the new version’s signing certificate with Apple, as it does for any signed app. Settings › General can turn the automatic check off.</li>
+    <li><strong>Network requests.</strong> The app makes two kinds of request of its own, both to this website (yummyorange.com): update checks and, on a Mac without ffmpeg, the ffmpeg download.</li>
+    <li><strong>Update checks.</strong> The app asks whether a new version of YummyOrange is out (the update information and its signature), about once an hour, and downloads it when you choose to install it. When an update is installed, macOS also checks the new version’s signing certificate with Apple, as it does for any signed app. Settings › General can turn the automatic check off.</li>
+    <li><strong>The ffmpeg download.</strong> On a Mac without ffmpeg, YummyOrange downloads its own copy (about 12 MB, the same file for everyone) once: about a minute after it opens, on a network that isn’t Low Data Mode or a phone’s hotspot, or as soon as you start on a sound or video. If that fails, the next automatic try waits longer each time, up to three days; starting on a sound or video, or Download in Settings › About, tries at once. Once it’s installed, YummyOrange asks again only when an update comes with a new build of it. A Mac that already has a working ffmpeg never makes this request. YummyOrange’s ffmpeg is built without network code: it only reads and writes files. Its license and source are on the <a href="licenses/ffmpeg.html">FFmpeg page</a>.</li>
+    <li><strong>What the requests carry.</strong> Both name the app and its version; their other headers are the same for every copy (the language is always English), and they carry no identifier, no cookies and nothing about your files. Like any request they reach the website’s host from your address (see below).</li>
     <li><strong>No account and no analytics.</strong> There is nothing to sign up for, and the app has no analytics, crash reporting or advertising code.</li>
-    <li><strong>What it keeps.</strong> Your settings, stored by macOS for YummyOrange on your Mac. The Clothesline keeps a list of the files hung on it (it only points to them), and copied screenshots you choose to hang are saved in Pictures › Clothesline. Nothing of this leaves your Mac.</li>
+    <li><strong>What it keeps.</strong> Your settings, stored by macOS for YummyOrange on your Mac. The Clothesline keeps a list of the files hung on it (it only points to them), and copied screenshots you choose to hang are saved in Pictures › Clothesline. On a Mac without ffmpeg, YummyOrange’s own ffmpeg is kept in <span class="mono">~/Library/Application Support/YummyOrange</span>. Nothing of this leaves your Mac.</li>
     <li><strong>When you send something.</strong> AirDrop and Move To do what you ask with the files you pick, through macOS.</li>
     <li><strong>Permissions.</strong> macOS asks before YummyOrange first saves into your Desktop, Documents or Downloads folder or onto an external drive, and before it reads the first copied screenshot. Accessibility access is needed only for the optional Hold the key first. Update notices arrive quietly in Notification Center, without a permission prompt; Settings › Notifications can turn them off or into banners.</li>
   </ul>

@@ -889,10 +889,12 @@ enum ClotheslinePreview {
             let (w, h) = pixelSize
             let process = Process()
             process.executableURL = ffmpeg
+            // libx264 where this ffmpeg has it; VideoToolbox's H.264 in an LGPL build (YummyOrange's own).
+            let encoder = Capabilities.shared.has("libx264") ? ["-c:v", "libx264", "-preset", "medium", "-crf", "18"]
+                                                             : ["-c:v", "h264_videotoolbox", "-q:v", "80", "-allow_sw", "1"]
             process.arguments = ["-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "bgra",
-                                 "-video_size", "\(w)x\(h)", "-framerate", "\(Int(fps))", "-i", "-",
-                                 "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-                                 "-movflags", "+faststart", url.path]
+                                 "-video_size", "\(w)x\(h)", "-framerate", "\(Int(fps))", "-i", "-"]
+                + encoder + ["-pix_fmt", "yuv420p", "-movflags", "+faststart", url.path]
             let input = Pipe()
             let errors = Pipe()
             process.standardInput = input

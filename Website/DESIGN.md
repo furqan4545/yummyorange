@@ -27,6 +27,8 @@ rubber-banding, reduced motion).
 | Path | What it is |
 | --- | --- |
 | `public/` | **The site. Deploy this folder and nothing else.** `index.html`, `release-notes.html`, `privacy.html`, `css/`, `js/`, `assets/` |
+| `public/licenses/ffmpeg.html` | The license and source page of YummyOrange's own ffmpeg (the app's Settings › About links to it): what it is and leaves out, its LGPL licensing, the IJG credit and where the notices of FFmpeg's files under other licenses are, every library, the configure lines, the source tarballs and the rebuild script |
+| `public/downloads/helpers/` | The ffmpeg ZIP the app downloads (its name, size and SHA-256 are pinned in `FFmpegHelper.pinnedBuild`) and, in `sources/`, the seven source tarballs, `build-ffmpeg-helper.sh` (also kept as `Tools/helpers/build-ffmpeg-helper.sh`), and the LICENSE.md and BUILD.md that ship inside the ZIP. A new build gets a new file name; old ones stay for the copies of the app that pin them |
 | `public/js/config.js` | The one place for release details: DMG URL, notarized or not, version, price, size, minimum macOS, chip, support email |
 | `../vercel.json` (repository root) | Hosting: serves `Website/public/` with clean URLs and sets cache and content-type headers (see Hosting) |
 | `DESIGN.md` | This file (not deployed) |
@@ -201,6 +203,10 @@ link once set.
 - `updates/appcast.json`: `application/json; charset=utf-8`; `appcast.json.sig`: `text/plain; charset=utf-8`; both
   `no-cache, max-age=0, must-revalidate`. Vercel clears its own edge cache on every deploy.
 - `downloads/*.dmg` and `*.zip` get `application/x-apple-diskimage` and `application/zip`.
+- `downloads/helpers/*.zip` and `downloads/helpers/sources/*.tar.xz` / `*.tar.gz` (`application/x-xz`,
+  `application/gzip`): `Cache-Control: public, max-age=31536000, immutable`, because their names carry the version
+  and never change. `build-ffmpeg-helper.sh`, `LICENSE.md` and `BUILD.md` in `sources/` are served as
+  `text/plain; charset=utf-8`, so a browser shows them, with Vercel's default caching (their names carry no version).
 - Every response: `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`.
 
 ## Performance

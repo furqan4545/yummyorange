@@ -640,6 +640,21 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .doc-list li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
 .doc-list strong { color: var(--text); }
 .release { margin-top: 8px; }
+/* The FFmpeg license page: a library table, checksums and configure lines. Long lines wrap, so a phone never scrolls sideways. */
+.doc-page h3 { margin-top: 28px; font-size: 1.0625rem; font-weight: 600; }
+.doc-page h3 + p { margin-top: 6px; }
+.doc-page pre { margin: 10px 0 0; padding: 14px 16px; border-radius: var(--radius-control); background: var(--surface-2); color: var(--text); font: 0.8125rem/1.6 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-page pre code { font: inherit; }
+.doc-page .steps { margin-top: 16px; }
+.doc-table-wrap { margin-top: 16px; overflow-x: auto; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; line-height: 1.45; }
+.doc-table th, .doc-table td { padding: 10px 16px 10px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+.doc-table thead th { color: var(--text-3); font-size: 0.8125rem; font-weight: 600; }
+.doc-table tbody th { color: var(--text); font-weight: 600; white-space: nowrap; }
+.doc-table td { color: var(--text-2); }
+.source-list .mono { color: var(--text-3); font-size: 0.8125rem; }
+.doc-page .mono.nowrap { white-space: nowrap; overflow-wrap: normal; }
+.doc-page .steps pre { margin-top: 8px; }
 .footer-links a[aria-current="page"] { color: var(--text); }
 
 /* ---------- Responsive ---------- */

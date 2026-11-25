@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FFmpeg license and source – YummyOrange</title>
+  <meta name="description" content="YummyOrange’s own ffmpeg is FFmpeg 9.0.2 under the GNU LGPL 2.1 or later, built without GPL or non-free parts. Its libraries, licenses and notices, configure lines, source tarballs and rebuild script.">
+  <link rel="canonical" href="https://yummyorange.com/licenses/ffmpeg">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#FBF8F5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141113" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+  <script src="../js/config.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="../" aria-label="YummyOrange home">
+      <img src="../assets/icon-256.webp" width="28" height="28" alt="">
+      <span>YummyOrange</span>
+    </a>
+  </div>
+</header>
+
+<main id="main" class="wrap doc-page">
+  <h1>FFmpeg license and source</h1>
+  <p class="doc-meta">FFmpeg 9.0.2, revision 2 · Published 26 November 2026</p>
+
+  <p class="doc-lede">On a Mac without ffmpeg, YummyOrange downloads its own copy once, for audio and video. That copy is FFmpeg 9.0.2 under the GNU Lesser General Public License, version 2.1 or later, built with nothing under the GPL and nothing non-free. Everything it was made from, and how, is on this page, so you can check it or build it yourself.</p>
+
+  <h2>What it is</h2>
+  <ul class="doc-list">
+    <li><strong>One program.</strong> <span class="mono">ffmpeg</span> from FFmpeg 9.0.2, for Macs with Apple silicon and macOS 13 or later. It is a separate program that YummyOrange runs for audio and video work; YummyOrange itself contains none of its code.</li>
+    <li><strong>When it’s downloaded.</strong> Once, from this website: about a minute after YummyOrange opens on a Mac without ffmpeg, on a network that isn’t metered (not Low Data Mode or a phone’s hotspot), or as soon as you start on a sound or video. Settings › About can download it at once, or cancel a download under way. After that, only when an update of YummyOrange comes with a new build of it. Before unpacking it, YummyOrange checks its exact size and SHA-256 against the values built into the app.</li>
+    <li><strong>Where it goes.</strong> <span class="mono">~/Library/Application Support/YummyOrange/Helpers/ffmpeg-9.0.2-2</span>, with its license file. Updates to YummyOrange leave it there, and Settings › About shows it as Installed by YummyOrange.</li>
+    <li><strong>An ffmpeg you already have comes first.</strong> If your Mac has ffmpeg in <span class="mono">/opt/homebrew/bin</span>, <span class="mono">/usr/local/bin</span> or <span class="mono">~/.local/bin</span> (from Homebrew, say), YummyOrange uses that one, under its own license, and downloads nothing. If that ffmpeg stops working, YummyOrange uses its own instead.</li>
+    <li><strong>The download itself.</strong> <a href="../downloads/helpers/YummyOrange-ffmpeg-9.0.2-2-arm64.zip">YummyOrange-ffmpeg-9.0.2-2-arm64.zip</a>, 11.5 MB, SHA-256 <span class="mono">b8559d118c74ecab50855f92f1f6552af72f3119669a42653e04c7097dd927df</span>.</li>
+    <li><strong>What it leaves out.</strong> Anything that would make it a GPL build, such as the x264 encoder and FFmpeg’s <span class="mono">boxblur</span> filter (YummyOrange blurs with <span class="mono">avgblur</span> instead). It has no dav1d either, so AV1 video is read with the Mac’s own hardware decoder, which Macs with M3 or later have.</li>
+  </ul>
+
+  <h2>License</h2>
+  <p>FFmpeg is free software under the GNU Lesser General Public License (LGPL), version 2.1 or (at your option) any later version. YummyOrange’s ffmpeg is configured without <span class="mono nowrap">--enable-gpl</span>, <span class="mono nowrap">--enable-version3</span> and <span class="mono nowrap">--enable-nonfree</span>, so the program as a whole is under the LGPL 2.1 or later, and <span class="mono nowrap">ffmpeg -L</span> says the same. You may copy, change and pass it on under the terms of that license.</p>
+  <p>This software is based in part on the work of the Independent JPEG Group.</p>
+  <p><span class="mono">ffmpeg</span> has these libraries built in.</p>
+  <div class="doc-table-wrap">
+    <table class="doc-table">
+      <thead>
+        <tr><th scope="col">Library</th><th scope="col">License</th><th scope="col">Used for</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">FFmpeg 9.0.2</th><td>LGPL 2.1 or later</td><td>Everything</td></tr>
+        <tr><th scope="row">LAME 4.0</th><td>LGPL 2 or later</td><td>MP3</td></tr>
+        <tr><th scope="row">libvpx 1.17.0</th><td>BSD 3-Clause, with Google’s patent grant</td><td>VP9 video in WebM</td></tr>
+        <tr><th scope="row">Opus 1.6.1</th><td>BSD 3-Clause</td><td>Opus</td></tr>
+        <tr><th scope="row">libogg 1.3.6</th><td>BSD 3-Clause</td><td>Ogg, for Vorbis</td></tr>
+        <tr><th scope="row">libvorbis 1.3.7</th><td>BSD 3-Clause</td><td>Vorbis</td></tr>
+        <tr><th scope="row">libwebp 1.6.0</th><td>BSD 3-Clause, with Google’s patent grant</td><td>WebP and animated WebP</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>It also uses macOS’s own zlib, bzip2 and iconv libraries and its VideoToolbox and AudioToolbox frameworks, which are part of macOS and not included.</p>
+  <p>Most of FFmpeg is under the LGPL. A few of its own source files built into <span class="mono">ffmpeg</span> also carry, or are under, a BSD, MIT, ISC, Boost or Independent JPEG Group license, among them its JPEG transforms, its Ogg demuxer and the <span class="mono">gblur</span> and <span class="mono">avgblur</span> filters. LICENSE.md reproduces each of their notices with the files it comes from.</p>
+
+  <h2>License texts</h2>
+  <ul class="doc-list">
+    <li><a href="../downloads/helpers/sources/LICENSE.md">LICENSE.md</a>, the file that comes with YummyOrange’s ffmpeg: the full text of the LGPL 2.1, FFmpeg’s own licensing notes, LAME’s GNU Library General Public License 2, the licenses and patent grants of libvpx, Opus, libogg, libvorbis and libwebp, and the notices of FFmpeg’s files under other licenses.</li>
+    <li>The GNU licenses on gnu.org: the <a href="https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html">GNU Lesser General Public License 2.1</a> and the <a href="https://www.gnu.org/licenses/old-licenses/lgpl-2.0.html">GNU Library General Public License 2</a>.</li>
+    <li>Each tarball below also holds its project’s own license files (COPYING, LICENSE, PATENTS).</li>
+  </ul>
+
+  <h2>Source code</h2>
+  <p>The seven tarballs YummyOrange’s ffmpeg is built from, unchanged from each project’s own release. Their SHA-256 checksums are the same as Homebrew’s formulas for these versions. The only edit made while building: libvorbis’s configure script loses the obsolete <span class="mono nowrap">-force_cpusubtype_ALL</span> flag, which arm64 clang rejects.</p>
+  <ul class="doc-list source-list">
+    <li><a href="../downloads/helpers/sources/ffmpeg-9.0.2.tar.xz">ffmpeg-9.0.2.tar.xz</a>, 12 MB, first published at <a href="https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz">ffmpeg.org</a><br><span class="mono">8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e</span></li>
+    <li><a href="../downloads/helpers/sources/lame-4.0.tar.gz">lame-4.0.tar.gz</a>, 1.5 MB, first published at <a href="https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz">SourceForge</a><br><span class="mono">3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb</span></li>
+    <li><a href="../downloads/helpers/sources/libvpx-1.17.0.tar.gz">libvpx-1.17.0.tar.gz</a>, 5.7 MB, first published at <a href="https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz">GitHub</a><br><span class="mono">1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a</span></li>
+    <li><a href="../downloads/helpers/sources/opus-1.6.1.tar.gz">opus-1.6.1.tar.gz</a>, 10.5 MB, first published at <a href="https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.6.1.tar.gz">Xiph.Org</a><br><span class="mono">6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1</span></li>
+    <li><a href="../downloads/helpers/sources/libogg-1.3.6.tar.gz">libogg-1.3.6.tar.gz</a>, 604 KB, first published at <a href="https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.6.tar.gz">Xiph.Org</a><br><span class="mono">83e6704730683d004d20e21b8f7f55dcb3383cdf84c0daedf30bde175f774638</span></li>
+    <li><a href="../downloads/helpers/sources/libvorbis-1.3.7.tar.xz">libvorbis-1.3.7.tar.xz</a>, 1.2 MB, first published at <a href="https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.xz">Xiph.Org</a><br><span class="mono">b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b</span></li>
+    <li><a href="../downloads/helpers/sources/libwebp-1.6.0.tar.gz">libwebp-1.6.0.tar.gz</a>, 4.3 MB, first published at <a href="https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz">the WebM Project</a><br><span class="mono">e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564</span></li>
+  </ul>
+
+  <h2>Build it yourself</h2>
+  <p><a href="../downloads/helpers/sources/build-ffmpeg-helper.sh">build-ffmpeg-helper.sh</a> rebuilds it from those tarballs on a Mac with Apple silicon and the Xcode Command Line Tools. It downloads nothing and installs nothing outside its own folder: it checks every checksum, runs the commands below, checks the program it made (arm64, macOS 13 or later, linked only to macOS’s own libraries, LGPL), writes LICENSE.md and BUILD.md and zips them. Built twice in different folders, it gave the same zip, byte for byte. <a href="../downloads/helpers/sources/BUILD.md">BUILD.md</a> is the record of this build that comes with it.</p>
+  <ol class="steps">
+    <li>Download the script and the seven tarballs into one folder.</li>
+    <li>In Terminal, in that folder, run:<pre><code>SOURCES=. bash build-ffmpeg-helper.sh</code></pre></li>
+    <li>A few minutes later the folder holds <span class="mono">YummyOrange-ffmpeg-9.0.2-2-arm64.zip</span>. With the same tools as this build (Apple clang 21.0.0 and the macOS 27.2 SDK), <span class="mono">shasum -a 256</span> prints the checksum above.</li>
+  </ol>
+
+  <h2>How it was built</h2>
+  <p>Every library is built for arm64 and macOS 13.0 as a static library only, with this environment:</p>
+  <pre><code>MACOSX_DEPLOYMENT_TARGET=13.0 ZERO_AR_DATE=1 CC=clang
+CFLAGS="-arch arm64 -mmacosx-version-min=13.0 -O2 -g0"
+LDFLAGS="-arch arm64 -mmacosx-version-min=13.0"</code></pre>
+  <p>Each is installed with <span class="mono">make install DESTDIR=&lt;work&gt;/prefix</span> (prefix <span class="mono">/usr/local</span> inside that folder), so no path of the build Mac ends up in the program.</p>
+
+  <h3>LAME 4.0</h3>
+  <pre><code>./configure --prefix=/usr/local --enable-static --disable-shared --disable-frontend --disable-decoder --disable-dependency-tracking</code></pre>
+  <h3>libogg 1.3.6</h3>
+  <pre><code>./configure --prefix=/usr/local --enable-static --disable-shared --disable-dependency-tracking</code></pre>
+  <h3>libvorbis 1.3.7</h3>
+  <pre><code>sed -i '' 's/ -force_cpusubtype_ALL//g' configure
+./configure --prefix=/usr/local --enable-static --disable-shared --disable-docs --disable-examples --disable-oggtest --disable-dependency-tracking</code></pre>
+  <h3>Opus 1.6.1</h3>
+  <pre><code>./configure --prefix=/usr/local --enable-static --disable-shared --disable-doc --disable-extra-programs --disable-dependency-tracking</code></pre>
+  <h3>libwebp 1.6.0</h3>
+  <pre><code>./configure --prefix=/usr/local --enable-static --disable-shared --enable-libwebpmux --enable-libwebpdemux --disable-png --disable-jpeg --disable-tiff --disable-gif --disable-wic --disable-gl --disable-sdl --disable-dependency-tracking</code></pre>
+  <h3>libvpx 1.17.0</h3>
+  <p>With CFLAGS and LDFLAGS empty; libvpx sets its own.</p>
+  <pre><code>./configure --prefix=/usr/local --target=arm64-darwin22-gcc --extra-cflags=-mmacosx-version-min=13.0 --enable-static --disable-shared --enable-pic --enable-runtime-cpu-detect --disable-vp8 --disable-vp9-decoder --enable-vp9-encoder --disable-examples --disable-tools --disable-docs --disable-unit-tests --disable-debug-libs</code></pre>
+  <h3>FFmpeg 9.0.2</h3>
+  <p>As <span class="mono">ffmpeg -version</span> prints it. The relative paths are from the unpacked source folder, which sits in <span class="mono">&lt;work&gt;/build</span>.</p>
+  <pre><code>./configure --pkg-config=../../tools/pkg-config --pkg-config-flags=--static --cc=clang --arch=aarch64 --target-os=darwin --extra-cflags='-arch arm64 -mmacosx-version-min=13.0 -I../../prefix/usr/local/include' --extra-ldflags='-arch arm64 -mmacosx-version-min=13.0 -L../../prefix/usr/local/lib' --extra-libs=-liconv --extra-ldexeflags='-Wl,-dead_strip -Wl,-oso_prefix,.' --enable-static --disable-shared --disable-autodetect --enable-pthreads --enable-zlib --enable-bzlib --enable-iconv --enable-videotoolbox --enable-audiotoolbox --enable-libmp3lame --enable-libwebp --enable-libvpx --enable-libopus --enable-libvorbis --disable-network --disable-protocols --enable-protocol='file,pipe' --disable-devices --enable-indev=lavfi --enable-ffmpeg --disable-ffprobe --disable-ffplay --disable-doc --disable-debug</code></pre>
+  <p>The program is then stripped and signed ad hoc (<span class="mono">codesign -s - -f --options runtime</span>), and zipped with its LICENSE.md and BUILD.md:</p>
+  <pre><code>ditto -c -k --keepParent --norsrc --noextattr --noqtn --noacl ffmpeg-helper YummyOrange-ffmpeg-9.0.2-2-arm64.zip</code></pre>
+
+  <h2>Questions</h2>
+  <p>If YummyOrange’s ffmpeg changes, a new build gets a new file name and this page lists it; earlier builds and their sources stay available.<span data-if-config="supportEmail"> Questions about it or its source: <a data-config-mailto="supportEmail" data-config-text="supportEmail" hidden></a>.</span></p>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <a class="brand" href="../"><img src="../assets/icon-256.webp" width="24" height="24" alt="" loading="lazy"><span>YummyOrange</span></a>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="../#download">Download</a>
+      <a href="../release-notes.html">Release notes</a>
+      <a href="../privacy.html">Privacy policy</a>
+      <a href="../#faq">Questions</a>
+      <a data-config-mailto="supportEmail" hidden>Talk to the founder</a>
+      <a href="https://github.com/furqan4545/yummyorange">GitHub</a>
+    </nav>
+    <p class="footer-legal"><span>© 2026 <a href="https://epoxlab.com">Epoxlab LLC</a>, maker of YummyOrange.</span> <span>Mac and macOS are trademarks of Apple Inc.</span> <span>FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.</span></p>
+  </div>
+</footer>
+<script src="../js/site.js" defer></script>
+</body>
+</html>

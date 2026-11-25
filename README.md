@@ -28,7 +28,7 @@ Results are saved next to the original as `name.ext`, then `name 2.ext`, and so 
 - While the line is out for a screenshot it is left out of screen captures, and so is the flying card, so your next screenshot doesn't catch them. Otherwise the line can be captured like any window.
 - With Reduce Motion on, the card fades in on the line instead of flying.
 
-\*WebP output needs `cwebp` or an ffmpeg built with libwebp. Audio and video need `ffmpeg`. It is found in `~/.local/bin`, `/opt/homebrew/bin` or `/usr/local/bin`, or bundled in `Contents/Resources/Tools`.
+\*WebP output needs `cwebp` or an ffmpeg built with libwebp. Audio and video need `ffmpeg`. YummyOrange uses one already on the Mac (in `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin` or `/usr/bin`, or bundled in `Contents/Resources/Tools`); on a Mac without one it downloads its own LGPL build once (11.5 MB, `FFmpegHelper.swift`) into `~/Library/Application Support/YummyOrange/Helpers`, a minute after launch on a network that isn't metered, or when a task needs it. `Tools/helpers/build-ffmpeg-helper.sh` makes that build; it, its source tarballs and its licenses are published in `Website/public/downloads/helpers/` and on `licenses/ffmpeg.html`.
 
 ## Build, run, test
 
@@ -52,10 +52,11 @@ open build/YummyOrange.app
 - **Not sandboxed**, so YummyOrange can write next to any file without an Open panel or folder bookmarks. macOS still asks once before it writes in the Desktop, Documents or Downloads folder or on an external or network drive; the Info.plist says why (`NS…UsageDescription`). It sends no Apple Events, so it needs no Automation permission.
 - **Version:** `build.sh` writes version 1.0.0, build 1 into the Info.plist. `VERSION=1.0.1 BUILD_NUMBER=7 ./build.sh` sets others (up to three numbers joined by dots). The Info.plist also has the copyright line and the Productivity category, and keeps `LSUIElement` (no Dock icon).
 - **Updates:** `build.sh` writes the update feed's address (`UPDATE_FEED_URL`) and, when given, the update key (`UPDATE_PUBLIC_KEY`) into the Info.plist; `SIGN_IDENTITY` signs a release with the hardened runtime and a timestamp (`-`: ad hoc with the hardened runtime, the app release.sh hands to Xcode for Developer ID signing), and `BUILD_DIR` builds somewhere other than `build/`. See [Updates and releases](#updates-and-releases).
-- **`./test.sh`** takes seven to ten minutes (the media suites run ffmpeg many times). It builds, then runs these, writing outputs to a new temporary folder outside iCloud:
+- **`./test.sh`** takes ten to fifteen minutes (the media suites run ffmpeg many times). It builds (or, with `DW_TEST_BIN=<debug binary>`, tests a binary built elsewhere), then runs these, writing outputs to a new temporary folder outside iCloud:
   - the original-features regression: 51 checks in `Tests/regress-core.sh`
   - one run of every newer command: 120 checks in `Tests/features.sh`
   - every module's self-test: 44 suites
+  - the two regressions and the media suites again with YummyOrange's own LGPL ffmpeg (no libx264, boxblur or dav1d), unpacked from the pinned ZIP in `Website/public/downloads/helpers/` after its SHA-256 is checked against `FFmpegHelper.pinnedBuild`, with this Mac's ffmpeg hidden
 
 ### Command-line mode
 
@@ -255,4 +256,4 @@ Then add the version to `Website/public/release-notes.html`, commit and push; on
 - Joining several videos into one.
 - Sandboxing for the Mac App Store, which would need security-scoped folder bookmarks to save next to originals.
 
-**If you distribute it:** bundle an LGPL ffmpeg build (one built without `--enable-gpl`) in `Tools/`, and include its license and source offer.
+**If you distribute it:** the app downloads YummyOrange's own LGPL ffmpeg from yummyorange.com, so publish the helper ZIP and its `sources/` folder together and keep both as long as any released copy pins that ZIP (the website deploy does both). A bundled ffmpeg in `Tools/` must be an LGPL build: `build.sh` refuses one configured with `--enable-gpl` or `--enable-nonfree`, and you then include its license and source offer yourself.

@@ -62,7 +62,7 @@ enum MediaToolsTests {
     private static func makeSignals(_ dir: URL) -> Bool {
         guard let ff = FFmpeg.shared else { return false }
         func run(_ args: [String]) -> Bool {
-            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args))?.status == 0
+            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args)))?.status == 0
         }
         let p = dir.path + "/"
         return run(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=4", "-f", "lavfi", "-i",
@@ -533,10 +533,10 @@ enum MediaToolsTests {
     /// picture). Ranges 0.1–0.4, 1.0–2.5 and 3.0–3.5 in Tone mode.
     private static func bleepWhereSoundIs(_ t: Checker, _ dir: URL, late: URL) {
         let short = dir.appendingPathComponent("short-sound.mp4")
-        guard let ff = FFmpeg.shared, (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+        guard let ff = FFmpeg.shared, (try? ProcessRunner.run(ff.tool, MediaTestSupport.h264(["-hide_banner", "-loglevel", "error", "-nostdin", "-y",
                                                                        "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=4",
                                                                        "-f", "lavfi", "-i", "sine=f=440:d=2:sample_rate=48000",
-                                                                       "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-c:a", "aac", short.path]))?.status == 0
+                                                                       "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-c:a", "aac", short.path])))?.status == 0
         else { t.check(false, "make short-sound.mp4"); return }
         defer { remove([short]) }
         let tone = Float(MediaBleep.toneLevel)
@@ -591,7 +591,7 @@ enum MediaToolsTests {
         guard let ff = FFmpeg.shared, MediaVisualize.availableStyles.contains(.waveform) else { return }
         let wav = dir.appendingPathComponent("click.wav"), wma = dir.appendingPathComponent("click.wma")
         func run(_ args: [String]) -> Bool {
-            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args))?.status == 0
+            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args)))?.status == 0
         }
         guard run(["-f", "lavfi", "-i", "aevalsrc='0.001*sin(2*PI*300*t)+if(between(t,2.0,2.05),0.9*sin(2*PI*1000*(t-2)),0)':s=44100:d=4",
                    "-c:a", "pcm_s16le", wav.path]),

@@ -4,7 +4,8 @@ import Foundation
 struct FFmpeg {
     let tool: URL
 
-    static var shared: FFmpeg? { Capabilities.shared.ffmpeg.map(FFmpeg.init) }
+    /// The ffmpeg in use, looked for again if its file has gone since it was found.
+    static var shared: FFmpeg? { Capabilities.shared.liveFFmpegFound.map { FFmpeg(tool: $0.ffmpeg) } }
 
     struct MediaInfo {
         var duration: Double?
@@ -12,6 +13,8 @@ struct FFmpeg {
         var opened = false
         var hasVideo = false
         var hasAudio = false
+        /// The first video stream's codec as ffmpeg names it ("h264", "av1").
+        var videoCodec: String?
         var audioCodec: String?
         /// The first audio stream's channel layout as ffmpeg names it ("mono", "stereo", "5.1(side)", "6 channels").
         var audioLayout: String?
@@ -43,7 +46,10 @@ struct FFmpeg {
         }
         for line in text.split(separator: "\n") where line.contains("Stream #") {
             // Cover art in audio files shows up as an "attached pic" video stream; ignore it.
-            if line.contains("Video:") && !line.contains("attached pic") { info.hasVideo = true }
+            if line.contains("Video:") && !line.contains("attached pic") {
+                info.hasVideo = true
+                if info.videoCodec == nil, let m = line.firstMatch(of: #/Video: ([a-z0-9_]+)/#) { info.videoCodec = String(m.1) }
+            }
             if line.contains("Audio:") {
                 let first = !info.hasAudio
                 info.hasAudio = true
@@ -67,7 +73,8 @@ struct FFmpeg {
     /// output's length). `inputOptions` go before `-i` (e.g. `-ss` for a fast, exact seek).
     func run(input: URL, output: URL, args: [String], duration: Double?, inputOptions: [String] = [],
              extraInputs: [String] = [], progress: @escaping (Double) -> Void) throws {
-        var full = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + inputOptions + ["-i", input.path]
+        let decode = inputOptions.contains("-hwaccel") ? [] : decodeOptions(for: input)
+        var full = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + decode + inputOptions + ["-i", input.path]
         full += extraInputs
         full += args
         full += ["-progress", "pipe:1", "-nostats", output.path]
@@ -92,6 +99,35 @@ struct FFmpeg {
         "Error parsing options for output file", "To ignore this, add a trailing",
     ]
 
+    /// What an AV1 video says on a Mac whose ffmpeg can only decode AV1 in hardware, and the hardware has no AV1
+    /// decoder (before M3): FFmpeg's "Your platform doesn't support hardware accelerated AV1 decoding."
+    static let av1Unsupported = "This video is in AV1, which this Mac can’t decode. A Mac with M3 or later can, "
+        + "or install a full ffmpeg (for example with Homebrew)."
+
+    /// Input options for reading `url`: `-hwaccel videotoolbox` for an AV1 video when this Mac's ffmpeg decodes AV1
+    /// only with the Mac's hardware (YummyOrange's own copy, which has no dav1d; M3 and later decode AV1). Empty
+    /// otherwise; nothing is probed when the ffmpeg decodes AV1 itself or the file isn't a video.
+    func decodeOptions(for url: URL) -> [String] {
+        guard MoreFormats.kind(url) == .video, !Capabilities.shared.decodesAV1InSoftware else { return [] }
+        return videoCodec(of: url) == "av1" ? ["-hwaccel", "videotoolbox"] : []
+    }
+
+    private static let codecLock = NSLock()
+    private static var codecs: [String: String] = [:]
+
+    /// The first video stream's codec ("" for none), asked once per file and version of it.
+    func videoCodec(of url: URL) -> String {
+        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        let key = "\(url.standardizedFileURL.path)|\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)|\(values?.fileSize ?? 0)"
+        Self.codecLock.lock()
+        let known = Self.codecs[key]
+        Self.codecLock.unlock()
+        if let known { return known }
+        let codec = probe(url).videoCodec ?? ""
+        Self.codecLock.lock(); Self.codecs[key] = codec; Self.codecLock.unlock()
+        return codec
+    }
+
     /// Operating-system errors that say what went wrong wherever they appear.
     private static let systemErrors = ["No space left on device", "File too large", "Disk quota exceeded", "Permission denied",
                                        "Read-only file system", "Operation not permitted"]
@@ -106,6 +142,7 @@ struct FFmpeg {
         // The system's own words for a full disk or a folder it can't write to name the cause even on a follow-up
         // line ("Error submitting a packet to the muxer: File too large", then "Last message repeated 1 times").
         if let system = lines.first(where: { line in systemErrors.contains { line.localizedCaseInsensitiveContains($0) } }) { return system }
+        if lines.contains(where: { $0.localizedCaseInsensitiveContains("hardware accelerated AV1 decoding") }) { return av1Unsupported }
         let causes = lines.filter { line in !followUpErrors.contains { line.localizedCaseInsensitiveContains($0) } }
         return causes.first ?? lines.last
     }
@@ -182,5 +219,27 @@ struct FFmpeg {
          "[0:v]scale='trunc(iw*sar/2)*2':ih,setsar=1,fps=\(fps),scale='min(\(maxWidth),iw)':-2:flags=lanczos,split[a][b];"
             + "[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a",
          "-an", "-loop", "0"]
+    }
+}
+
+/// A box blur in this Mac's ffmpeg: boxblur where it is there (a GPL-only filter: Homebrew's ffmpeg has it), else the
+/// same box average from avgblur, which every build has (YummyOrange's own LGPL ffmpeg among them). `passes` boxes in a
+/// row come close to a Gaussian. `chroma` is boxblur's colour radius for a colour picture (nil: one plane, as
+/// Visualize's grey mask). avgblur blurs each plane by `radius` of its own pixels, so a colour picture is first brought
+/// to planes of one size (4:4:4 or RGB, at its own bit depth): its colour then gets the blur boxblur gives it, and the
+/// Redact preview's Gaussian matches either.
+enum BoxBlur {
+    /// Formats whose planes are all the size of the picture (what avgblur takes, at 8 to 16 bits).
+    static let fullPlanes = "yuv444p|yuv444p10le|yuv444p12le|yuv444p16le|gbrp|gbrp10le|gbrp12le|gbrp16le|gray|gray10le|gray16le"
+
+    static func filter(radius: Int, passes: Int, chroma: String? = nil,
+                       boxblur: Bool = Capabilities.shared.hasFilter("boxblur")) -> String {
+        if boxblur {
+            var filter = "boxblur=luma_radius=\(radius):luma_power=\(passes)"
+            if let chroma { filter += ":chroma_radius=\(chroma):chroma_power=\(passes)" }
+            return filter
+        }
+        let blur = Array(repeating: "avgblur=sizeX=\(radius)", count: max(1, passes)).joined(separator: ",")
+        return chroma == nil ? blur : "format=pix_fmts=\(fullPlanes),\(blur)"
     }
 }

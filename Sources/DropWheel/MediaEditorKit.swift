@@ -458,7 +458,8 @@ enum MediaKit {
         // Seek a little early, then take the first frame at or after t (the frame on screen at t). In a container
         // without an index the seek lands before the key frame (seekBefore) and an output -ss skips to t.
         let at = stillSeek(t), seek = seekBefore(source, at)
-        let args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-ss", MediaTime.arg(seek), "-i", source.url.path]
+        let args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + ff.decodeOptions(for: source.url)
+            + ["-ss", MediaTime.arg(seek), "-i", source.url.path]
             + (at - seek > 0.0005 ? ["-ss", MediaTime.arg(at - seek)] : [])
             + ["-map", "0:v:0", "-frames:v", "1",
                "-vf", "scale=\(Int(size.width)):\(Int(size.height))\(source.rgbScaleOptions),setsar=1,format=rgb24", out.path]
@@ -527,6 +528,7 @@ enum MediaKit {
         var args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"]
         if source.duration > 120 { args += ["-skip_frame", "nokey"] }
         let rate = "\(count)/\(MediaTime.arg(source.duration))"
+        args += ff.decodeOptions(for: source.url)
         args += ["-i", source.url.path, "-map", "0:v:0", "-frames:v", "1",
                  "-vf", "fps=\(rate):start_time=0,scale=\(w):\(height)\(source.rgbScaleOptions),setsar=1,format=rgb24,tile=\(cols)x\(rows)",
                  out.path]
@@ -720,7 +722,8 @@ enum MediaKit {
         }
         let process = Process()
         process.executableURL = ff.tool
-        process.arguments = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + inputOptions + ["-i", input.path] + args
+        let decode = inputOptions.contains("-hwaccel") ? [] : ff.decodeOptions(for: input)
+        process.arguments = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + decode + inputOptions + ["-i", input.path] + args
             + ["-progress", "pipe:1", "-nostats", output.path]
         process.standardInput = FileHandle.nullDevice
         let out = Pipe(), err = Pipe()

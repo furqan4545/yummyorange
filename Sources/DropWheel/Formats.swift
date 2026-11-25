@@ -194,62 +194,169 @@ enum OutputFormat: String, CaseIterable {
     }
 }
 
-/// Which optional encoders are available on this Mac. Probed once at launch.
+/// Which optional encoders are available on this Mac. Probed once at launch, and again when YummyOrange's own ffmpeg
+/// arrives (FFmpegHelper.swift).
 final class Capabilities {
     static let shared = Capabilities()
 
-    let ffmpeg: URL?
-    let cwebp: URL?
-    /// libwebp's animation encoder (ships with cwebp), for animated GIF/PNG → animated WebP.
-    let img2webp: URL?
-    private(set) var ffmpegEncoders: Set<String> = []
-    /// ffmpeg's filters, probed lazily the first time one is asked about (older builds lack some).
-    private lazy var ffmpegFilters: Set<String> = {
-        guard let ffmpeg else { return [] }
-        let out = (try? ProcessRunner.run(ffmpeg, ["-hide_banner", "-filters"]).stdout) ?? ""
-        var names = Set<String>()
-        for line in out.split(separator: "\n") {
-            let cols = line.split(separator: " ", omittingEmptySubsequences: true)
-            // " TS aap  AA->A  …": a flags column (2 or 3 of . T S C), the name, then the in->out pads.
-            if cols.count >= 3, cols[2].contains("->"), cols[0].allSatisfy({ ".TSC".contains($0) }) { names.insert(String(cols[1])) }
-        }
-        return names
-    }()
-    private let filterLock = NSLock()
-    private let imageIOTypes: Set<String>
+    /// One ffmpeg and what it can do. A new one replaces it whole (under `lock`) when YummyOrange's copy is installed.
+    final class FFmpegProbe {
+        let found: FFmpegLookup.Found?
+        let encoders: Set<String>
+        private let filterLock = NSLock()
+        private var filterNames: Set<String>?
 
-    private init() {
-        ffmpeg = Capabilities.findTool("ffmpeg")
-        cwebp = Capabilities.findTool("cwebp")
-        img2webp = Capabilities.findTool("img2webp")
-        imageIOTypes = Set((CGImageDestinationCopyTypeIdentifiers() as? [String]) ?? [])
-        if let ffmpeg {
-            let out = (try? ProcessRunner.run(ffmpeg, ["-hide_banner", "-encoders"]).stdout) ?? ""
+        private let decoderLock = NSLock()
+        private var decoderNames: Set<String>?
+
+        init(_ found: FFmpegLookup.Found?) {
+            self.found = found
+            encoders = found.map { Self.codecs($0.ffmpeg, "-encoders") } ?? []
+        }
+
+        /// Made up, for self-tests: nothing is run.
+        init(found: FFmpegLookup.Found?, encoders: Set<String>, filters: Set<String>, decoders: Set<String>? = nil) {
+            self.found = found
+            self.encoders = encoders
+            filterNames = filters
+            decoderNames = decoders
+        }
+
+        /// The first of `candidates` (FFmpegLookup's order) that runs and lists its encoders. A person's own ffmpeg that
+        /// doesn't (a Homebrew ffmpeg missing one of its libraries) is passed over for the next, then YummyOrange's
+        /// copy; when none runs there is none, so YummyOrange gets its own.
+        static func first(of candidates: [FFmpegLookup.Found]) -> FFmpegProbe {
+            for found in candidates {
+                let probe = FFmpegProbe(found)
+                if !probe.encoders.isEmpty { return probe }
+                FFmpegHelper.log.error("ffmpeg at \(found.ffmpeg.path, privacy: .public) doesn’t run; passing it over")
+            }
+            return FFmpegProbe(nil)
+        }
+
+        /// " A....D aac  AAC (Advanced Audio Coding)": the six flag letters, then the name.
+        static func codecs(_ ffmpeg: URL, _ list: String) -> Set<String> {
+            let out = (try? ProcessRunner.run(ffmpeg, ["-hide_banner", list]).stdout) ?? ""
+            var names = Set<String>()
             for line in out.split(separator: "\n") {
                 let cols = line.split(separator: " ", omittingEmptySubsequences: true)
-                if cols.count >= 2, cols[0].count == 6 { ffmpegEncoders.insert(String(cols[1])) }
+                if cols.count >= 2, cols[0].count == 6, cols[0] != "------" { names.insert(String(cols[1])) }
             }
+            return names
+        }
+
+        /// ffmpeg's decoders, probed the first time one is asked about.
+        func decoders() -> Set<String> {
+            decoderLock.lock(); defer { decoderLock.unlock() }
+            if let decoderNames { return decoderNames }
+            let names = found.map { Self.codecs($0.ffmpeg, "-decoders") } ?? []
+            decoderNames = names
+            return names
+        }
+
+        /// ffmpeg's filters, probed the first time one is asked about (older builds lack some).
+        func filters() -> Set<String> {
+            filterLock.lock(); defer { filterLock.unlock() }
+            if let filterNames { return filterNames }
+            var names = Set<String>()
+            if let ffmpeg = found?.ffmpeg {
+                let out = (try? ProcessRunner.run(ffmpeg, ["-hide_banner", "-filters"]).stdout) ?? ""
+                for line in out.split(separator: "\n") {
+                    let cols = line.split(separator: " ", omittingEmptySubsequences: true)
+                    // " TS aap  AA->A  …": a flags column (2 or 3 of . T S C), the name, then the in->out pads.
+                    if cols.count >= 3, cols[2].contains("->"), cols[0].allSatisfy({ ".TSC".contains($0) }) { names.insert(String(cols[1])) }
+                }
+            }
+            filterNames = names
+            return names
         }
     }
 
-    func has(_ encoder: String) -> Bool { ffmpegEncoders.contains(encoder) }
+    private let lock = NSLock()
+    private var probe: FFmpegProbe
+    private var current: FFmpegProbe {
+        lock.lock(); defer { lock.unlock() }
+        return probe
+    }
+
+    /// The ffmpeg in use: the person's own, else YummyOrange's (FFmpegLookup). nil when this Mac has none yet.
+    var ffmpeg: URL? { current.found?.ffmpeg }
+    /// Which ffmpeg is in use and whose it is.
+    var ffmpegFound: FFmpegLookup.Found? { current.found }
+
+    /// `ffmpegFound`, looked for again first when its file has gone since (the Helpers folder deleted, a copy replaced
+    /// by a newer YummyOrange, Homebrew's ffmpeg uninstalled): what jobs and the helper ask before they run. A file
+    /// check while it is there; the search (which runs ffmpeg) only once it has gone.
+    var liveFFmpegFound: FFmpegLookup.Found? {
+        let found = current.found
+        guard let found, !FileManager.default.isExecutableFile(atPath: found.ffmpeg.path) else { return found }
+        refreshFFmpeg()
+        return current.found
+    }
+    let cwebp: URL?
+    /// libwebp's animation encoder (ships with cwebp), for animated GIF/PNG → animated WebP.
+    let img2webp: URL?
+    private let imageIOTypes: Set<String>
+
+    private init() {
+        probe = FFmpegProbe.first(of: FFmpegLookup.currentCandidates())
+        cwebp = Capabilities.findTool("cwebp")
+        img2webp = Capabilities.findTool("img2webp")
+        imageIOTypes = Set((CGImageDestinationCopyTypeIdentifiers() as? [String]) ?? [])
+    }
+
+    /// Looks for ffmpeg again and probes it (any thread but the main one: it runs ffmpeg once). YummyOrange's own copy
+    /// calls this once it is in place.
+    func refreshFFmpeg() {
+        let fresh = FFmpegProbe.first(of: FFmpegLookup.currentCandidates())
+        lock.lock(); probe = fresh; lock.unlock()
+    }
+
+    #if DEBUG
+    /// Self-tests: makes `probe` the ffmpeg in use and returns the one it replaces (to put back).
+    @discardableResult
+    func swapFFmpegProbe(_ replacement: FFmpegProbe) -> FFmpegProbe {
+        lock.lock(); defer { lock.unlock() }
+        let old = probe
+        probe = replacement
+        return old
+    }
+    #endif
+
+    func has(_ encoder: String) -> Bool { current.encoders.contains(encoder) }
 
     /// Whether this Mac's ffmpeg has the filter `name` (e.g. "pixelize", "showcqt", "aeval").
-    func hasFilter(_ name: String) -> Bool {
-        filterLock.lock(); defer { filterLock.unlock() }
-        return ffmpegFilters.contains(name)
+    func hasFilter(_ name: String) -> Bool { current.filters().contains(name) }
+
+    /// A box blur: boxblur (a GPL-only filter, in Homebrew's ffmpeg), or avgblur, which every build has (YummyOrange's
+    /// own LGPL copy among them). BoxBlur.filter writes whichever is here.
+    var hasBoxBlur: Bool { hasFilter("boxblur") || hasFilter("avgblur") }
+
+    /// Whether this Mac's ffmpeg decodes AV1 in software (dav1d or libaom). FFmpeg's own AV1 decoder, the only one in
+    /// YummyOrange's copy, needs the Mac's hardware decoder (M3 and later), asked for with `-hwaccel videotoolbox`.
+    var decodesAV1InSoftware: Bool { !current.decoders().isDisjoint(with: ["libdav1d", "libaom-av1"]) }
+
+    /// Audio and video work can be offered: ffmpeg is here, or YummyOrange can get its own copy the moment a task needs
+    /// it. Cheap: the wheels ask it while they open.
+    var mediaAvailable: Bool { ffmpeg != nil || FFmpegHelper.shared.canFetch }
+
+    /// `has(encoder)`, or, while this Mac has no ffmpeg, whether YummyOrange's own copy (which it can download) has it.
+    func offers(_ encoder: String) -> Bool {
+        let probe = current
+        if probe.found != nil { return probe.encoders.contains(encoder) }
+        return FFmpegHelper.shared.canFetch && FFmpegHelper.buildIncludes(encoder: encoder)
     }
 
     func canWrite(_ format: OutputFormat, from kind: FileKind) -> Bool {
         switch kind {
         case .image, .pdf:
             if format == .pdf { return true }
-            if format == .webp { return cwebp != nil || has("libwebp") }
+            if format == .webp { return cwebp != nil || offers("libwebp") }
             if let t = format.imageIOType { return imageIOTypes.contains(t) }
             return false
         case .video, .audio:
-            guard ffmpeg != nil else { return false }
-            if format == .webm { return has("libvpx-vp9") }
+            guard mediaAvailable else { return false }
+            if format == .webm { return offers("libvpx-vp9") }
             if format == .gif { return kind == .video }
             return format.isVideo ? kind == .video : format.isAudio
         case .other:
@@ -259,14 +366,7 @@ final class Capabilities {
 
     /// Looks for a command-line tool: inside the app bundle first, then common install locations.
     static func findTool(_ name: String) -> URL? {
-        var dirs: [URL] = []
-        if let res = Bundle.main.resourceURL { dirs.append(res.appendingPathComponent("Tools")) }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        dirs += [home.appendingPathComponent(".local/bin"),
-                 URL(fileURLWithPath: "/opt/homebrew/bin"),
-                 URL(fileURLWithPath: "/usr/local/bin"),
-                 URL(fileURLWithPath: "/usr/bin")]
-        for dir in dirs {
+        for dir in FFmpegLookup.userFolders() {
             let candidate = dir.appendingPathComponent(name)
             if FileManager.default.isExecutableFile(atPath: candidate.path) { return candidate }
         }

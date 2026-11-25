@@ -70,7 +70,7 @@ enum MediaTrimTests {
         guard let ff = FFmpeg.shared else { return }
         func make(_ name: String, _ args: [String]) -> URL? {
             let url = dir.appendingPathComponent(name)
-            let ok = (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args + [url.path]))?.status == 0
+            let ok = (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args) + [url.path]))?.status == 0
             return ok ? url : nil
         }
         // Tags (and a file name) that read like the report's own lines.
@@ -178,7 +178,7 @@ enum MediaTrimTests {
                         "-f", "lavfi", "-i", "color=black:s=320x240:r=25:d=6,drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='between(t,3.49,3.59)'",
                         "-f", "lavfi", "-i", "aevalsrc='0.05*sin(2*PI*300*t)+if(between(t,3.5,3.52),0.9*sin(2*PI*1000*(t-3.5)),0)':s=48000:d=6"]
                 + codecs + [url.path]
-            guard (try? ProcessRunner.run(ff.tool, args))?.status == 0, let source = try? MediaSource.load(url) else {
+            guard (try? ProcessRunner.run(ff.tool, MediaTestSupport.h264(args)))?.status == 0, let source = try? MediaSource.load(url) else {
                 t.check(false, "make \(name)"); continue
             }
             defer { try? FileManager.default.removeItem(at: url) }
@@ -211,9 +211,9 @@ enum MediaTrimTests {
         // The editor's still (shown while a preview copy is made) at 3.0 s of a moving picture, 1 s past a key frame:
         // the frame itself, not one decoded without its references (20 dB from every frame near it).
         let moving = dir.appendingPathComponent("moving.m2ts")
-        guard (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi", "-i",
+        guard (try? ProcessRunner.run(ff.tool, MediaTestSupport.h264(["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-f", "lavfi", "-i",
                                                 "testsrc2=s=320x240:r=25:d=6", "-c:v", "libx264", "-g", "50", "-bf", "2", "-f", "mpegts",
-                                                moving.path]))?.status == 0, let source = try? MediaSource.load(moving) else {
+                                                moving.path])))?.status == 0, let source = try? MediaSource.load(moving) else {
             t.check(false, "make moving.m2ts"); return
         }
         defer { try? FileManager.default.removeItem(at: moving) }

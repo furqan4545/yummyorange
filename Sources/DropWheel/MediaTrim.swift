@@ -25,9 +25,9 @@ enum MediaTrim: FeatureModule {
             return outputs
         })
 
-    /// Every file is video or audio, and ffmpeg is installed. Cheap: file types only.
+    /// Every file is video or audio, and ffmpeg is installed or YummyOrange can get it. Cheap: file types only.
     static func isMedia(_ files: [URL]) -> Bool {
-        Capabilities.shared.ffmpeg != nil && !files.isEmpty && files.allSatisfy { [.video, .audio].contains(MoreFormats.kind($0)) }
+        Capabilities.shared.mediaAvailable && !files.isEmpty && files.allSatisfy { [.video, .audio].contains(MoreFormats.kind($0)) }
     }
 
     enum Method: String { case copy, reencode }

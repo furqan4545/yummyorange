@@ -819,15 +819,15 @@
   const QS = '<a href="#faq-extras">see Questions</a>';
   const KINDS = {
     images: { tab: 'Images', file: 'lake.png', convert: 'jpg heic webp tiff avif gif bmp pdf pptx', tools: IMAGE_TOOLS, thumb: 'assets/lake.webp',
-      opens: 'JPG, PNG, HEIC, WebP, TIFF, AVIF, GIF, BMP', becomes: 'Each other, PDF, or PPTX with one slide per picture', note: `Saving as WebP needs one free extra; ${QS}.` },
+      opens: 'JPG, PNG, HEIC, WebP, TIFF, AVIF, GIF, BMP', becomes: 'Each other, PDF, or PPTX with one slide per picture', note: `Saving as WebP may use ffmpeg, which YummyOrange downloads once if your Mac doesn’t have it; ${QS}.` },
     pdf: { tab: 'PDF', file: 'estimate.pdf', convert: 'png jpg svg docx txt md epub pptx xlsx', tools: PDF_TOOLS,
       opens: 'PDF', becomes: 'PNG, JPG, SVG, DOCX, TXT, Markdown, EPUB, PPTX, XLSX', note: 'TXT and Markdown keep just the text, in reading order; scanned pages are read too.' },
     documents: { tab: 'Documents', file: 'letter.docx', convert: 'pdf rtf html txt md odt epub', tools: [],
       opens: 'DOCX, DOC, RTF, HTML, TXT, Markdown, ODT', becomes: 'PDF, EPUB and each other' },
     video: { tab: 'Video', file: 'sunset.mp4', convert: 'mov mkv webm gif mp3 m4a wma avi wmv', tools: VIDEO_TOOLS, thumb: 'assets/sunset.webp',
-      opens: 'MP4, MOV, MKV, WebM, AVI, WMV', becomes: 'Each other, an animated GIF, or just the sound as MP3, M4A or WMA', note: `Needs ffmpeg, a free tool you add with Homebrew; ${QS}.` },
+      opens: 'MP4, MOV, MKV, WebM, AVI, WMV', becomes: 'Each other, an animated GIF, or just the sound as MP3, M4A or WMA', note: `Uses ffmpeg, which YummyOrange downloads once (about 12 MB) if your Mac doesn’t have it; ${QS}.` },
     audio: { tab: 'Audio', file: 'interview.wav', convert: 'mp3 m4a flac ogg opus aiff wma', tools: AUDIO_TOOLS,
-      opens: 'MP3, M4A, WAV, FLAC, OGG, Opus, AIFF, WMA', becomes: 'Each other', note: `Needs ffmpeg, a free tool you add with Homebrew; ${QS}.` },
+      opens: 'MP3, M4A, WAV, FLAC, OGG, Opus, AIFF, WMA', becomes: 'Each other', note: `Uses ffmpeg, which YummyOrange downloads once (about 12 MB) if your Mac doesn’t have it; ${QS}.` },
     spreadsheets: { tab: 'Spreadsheets', file: 'budget.xlsx', convert: 'ods csv tsv pdf', tools: [],
       opens: 'XLSX, XLS, ODS, CSV, TSV', becomes: 'Each other and PDF' },
     slides: { tab: 'Slides', file: 'pitch.pptx', convert: 'pdf png jpg', tools: ['Slide Text'],

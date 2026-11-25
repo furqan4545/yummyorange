@@ -70,12 +70,19 @@ final class SettingsWindowController: NSWindowController {
         if !Self.isOpen {
             Self.isOpen = true
             SettingsModel.shared.objectWillChange.send()   // what the updater and the login status did while closed
+            FFmpegRowModel.shared.refresh()   // and YummyOrange’s own ffmpeg
         }
         if let section { tabs.select(section) }
         tabs.fitWindowToSelectedTab(animate: false)
         LaunchAtLogin.refresh()   // in case it was changed in System Settings
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The open window takes the selected pane's height again (About's ffmpeg row grew or shrank).
+    func fitToContent() {
+        guard Self.isOpen else { return }
+        tabs.fitWindowToSelectedTab(animate: true)
     }
 
     /// `--snapshot settings-window [--opt section=general|wheels|look|about]`: a fresh Settings window drawn whole,
@@ -427,16 +434,20 @@ struct SettingsSectionView: View {
                     }
                 }
             }
+            // ffmpeg's row has a section of its own, with no footer: its status can take three lines, and a grouped
+            // form gave a row that shares its section, or sits above a footer, only the height of two (the text ran
+            // into the next row). The license note, about ffmpeg, closes the group under cwebp.
             Section {
-                ToolRow(name: "ffmpeg", purpose: "Audio and video", tool: AboutInfo.ffmpeg,
-                        missing: "Not found. Audio and video conversions are off.")
-                ToolRow(name: "cwebp", purpose: "WebP images", tool: AboutInfo.cwebp,
-                        missing: Capabilities.shared.has("libwebp") ? "Not found. WebP is made with ffmpeg instead."
-                                                                    : "Not found. Saving WebP is off.")
+                FFmpegToolRow()
             } header: {
                 Text("Helper tools")
+            }
+            Section {
+                ToolRow(name: "cwebp", purpose: "WebP images", tool: AboutInfo.cwebp,
+                        missing: Capabilities.shared.offers("libwebp") ? "Not found. WebP is made with ffmpeg instead."
+                                                                       : "Not found. Saving WebP is off.")
             } footer: {
-                Text(AboutInfo.licenseNote).font(.caption).foregroundStyle(.secondary)
+                Text(AboutInfo.licenseNoteText).font(.caption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -570,6 +581,179 @@ private struct ToolRow: View {
     }
 }
 
+/// What About's ffmpeg row shows (FFmpegToolRow draws it; `--selftest helper` checks the words for each state).
+struct FFmpegRow: Equatable {
+    enum Trailing: Equatable {
+        /// The person's own ffmpeg: where it is.
+        case path(String)
+        /// YummyOrange's own copy: "Installed by YummyOrange", with its path as the help tag.
+        case installed(path: String)
+        /// On its way: the fraction downloaded (nil until known; 1 while it is put in place), with Cancel while it
+        /// downloads.
+        case progress(Double?, cancel: Bool)
+        /// None yet, and this copy can get one: a Download button.
+        case download
+        /// None, and this copy can't get one.
+        case missing(String)
+    }
+
+    /// Under the name: "Audio and video · version 8.0.1 · LGPL 2.1+ build".
+    var detail: String
+    /// A line under that: what is happening or what to do.
+    var status: String?
+    /// The status is a problem (it gets a warning symbol).
+    var isProblem = false
+    var trailing: Trailing
+
+    static let purpose = "Audio and video"
+    static let installedByYummyOrange = "Installed by YummyOrange"
+    static let downloading = "Downloading…"
+    static let installing = "Installing…"
+    static let unavailable = "Not found. Audio and video conversions are off."
+
+    /// The quiet download starts by itself (a minute after launch, on a network that isn't metered) or when a task
+    /// needs it; Download gets it now.
+    static func notInstalled(size: Int) -> String {
+        "Not installed yet. YummyOrange downloads it by itself (\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))), "
+            + "or click Download to get it now."
+    }
+
+    /// `failure`: why the last attempt failed (FFmpegHelper.failure), shown as the row's problem.
+    static func make(found: FFmpegLookup.Found?, tool: AboutInfo.Tool, phase: FFmpegHelper.Phase, failure: String? = nil, canFetch: Bool,
+                     downloadSize: Int) -> FFmpegRow {
+        if canFetch {
+            switch phase {
+            case .downloading(let fraction): return FFmpegRow(detail: purpose, status: downloading, trailing: .progress(fraction, cancel: true))
+            case .installing: return FFmpegRow(detail: purpose, status: installing, trailing: .progress(1, cancel: false))
+            case .idle, .failed: break
+            }
+        }
+        if let found {
+            let facts = [purpose, tool.version, tool.license].compactMap { $0 }.joined(separator: " · ")
+            switch found.source {
+            case .user: return FFmpegRow(detail: facts, trailing: .path(found.ffmpeg.path))
+            case .helper: return FFmpegRow(detail: facts, trailing: .installed(path: found.ffmpeg.path))
+            }
+        }
+        guard canFetch else { return FFmpegRow(detail: purpose, trailing: .missing(unavailable)) }
+        if phase == .failed {
+            return FFmpegRow(detail: purpose, status: failure ?? FFmpegHelperText.offline, isProblem: true, trailing: .download)
+        }
+        return FFmpegRow(detail: purpose, status: notInstalled(size: downloadSize), trailing: .download)
+    }
+
+    /// The row for this Mac now.
+    static func current() -> FFmpegRow {
+        let helper = FFmpegHelper.shared
+        return make(found: Capabilities.shared.ffmpegFound, tool: AboutInfo.ffmpeg, phase: helper.phase, failure: helper.failure,
+                    canFetch: helper.canFetch, downloadSize: helper.config.build.length)
+    }
+}
+
+/// Redraws the ffmpeg row as the helper downloads, while the Settings window is open; closed, the row catches up when
+/// it opens (SettingsWindowController.show), so a download costs an open menu-bar menu nothing.
+final class FFmpegRowModel: ObservableObject {
+    static let shared = FFmpegRowModel()
+    private var observer: NSObjectProtocol?
+
+    /// The row's words without the percentage, to notice when its height may change.
+    private var lastShape = ""
+
+    private init() {
+        observer = NotificationCenter.default.addObserver(forName: FFmpegHelper.didChange, object: nil, queue: .main) { [weak self] _ in
+            guard let self, SettingsModel.followsLiveChanges() else { return }
+            self.objectWillChange.send()
+            // A status line came or went (Downloading… → Installed by YummyOrange): the window takes the pane's new
+            // height, as it does when a pane is chosen. Percentages alone change nothing.
+            let shape = Self.shape(FFmpegRow.current())
+            if shape != self.lastShape {
+                self.lastShape = shape
+                DispatchQueue.main.async { if SettingsWindowController.isOpen { SettingsWindowController.shared.fitToContent() } }
+            }
+        }
+    }
+
+    func refresh() {
+        lastShape = Self.shape(FFmpegRow.current())
+        objectWillChange.send()
+    }
+
+    private static func shape(_ row: FFmpegRow) -> String {
+        var trailing = ""
+        switch row.trailing {
+        case .path: trailing = "path"
+        case .installed: trailing = "installed"
+        case .progress: trailing = "progress"
+        case .download: trailing = "download"
+        case .missing(let text): trailing = text
+        }
+        return [row.detail, row.status ?? "", trailing].joined(separator: "|")
+    }
+}
+
+/// About's ffmpeg row: the person's own (its path), YummyOrange's (Installed by YummyOrange), on its way (a bar that
+/// fills), or none yet (Download).
+private struct FFmpegToolRow: View {
+    @ObservedObject private var model = FFmpegRowModel.shared
+
+    var body: some View {
+        let row = FFmpegRow.current()
+        LabeledContent {
+            trailing(row.trailing)
+        } label: {
+            // A name and one caption Text under it, like SettingLabel: a grouped form lays out a label's second Text as
+            // its subtitle and gave a third one no room. A problem's line leads with the warning symbol.
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "ffmpeg")
+                caption(row).font(.caption).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func caption(_ row: FFmpegRow) -> Text {
+        var text = Text(row.detail).foregroundColor(.secondary)
+        if let status = row.status {
+            text = text + Text("\n")
+            if row.isProblem { text = text + Text(Image(systemName: "exclamationmark.triangle.fill")).foregroundColor(.orange) + Text(" ") }
+            text = text + Text(status).foregroundColor(.secondary)
+        }
+        return text
+    }
+
+    @ViewBuilder private func trailing(_ trailing: FFmpegRow.Trailing) -> some View {
+        switch trailing {
+        case .path(let path):
+            Text(path).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+        case .installed(let path):
+            Text(FFmpegRow.installedByYummyOrange).foregroundStyle(.secondary).help(path)
+        case .progress(let fraction, let cancel):
+            HStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    if let fraction {
+                        ProgressView(value: fraction).frame(width: 120)
+                        Text("\(FFmpegHelperText.percent(fraction))%").monospacedDigit().foregroundStyle(.secondary)
+                            .frame(minWidth: 36, alignment: .trailing)
+                    } else {
+                        ProgressView().progressViewStyle(.linear).frame(width: 120)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Downloading ffmpeg")
+                .accessibilityValue(fraction.map { "\(FFmpegHelperText.percent($0)) percent" } ?? "")
+                // Halting it loses only what has come in so far, a few megabytes: no confirmation.
+                if cancel {
+                    Button("Cancel") { FFmpegHelper.shared.cancel() }
+                        .accessibilityLabel("Cancel the ffmpeg download")
+                }
+            }
+        case .download:
+            Button("Download") { FFmpegHelper.shared.fetch() }
+        case .missing(let text):
+            Text(text).foregroundStyle(.orange).multilineTextAlignment(.trailing)
+        }
+    }
+}
+
 /// The app's icon (AppIcon.icns in the bundle); a development build without one shows the menu-bar symbol on an
 /// accent tile instead.
 private struct AppIconView: View {
@@ -593,7 +777,7 @@ private struct AppIconView: View {
     }
 }
 
-/// Facts for the About tab, probed once.
+/// Facts for the About tab, each probed once.
 enum AboutInfo {
     struct Tool {
         var path: String?
@@ -608,16 +792,43 @@ enum AboutInfo {
         return build.map { "Version \(short) (\($0))" } ?? "Version \(short)"
     }
 
-    static let ffmpeg: Tool = {
+    /// The ffmpeg in use (the person's own or YummyOrange's): where it is, its version and its license. Each ffmpeg is
+    /// asked once; YummyOrange's own copy tells it while it installs (`remember`), so About never waits for it.
+    static var ffmpeg: Tool {
         guard let url = Capabilities.shared.ffmpeg else { return Tool() }
-        let text = (try? ProcessRunner.run(url, ["-hide_banner", "-version"]))?.stdout ?? ""
+        ffmpegLock.lock()
+        let known = ffmpegTools[url.path]
+        ffmpegLock.unlock()
+        if let known { return known }
+        let tool = ffmpegTool(path: url.path, versionOutput: (try? ProcessRunner.run(url, ["-hide_banner", "-version"]))?.stdout ?? "")
+        ffmpegLock.lock(); ffmpegTools[url.path] = tool; ffmpegLock.unlock()
+        return tool
+    }
+
+    private static let ffmpegLock = NSLock()
+    private static var ffmpegTools: [String: Tool] = [:]
+
+    /// What is known about the ffmpeg at `path`, without running it.
+    static func ffmpeg(atPath path: String) -> Tool? {
+        ffmpegLock.lock(); defer { ffmpegLock.unlock() }
+        return ffmpegTools[path]
+    }
+
+    /// What `ffmpeg -version` said for the ffmpeg at `path` (any thread).
+    static func remember(ffmpegVersionOutput text: String, path: String) {
+        let tool = ffmpegTool(path: path, versionOutput: text)
+        ffmpegLock.lock(); ffmpegTools[path] = tool; ffmpegLock.unlock()
+    }
+
+    /// "ffmpeg version 8.0.1 Copyright…" and its configuration line: "version 8.0.1" and the license.
+    static func ffmpegTool(path: String, versionOutput text: String) -> Tool {
         let first = text.split(separator: "\n").first.map(String.init) ?? ""
         var version: String?
         if let range = first.range(of: "version ") {
             version = first[range.upperBound...].split(separator: " ").first.map { "version \($0)" }
         }
-        return Tool(path: url.path, version: version, license: ffmpegLicense(configuration: text))
-    }()
+        return Tool(path: path, version: version, license: ffmpegLicense(configuration: text))
+    }
 
     static let cwebp: Tool = {
         guard let url = Capabilities.shared.cwebp else { return Tool() }
@@ -635,12 +846,17 @@ enum AboutInfo {
         return v3 ? "LGPL 3 build" : "LGPL 2.1+ build"
     }
 
-    static var licenseNote: String {
-        var note = "ffmpeg is free software under the GNU LGPL (or the GPL, depending on how it was built). YummyOrange runs it as a separate program and contains none of its code; its source is available from ffmpeg.org."
-        if let license = ffmpeg.license, !license.hasPrefix("LGPL") {
-            note += " The copy found on this Mac is a \(license); a copy of YummyOrange you pass on should bundle an LGPL build instead."
-        }
-        return note
+    /// Helper tools' footer: whose ffmpeg runs, and under which license.
+    static let licenseNote = "YummyOrange’s own ffmpeg is an LGPL 2.1 build of FFmpeg; its license and source code are at "
+        + "\(licenseLinkText). An ffmpeg already on this Mac is used instead, under its own license."
+    static let licenseLinkText = "yummyorange.com/licenses/ffmpeg.html"
+    static let licenseURL = URL(string: "https://yummyorange.com/licenses/ffmpeg.html")!
+
+    /// The footer with its address as a link.
+    static var licenseNoteText: AttributedString {
+        var text = AttributedString(licenseNote)
+        if let range = text.range(of: licenseLinkText) { text[range].link = licenseURL }
+        return text
     }
 }
 

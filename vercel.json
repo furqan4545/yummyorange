@@ -70,6 +70,59 @@
           "value": "application/zip"
         }
       ]
+    },
+    {
+      "source": "/downloads/helpers/(.*)\\.zip",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/downloads/helpers/sources/(.*)\\.tar\\.xz",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/x-xz"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/downloads/helpers/sources/(.*)\\.tar\\.gz",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/gzip"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/downloads/helpers/sources/(.*)\\.sh",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/downloads/helpers/sources/(.*)\\.md",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
     }
   ],
   "buildCommand": "",

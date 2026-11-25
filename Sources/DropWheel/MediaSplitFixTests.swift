@@ -23,7 +23,7 @@ extension MediaSplitTests {
 
     private static func ffmpeg(_ args: [String]) -> Bool {
         guard let ff = FFmpeg.shared else { return false }
-        return (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args))?.status == 0
+        return (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args)))?.status == 0
     }
 
     private static func g(_ v: Double) -> String { String(format: "%.3f", v) }

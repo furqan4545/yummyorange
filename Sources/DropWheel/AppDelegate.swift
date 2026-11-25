@@ -93,13 +93,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for command in commands where !titles.contains(command.title) {
             titles.insert(command.title)
             items.append(WheelItem(title: command.title, symbol: command.symbol) { urls in
-                if let present = command.present { present(urls); return }
-                var options: ToolOptions = [:]
-                if let ask = command.ask {
-                    guard let answer = ask(urls) else { return }
-                    options = answer
+                let go = {
+                    if let present = command.present { present(urls); return }
+                    var options: ToolOptions = [:]
+                    if let ask = command.ask {
+                        guard let answer = ask(urls) else { return }
+                        options = answer
+                    }
+                    JobRunner.run(.command(command, options), on: urls)
                 }
-                JobRunner.run(.command(command, options), on: urls)
+                // An editor or a question about audio or video needs ffmpeg first: on a Mac without one, it opens once
+                // YummyOrange's own copy is here (the HUD shows the download). Jobs that just run wait in JobRunner.
+                if FFmpegHelper.mustWaitBefore(command, files: urls) { FFmpegHelper.shared.whenAvailable(go) } else { go() }
             })
         }
     }

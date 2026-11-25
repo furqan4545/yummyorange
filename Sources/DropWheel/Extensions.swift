@@ -82,6 +82,7 @@ enum Registry {
         ResultsShelf.self,   // no petals: where new files show (`--selftest results-shelf`, `--snapshot menu`)
         ClotheslineModule.self,   // no petals: new files hung under the notch (`--selftest clothesline`, `--snapshot clothesline`)
         MenuBarIcon.self,   // no petals: the menu-bar icon (`--snapshot menubar-icon`)
+        FFmpegHelperModule.self,   // no petals: gets YummyOrange’s own ffmpeg on a Mac without one (`--selftest helper`)
         UpdaterModule.self,   // no petals: the built-in updater (`--selftest updater`)
     ]
 

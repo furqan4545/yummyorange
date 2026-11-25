@@ -41,9 +41,9 @@ enum MoreFormats: FeatureModule {
         ]
     }
 
-    /// Every file is one of `kinds`, not all of them are already `ext`, and ffmpeg has the encoders.
+    /// Every file is one of `kinds`, not all of them are already `ext`, and ffmpeg has the encoders (or YummyOrange’s own copy, while there is none).
     private static func offers(_ files: [URL], kinds: Set<FileKind>, ext: String, encoders: [String]) -> Bool {
-        guard Capabilities.shared.ffmpeg != nil, encoders.allSatisfy(Capabilities.shared.has) else { return false }
+        guard Capabilities.shared.mediaAvailable, encoders.allSatisfy(Capabilities.shared.offers) else { return false }
         return !files.isEmpty && files.allSatisfy { kinds.contains(kind($0)) }
             && !files.allSatisfy { Ext.of($0) == ext }
     }

@@ -51,9 +51,9 @@ enum MediaTools: FeatureModule {
         applies: isAudio, ask: MediaVisualize.ask,
         run: perFile { url, options, progress in try MediaVisualize.visualize(url, options: options, progress: progress) })
 
-    /// Every file is sound only (no picture), and ffmpeg is installed. Cheap: file types only.
+    /// Every file is sound only (no picture), and ffmpeg is installed or YummyOrange can get it. Cheap: file types only.
     static func isAudio(_ files: [URL]) -> Bool {
-        Capabilities.shared.ffmpeg != nil && !files.isEmpty && files.allSatisfy { MoreFormats.kind($0) == .audio }
+        Capabilities.shared.mediaAvailable && !files.isEmpty && files.allSatisfy { MoreFormats.kind($0) == .audio }
     }
 
     /// `name` when this Mac has the symbol, else `fallback` (older systems lack some newer names).

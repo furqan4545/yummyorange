@@ -47,9 +47,9 @@ enum MediaMerge {
         combinesInputs: true, applies: applies,
         run: { files, _, progress in [try merge(files, progress: progress)] })
 
-    /// Two or more files, all video or all sound only (by type, so it's cheap), and ffmpeg is installed.
+    /// Two or more files, all video or all sound only (by type, so it’s cheap), and ffmpeg is installed or YummyOrange can get it.
     static func applies(_ files: [URL]) -> Bool {
-        guard files.count >= 2, Capabilities.shared.ffmpeg != nil else { return false }
+        guard files.count >= 2, Capabilities.shared.mediaAvailable else { return false }
         let kind = MoreFormats.kind(files[0])
         return (kind == .video || kind == .audio) && files.allSatisfy { MoreFormats.kind($0) == kind }
     }

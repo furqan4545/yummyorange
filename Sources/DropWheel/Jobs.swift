@@ -18,22 +18,40 @@ enum JobRunner {
         countLock.lock(); running += change; countLock.unlock()
     }
 
-    static func run(_ op: Operation, on files: [URL]) {
+    static func run(_ op: Operation, on files: [URL]) { run(op, on: files, earlier: nil) }
+
+    /// What a first run saved and the errors it met, before it waited for YummyOrange’s own ffmpeg, and whether
+    /// it ran on several files (errors then name their file).
+    private struct Earlier {
+        var outputs: [URL]
+        var errors: [String]
+        var several: Bool
+    }
+
+    /// A file whose run meets a missing ffmpeg on a Mac that has none, in a copy that can get YummyOrange's own, waits
+    /// for it (FFmpegHelper.whenAvailable, one download for every waiting job, progress in the HUD) and runs again
+    /// once it is there. Only once: a second run reports whatever it meets.
+    private static func run(_ op: Operation, on files: [URL], earlier: Earlier?) {
         let name = files.count == 1 ? files[0].lastPathComponent : "\(files.count) files"
         HUD.shared.begin("\(op.title)  ·  \(name)")
         count(1)
+        let several = earlier?.several ?? (files.count > 1)
+        let mayWait = earlier == nil
         queue.async { defer { count(-1) }; onBigStack {
-            var outputs: [URL] = []
-            var errors: [String] = []
+            var outputs = earlier?.outputs ?? []
+            var errors = earlier?.errors ?? []
+            var waiting: [URL] = []
             if op.combinesInputs {
                 do {
-                    outputs = try Converter.performCombined(op, on: files) { fraction in
+                    outputs += try Converter.performCombined(op, on: files) { fraction in
                         DispatchQueue.main.async { HUD.shared.update(progress: fraction) }
                     }
+                } catch where mayWait && FFmpegHelper.canProvide(error) {
+                    waiting = files
                 } catch {
                     errors.append(error.localizedDescription)
                 }
-                DispatchQueue.main.async { finish(outputs, errors) }
+                DispatchQueue.main.async { waiting.isEmpty ? finish(outputs, errors) : waitForHelper(op, waiting, Earlier(outputs: outputs, errors: errors, several: several)) }
                 return
             }
             for (i, file) in files.enumerated() {
@@ -42,14 +60,27 @@ enum JobRunner {
                         let overall = (Double(i) + fraction) / Double(files.count)
                         DispatchQueue.main.async { HUD.shared.update(progress: overall) }
                     }
+                } catch where mayWait && FFmpegHelper.canProvide(error) {
+                    waiting.append(file)
                 } catch {
-                    errors.append(files.count == 1 ? error.localizedDescription
-                                                   : "\(file.lastPathComponent): \(error.localizedDescription)")
+                    errors.append(several ? "\(file.lastPathComponent): \(error.localizedDescription)" : error.localizedDescription)
                 }
                 DispatchQueue.main.async { HUD.shared.update(progress: Double(i + 1) / Double(files.count)) }
             }
-            DispatchQueue.main.async { finish(outputs, errors) }
+            DispatchQueue.main.async { waiting.isEmpty ? finish(outputs, errors) : waitForHelper(op, waiting, Earlier(outputs: outputs, errors: errors, several: several)) }
         } }
+    }
+
+    /// Main thread. Counts as running while it waits, so an update's restart waits for it too.
+    private static func waitForHelper(_ op: Operation, _ files: [URL], _ earlier: Earlier) {
+        count(1)
+        FFmpegHelper.shared.whenAvailable({
+            count(-1)
+            run(op, on: files, earlier: earlier)
+        }, otherwise: { message in
+            count(-1)
+            finish(earlier.outputs, earlier.errors + [message])
+        })
     }
 
     /// Runs `body` on a fresh thread with a 16 MB stack and waits for it, keeping jobs one at a time.
@@ -131,7 +162,9 @@ final class HUD {
         label.font = .systemFont(ofSize: 12, weight: .medium)
         label.lineBreakMode = .byTruncatingMiddle
         label.maximumNumberOfLines = 2
-        label.frame = CGRect(x: 14, y: 26, width: size.width - 28, height: 28)
+        label.cell?.truncatesLastVisibleLine = true
+        // Two lines of 12 pt need 30 pt; the text sits at the top, so one line stays where it always was.
+        label.frame = CGRect(x: 14, y: 23, width: size.width - 28, height: 31)
         bar.style = .bar
         bar.minValue = 0
         bar.maxValue = 1
@@ -172,9 +205,17 @@ final class HUD {
         panel.orderFrontRegardless()
     }
 
+    /// Sentences (errors, notes, the helper's progress) wrap onto the second line; a job's title and "Saved photo.jpg"
+    /// keep one line and shorten a long file name in the middle. (A label that truncates in the middle never wraps,
+    /// so long errors used to lose their middle: "Couldn’t get the audio…connection and try again.")
+    private func setText(_ text: String, sentence: Bool) {
+        label.lineBreakMode = sentence ? .byWordWrapping : .byTruncatingMiddle
+        label.stringValue = text
+    }
+
     func begin(_ title: String, always: Bool = false) {
         hideWork?.cancel()
-        label.stringValue = title
+        setText(title, sentence: false)
         label.textColor = .labelColor
         bar.isHidden = false
         bar.isIndeterminate = true
@@ -187,6 +228,22 @@ final class HUD {
         bar.doubleValue = progress
     }
 
+    /// Something a task waits for, with its own words and how far it is: the bar runs indeterminate until the
+    /// fraction is known, then fills (YummyOrange’s own ffmpeg downloading: "Downloading ffmpeg for audio and video… 42%").
+    func progress(_ title: String, fraction: Double?, always: Bool = false) {
+        hideWork?.cancel()
+        setText(title, sentence: true)
+        label.textColor = .labelColor
+        bar.isHidden = false
+        if let fraction {
+            update(progress: fraction)
+        } else {
+            bar.isIndeterminate = true
+            bar.startAnimation(nil)
+        }
+        if !panel.isVisible { present(isError: false, always: always) }
+    }
+
     /// What the panel says when a job ends: "Saved photo.jpg", "Saved 3 files", or the errors after what was saved.
     static func finishText(saved: [URL], errors: [String]) -> String {
         if errors.isEmpty { return saved.count == 1 ? "Saved \(saved[0].lastPathComponent)" : "Saved \(saved.count) files" }
@@ -196,7 +253,7 @@ final class HUD {
     func finish(saved: [URL], errors: [String]) {
         bar.stopAnimation(nil)
         bar.isHidden = true
-        label.stringValue = Self.finishText(saved: saved, errors: errors)
+        setText(Self.finishText(saved: saved, errors: errors), sentence: !errors.isEmpty)
         if errors.isEmpty {
             label.textColor = .labelColor
             if panel.isVisible { scheduleHide(after: 2.0) }
@@ -209,7 +266,7 @@ final class HUD {
 
     func flash(_ text: String, isError: Bool = false, always: Bool = false, seconds: Double? = nil) {
         hideWork?.cancel()
-        label.stringValue = text
+        setText(text, sentence: true)
         label.textColor = isError ? .systemRed : .labelColor
         bar.isHidden = true
         present(isError: isError, always: always)

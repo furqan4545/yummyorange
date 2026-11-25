@@ -134,9 +134,18 @@ $UPDATE_KEY_PLIST
 PLIST
 
 # Optional: bundle your own ffmpeg/cwebp by placing them in ./Tools before building. Tools/updates holds the release
-# scripts, which never go into the app.
+# scripts and Tools/helpers the ffmpeg helper's build script (with, if it was run there, its sources, work folder and
+# zip): neither ever goes into the app. A bundled ffmpeg must be an LGPL build: YummyOrange is distributed without the
+# source offer a GPL or non-free ffmpeg needs (on a Mac without ffmpeg the app downloads its own LGPL copy instead).
 for tool in Tools/*(N); do
-  [[ "${tool:t}" == updates ]] && continue
+  [[ "${tool:t}" == (updates|helpers) ]] && continue
+  if [[ "${tool:t}" == ffmpeg && -x "$tool" ]]; then
+    ffconf=$("$tool" -hide_banner -buildconf 2>/dev/null) || { echo "error: Tools/ffmpeg doesn't run" >&2; exit 1; }
+    if print -r -- "$ffconf" | grep -qE -- '--enable-(gpl|nonfree)'; then
+      echo "error: Tools/ffmpeg is a GPL or non-free build (--enable-gpl or --enable-nonfree); bundle an LGPL build or none" >&2
+      exit 1
+    fi
+  fi
   mkdir -p "$APP/Contents/Resources/Tools"
   ditto "$tool" "$APP/Contents/Resources/Tools/${tool:t}"
 done

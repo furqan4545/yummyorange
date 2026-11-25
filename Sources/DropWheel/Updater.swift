@@ -295,8 +295,10 @@ final class UpdateTransport: NSObject, URLSessionDataDelegate {
     }
 
     /// Writes the body to `destination` (created here), which must come to exactly `length` bytes. `progress` gets
-    /// the fraction done, on the transfer's own queue, about once per percent.
+    /// the fraction done, on the transfer's own queue, about once per percent. `resourceTimeout` bounds the whole
+    /// transfer (a connection that stops sending fails after 30 s either way); `cancellation` can stop it.
     static func download(_ url: URL, to destination: URL, length: Int, loopbackHTTP: Bool, userAgent: String,
+                         resourceTimeout: TimeInterval = 15 * 60, cancellation: TransferCancellation? = nil,
                          progress: @escaping (Double) -> Void) throws {
         guard isAllowed(url, loopbackHTTP: loopbackHTTP) else { throw UpdateError.insecureURL(url.absoluteString) }
         guard FileManager.default.createFile(atPath: destination.path, contents: nil),
@@ -306,7 +308,7 @@ final class UpdateTransport: NSObject, URLSessionDataDelegate {
         defer { try? handle.close() }
         let transport = UpdateTransport(loopbackHTTP: loopbackHTTP, userAgent: userAgent, limit: length, file: handle)
         transport.onProgress = progress
-        try transport.run(url, requestTimeout: 30, resourceTimeout: 15 * 60)
+        try transport.run(url, requestTimeout: 30, resourceTimeout: resourceTimeout, cancellation: cancellation)
         guard transport.received == length else { throw UpdateError.wrongLength(expected: length, actual: transport.received) }
     }
 
@@ -330,7 +332,8 @@ final class UpdateTransport: NSObject, URLSessionDataDelegate {
         self.file = file
     }
 
-    private func run(_ url: URL, requestTimeout: TimeInterval, resourceTimeout: TimeInterval) throws {
+    private func run(_ url: URL, requestTimeout: TimeInterval, resourceTimeout: TimeInterval,
+                     cancellation: TransferCancellation? = nil) throws {
         guard Self.isAllowed(url, loopbackHTTP: loopbackHTTP) else { throw UpdateError.insecureURL(url.absoluteString) }
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieAcceptPolicy = .never
@@ -354,6 +357,7 @@ final class UpdateTransport: NSObject, URLSessionDataDelegate {
         var request = URLRequest(url: url)
         for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         let task = session.dataTask(with: request)
+        if let cancellation, !cancellation.attach(task) { task.cancel() }
         task.resume()
         if done.wait(timeout: .now() + resourceTimeout + 10) == .timedOut {
             task.cancel()

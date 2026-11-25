@@ -13,9 +13,15 @@ build/
 /*.mp4
 Website/unused-assets/
 
-# Your own ffmpeg/cwebp copies in Tools/ (build.sh bundles them) stay local; the release scripts are kept
+# Your own ffmpeg/cwebp copies in Tools/ (build.sh bundles them) stay local; the release scripts and the ffmpeg
+# helper's build script are kept (its tarballs, work folder and zip, if it is run here, are not: the published copies
+# live in Website/public/downloads/helpers/)
 /Tools/*
 !/Tools/updates/
+!/Tools/helpers/
+/Tools/helpers/sources/
+/Tools/helpers/work/
+/Tools/helpers/*.zip
 
 # Hosting and secrets
 .vercel/

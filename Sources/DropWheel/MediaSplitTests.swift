@@ -67,7 +67,7 @@ enum MediaSplitTests {
                     "-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=4", "-f", "lavfi", "-i", "sine=f=440:sample_rate=48000:d=4",
                     "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-g", "15", "-bf", "2", "-pix_fmt", "yuv420p", "-c:a", "aac",
                     dir.appendingPathComponent("sine.mp4").path]
-        guard (try? ProcessRunner.run(ff.tool, sine))?.status == 0 else { return false }
+        guard (try? ProcessRunner.run(ff.tool, S.h264(sine)))?.status == 0 else { return false }
         return S.makeLateSoundClip(dir.appendingPathComponent("late.mp4"))
     }
 

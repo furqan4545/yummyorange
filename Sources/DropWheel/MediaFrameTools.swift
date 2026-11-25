@@ -37,9 +37,9 @@ enum MediaFrameTools: FeatureModule {
         present: { openEditors($0, editor: SnapshotVideoEditorController.self) },
         run: { files, options, progress in try each(files, progress) { try MediaSnapshot.snapshot($0, options: options, progress: $1) } })
 
-    /// Every file is a video and ffmpeg is installed (file types only: this runs while the wheel opens).
+    /// Every file is a video and ffmpeg is installed or YummyOrange can get it (file types only: this runs while the wheel opens).
     static func isVideos(_ files: [URL]) -> Bool {
-        Capabilities.shared.ffmpeg != nil && !files.isEmpty && files.allSatisfy { MoreFormats.kind($0) == .video }
+        Capabilities.shared.mediaAvailable && !files.isEmpty && files.allSatisfy { MoreFormats.kind($0) == .video }
     }
 
     /// Runs `body` on each file, with the progress of file i mapped into its share of the whole.
@@ -431,7 +431,8 @@ enum MediaRedact {
 
     /// The filter graph (from [0:v], last chain unlabelled): blurred and pixelated crops overlaid in box order,
     /// then the black boxes drawn on top.
-    static func filterGraph(_ boxes: [Box], source: MediaSource, pixelize: Bool = Capabilities.shared.hasFilter("pixelize")) -> String {
+    static func filterGraph(_ boxes: [Box], source: MediaSource, pixelize: Bool = Capabilities.shared.hasFilter("pixelize"),
+                            boxblur: Bool = Capabilities.shared.hasFilter("boxblur")) -> String {
         func n(_ v: CGFloat) -> String { MediaFrameTools.number(v) }
         func enable(_ b: Box) -> String { enableExpression(b, source: source).map { ":enable='\($0)'" } ?? "" }
         let effects = boxes.filter { $0.style != .black }
@@ -445,7 +446,8 @@ enum MediaRedact {
                 switch b.style {
                 case .blur:
                     let radius = blurRadius(r)
-                    chain += "boxblur=luma_radius=\(radius):luma_power=3:chroma_radius='min(cw,ch)/6':chroma_power=3"
+                    // boxblur, or avgblur three times on ffmpeg builds without it (YummyOrange's own LGPL copy).
+                    chain += BoxBlur.filter(radius: radius, passes: 3, chroma: "'min(cw,ch)/6'", boxblur: boxblur)
                 case .pixelate:
                     let s = blockSize(r)
                     if pixelize {

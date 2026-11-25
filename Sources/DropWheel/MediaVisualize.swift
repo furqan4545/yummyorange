@@ -22,13 +22,18 @@ enum MediaVisualize {
             case .bars: return "Bars"
             }
         }
-        /// The ffmpeg filters this style needs beyond the common ones.
+        /// The ffmpeg filters this style needs beyond the common ones (Spectrum also a box blur: boxblur or avgblur).
         var filters: [String] {
             switch self {
             case .waveform: return ["showwaves"]
-            case .spectrum: return ["showcqt", "boxblur"]
+            case .spectrum: return ["showcqt"]
             case .bars: return ["showcqt", "drawgrid"]
             }
+        }
+
+        /// The filters this Mac's ffmpeg lacks for this style.
+        func missing(in caps: Capabilities) -> [String] {
+            filters.filter { !caps.hasFilter($0) } + (self == .spectrum && !caps.hasBoxBlur ? ["boxblur"] : [])
         }
     }
 
@@ -58,7 +63,7 @@ enum MediaVisualize {
     static var availableStyles: [Style] {
         let caps = Capabilities.shared
         guard commonFilters.allSatisfy(caps.hasFilter) else { return [] }
-        return Style.allCases.filter { $0.filters.allSatisfy(caps.hasFilter) }
+        return Style.allCases.filter { $0.missing(in: caps).isEmpty }
     }
 
     static func ask(_ files: [URL]) -> ToolOptions? {
@@ -99,7 +104,7 @@ enum MediaVisualize {
         guard let size = Size(rawValue: sizeText) else {
             throw ConversionError.unsupported("Choose size=square, wide or tall (not “\(sizeText)”).")
         }
-        let missing = (commonFilters + style.filters).filter { !Capabilities.shared.hasFilter($0) }
+        let missing = commonFilters.filter { !Capabilities.shared.hasFilter($0) } + style.missing(in: Capabilities.shared)
         guard missing.isEmpty else {
             let others = availableStyles.map(\.title)
             throw ConversionError.unsupported("This Mac’s ffmpeg has no \(missing.joined(separator: ", ")) filter, so it can’t draw \(style.title). "
@@ -147,7 +152,7 @@ enum MediaVisualize {
     /// The whole filter graph: background, the style's mask, the dahlia drawing and its reflection, into [v].
     /// `pad` (MediaKit.soundFromZero) puts the drawing on the file's clock, the clock the sound in the MP4 keeps: a
     /// sound that starts late (ffmpeg's WMA decoder: 0.092 s) would otherwise be drawn that much ahead of itself.
-    static func graph(_ style: Style, size: Size, pad: [String] = []) -> String {
+    static func graph(_ style: Style, size: Size, pad: [String] = [], boxblur: Bool = Capabilities.shared.hasFilter("boxblur")) -> String {
         let l = Layout(style, size: size)
         let w = l.drawWidth, a = l.drawHeight
         let background = "color=c=\(cream):s=\(l.width)x\(l.height):r=30,"
@@ -163,7 +168,7 @@ enum MediaVisualize {
             // A centred waveform twice as tall, cut at its middle: the upper half is the skyline.
             mask = "showwaves=s=\(w)x\(2 * a):mode=cline:rate=30:scale=sqrt:draw=full:colors=white,format=gray,crop=\(w):\(a):0:0"
         case .spectrum:
-            mask = "\(cqt),boxblur=luma_radius=6:luma_power=2,lut=y='if(gt(val,127),255,0)'"
+            mask = "\(cqt),\(BoxBlur.filter(radius: 6, passes: 2, boxblur: boxblur)),lut=y='if(gt(val,127),255,0)'"
         case .bars:
             let gapWidth = max(4, Int((Double(w / l.bars) * 0.3).rounded()))
             mask = "\(cqt),scale=\(l.bars):\(a):flags=area,lut=y='if(gt(val,127),255,0)',scale=\(w):\(a):flags=neighbor,"

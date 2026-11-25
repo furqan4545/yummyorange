@@ -12,7 +12,10 @@ enum ConversionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadable(let name): return "Couldn’t read \(name)."
-        case .missingTool(let tool): return "\(tool) isn’t installed. Install it (for example with Homebrew) to use this."
+        case .missingTool(let tool):
+            // A copy that gets its own ffmpeg never sends people to Homebrew (JobRunner normally waits for it instead).
+            if FFmpegHelper.canProvide(self) { return FFmpegHelperText.notYet }
+            return "\(tool) isn’t installed. Install it (for example with Homebrew) to use this."
         case .toolFailed(let message): return message
         case .unsupported(let what): return what
         }
@@ -39,7 +42,7 @@ enum FileTool: String, CaseIterable {
     /// Tools for a whole selection. Some (Merge, Make PDF) only appear for several files.
     static func tools(for files: [URL]) -> [FileTool] {
         let kinds = Set(files.map(FileKind.of))
-        let hasFFmpeg = Capabilities.shared.ffmpeg != nil
+        let hasFFmpeg = Capabilities.shared.mediaAvailable
         let several = files.count > 1
 
         if kinds == [.pdf] {

@@ -28,7 +28,7 @@ enum TargetSize {
             switch MoreFormats.kind(url) {
             case .image: return !Ext.svg.contains(Ext.of(url))
             case .pdf: return true
-            case .video, .audio: return Capabilities.shared.ffmpeg != nil
+            case .video, .audio: return Capabilities.shared.mediaAvailable
             case .other: return false
             }
         }

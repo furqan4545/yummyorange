@@ -63,7 +63,7 @@ enum MediaMergeTests {
     private static func makeClips(_ dir: URL) -> Bool {
         guard let ff = FFmpeg.shared else { return false }
         func run(_ args: [String]) -> Bool {
-            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args))?.status == 0
+            (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args)))?.status == 0
         }
         let p = dir.path + "/"
         func picture(_ colour: String, _ size: String, _ rate: Int, _ seconds: Double, flash: Int, extra: String = "") -> String {
@@ -441,7 +441,7 @@ enum MediaMergeTests {
 
     private static func run(_ args: [String]) -> Bool {
         guard let ff = FFmpeg.shared else { return false }
-        return (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + args))?.status == 0
+        return (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"] + MediaTestSupport.h264(args)))?.status == 0
     }
 
     /// Clips cut with `-c copy` between key frames keep the frames before the cut, marked to be discarded (an edit

@@ -416,7 +416,7 @@
           <div><dt>Size</dt><dd data-config-text="size">7 MB</dd></div>
           <div><dt>Requires</dt><dd><span data-config-text="minimumOS">macOS 13 Ventura or later</span> on a Mac with <span data-config-text="chip">Apple silicon</span></dd></div>
         </dl>
-        <p class="ffmpeg-note">Audio and video need ffmpeg, a free tool you add with Homebrew. <a href="#faq-extras">How to add it</a></p>
+        <p class="ffmpeg-note">Audio and video use ffmpeg. If your Mac doesn’t have it, YummyOrange downloads its own copy once (about 12 MB), an <a href="licenses/ffmpeg.html">LGPL build of FFmpeg</a>. <a href="#faq-extras">More about ffmpeg</a></p>
         <a class="btn btn-wide" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download YummyOrange.dmg</span><span class="dl-pending">Download coming soon</span></a>
         <p class="fine"><a href="release-notes.html">Release notes</a></p>
       </div>
@@ -443,7 +443,7 @@
       </details>
       <details>
         <summary>Does macOS ask for any permissions?</summary>
-        <p>Only in a few places, and only once. macOS asks before YummyOrange first saves into your Desktop, Documents or Downloads folder, or onto an external drive. If you hang copied screenshots on the Clothesline, it asks before YummyOrange reads the first one. Launch at Login may need your OK in System Settings › General › Login Items. Accessibility access is needed only for Hold the key first.</p>
+        <p>Only in a few places, and only once. macOS asks before YummyOrange first saves into your Desktop, Documents or Downloads folder, or onto an external drive. If you hang copied screenshots on the Clothesline, it asks before YummyOrange reads the first one. Launch at Login may need your OK in System Settings › General › Login Items. Accessibility access is needed only for Hold the key first. The ffmpeg download asks for nothing.</p>
       </details>
       <details>
         <summary>Do my files leave my Mac?</summary>
@@ -451,7 +451,7 @@
       </details>
       <details id="faq-extras">
         <summary>Do I need to install anything else?</summary>
-        <p>Images, PDFs, documents, ebooks, slides, spreadsheets, subtitles and archives work out of the box. Audio and video need ffmpeg, a free tool: with <a href="https://brew.sh">Homebrew</a> installed, run <span class="mono">brew install ffmpeg</span> in Terminal. YummyOrange finds it in <span class="mono">/opt/homebrew/bin</span>, <span class="mono">/usr/local/bin</span> or <span class="mono">~/.local/bin</span>. Saving pictures as WebP also needs <span class="mono">brew install webp</span>, unless your ffmpeg can already write WebP.</p>
+        <p>No. Images, PDFs, documents, ebooks, slides, spreadsheets, subtitles and archives work out of the box. Audio and video use ffmpeg, a free tool. If your Mac doesn’t have it, YummyOrange downloads its own copy from this website once (about 12 MB): about a minute after it first opens, on a network that isn’t Low Data Mode or a phone’s hotspot, or as soon as you start on a sound or video. Settings › About can download it at once or cancel it. It checks the download before using it and keeps it in <span class="mono">~/Library/Application Support/YummyOrange</span>, where updates leave it alone. Saving pictures as WebP works the same way. If you already have ffmpeg, from <a href="https://brew.sh">Homebrew</a> for example, in <span class="mono">/opt/homebrew/bin</span>, <span class="mono">/usr/local/bin</span> or <span class="mono">~/.local/bin</span>, YummyOrange uses yours and downloads nothing (if yours stops working, it uses its own instead). YummyOrange’s copy is an LGPL build of FFmpeg; its <a href="licenses/ffmpeg.html">license and source code</a> are on this site.</p>
       </details>
       <details>
         <summary>Can I change the keys?</summary>

@@ -6,6 +6,23 @@ import AppKit
 /// fixtures, a checker whose report starts with PASS or FAIL, an editor window that is never shown, and synthesized
 /// key and mouse events.
 enum MediaTestSupport {
+    /// ffmpeg arguments with libx264 swapped for VideoToolbox's H.264 when the ffmpeg in use has no libx264
+    /// (YummyOrange's own LGPL copy, which the media suites also run on: test.sh's helper pass). B-frames and the key
+    /// frame interval stay; -crf, -preset and -tune have no VideoToolbox equivalent and give way to a high constant
+    /// quality. Unchanged with an ffmpeg that has libx264.
+    static func h264(_ args: [String]) -> [String] {
+        guard args.contains("libx264"), !Capabilities.shared.has("libx264") else { return args }
+        var out: [String] = []
+        var i = 0
+        while i < args.count {
+            let a = args[i]
+            if ["-crf", "-preset", "-tune", "-x264-params"].contains(a), i + 1 < args.count { i += 2; continue }
+            if a == "libx264" { out += ["h264_videotoolbox", "-q:v", "80", "-allow_sw", "1"] } else { out.append(a) }
+            i += 1
+        }
+        return out
+    }
+
     /// Collects results; `report` starts with "PASS <suite>" or "FAIL <suite>", which test.sh reads.
     final class Checker {
         let suite: String
@@ -126,7 +143,7 @@ enum MediaTestSupport {
                     "-itsoffset", "0.5", "-f", "lavfi", "-i",
                     "aevalsrc='0.05*sin(2*PI*300*t)+if(between(t,2.0,2.02),0.9*sin(2*PI*1000*(t-2)),0)':s=48000:d=3.5",
                     "-map", "0:v", "-map", "1:a"] + codecs + [url.path]
-        return (try? ProcessRunner.run(ff.tool, args))?.status == 0
+        return (try? ProcessRunner.run(ff.tool, h264(args)))?.status == 0
     }
 
     /// When the flash (the first bright frame) shows and when the burst (the first sample over 0.3) sounds, both on

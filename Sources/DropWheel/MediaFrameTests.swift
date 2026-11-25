@@ -37,9 +37,9 @@ enum MediaFrameTests {
         let rot = url("rot.mp4"), sar = url("sar.mp4")
         let madeRot = (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-display_rotation:v:0", "90",
                                                         "-i", url("clip.mp4").path, "-c", "copy", rot.path]))?.status == 0
-        let madeSar = (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", url("clip.mp4").path, "-t", "2",
+        let madeSar = (try? ProcessRunner.run(ff.tool, MediaTestSupport.h264(["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", url("clip.mp4").path, "-t", "2",
                                                         "-vf", "scale=640:720,setsar=2", "-c:v", "libx264", "-crf", "12", "-pix_fmt", "yuv420p",
-                                                        "-an", sar.path]))?.status == 0
+                                                        "-an", sar.path])))?.status == 0
         // The other two quarter turns, for the live preview's orientation.
         let madeOthers = [("-90", "rotm.mp4"), ("180", "rot180.mp4")].allSatisfy { angle, name in
             (try? ProcessRunner.run(ff.tool, ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-display_rotation:v:0", angle,
@@ -328,6 +328,31 @@ enum MediaFrameTests {
                 t.check(p < 25, "without the pixelize filter, scaling down and up pixelates (PSNR \(f(p)) dB)")
             } catch { t.check(false, "fallback pixelate: \(error.localizedDescription)") }
             try? FileManager.default.removeItem(at: out)
+        }
+
+        // The boxblur-less graph (YummyOrange's own LGPL ffmpeg: boxblur is GPL-only) blurs as much, with avgblur.
+        if let source = try? MediaSource.load(clip), let ff = FFmpeg.shared, Capabilities.shared.hasFilter("avgblur") {
+            let box = MediaRedact.Box(rect: CGRect(x: 800, y: 450, width: 320, height: 176), style: .blur, start: 0, end: 4)
+            let dir = clip.deletingLastPathComponent()
+            let avg = dir.appendingPathComponent("blur-avgblur.mp4"), boxed = dir.appendingPathComponent("blur-boxblur.mp4")
+            defer { for url in [avg, boxed] { try? FileManager.default.removeItem(at: url) } }
+            do {
+                let graph = MediaRedact.filterGraph([box], source: source, boxblur: false)
+                try ff.run(input: clip, output: avg, args: ["-t", "1"] + MediaFrameTools.encodeArgs(source, ext: "mp4", filterComplex: graph),
+                           duration: 1) { _ in }
+                let blurred = regionRGB(avg, index: 10, rect: box.rect).flatMap { a in regionRGB(clip, index: 10, rect: box.rect).map { MediaMeasure.psnr(a, $0) } } ?? 99
+                var same = "no boxblur in this ffmpeg to compare with"
+                var close = true
+                if Capabilities.shared.hasFilter("boxblur") {
+                    try ff.run(input: clip, output: boxed, args: ["-t", "1"] + MediaFrameTools.encodeArgs(source, ext: "mp4",
+                               filterComplex: MediaRedact.filterGraph([box], source: source, boxblur: true)), duration: 1) { _ in }
+                    let p = regionRGB(avg, index: 10, rect: box.rect).flatMap { a in regionRGB(boxed, index: 10, rect: box.rect).map { MediaMeasure.psnr(a, $0) } } ?? 0
+                    close = p >= 35
+                    same = "\(f(p)) dB against boxblur’s"
+                }
+                t.check(!graph.contains("boxblur") && graph.contains("avgblur") && blurred < 25 && close,
+                        "without boxblur, avgblur blurs the box as much (PSNR \(f(blurred)) dB against the source; \(same))")
+            } catch { t.check(false, "avgblur redact: \(error.localizedDescription)") }
         }
 
         // Defaults and errors.
