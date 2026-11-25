@@ -1068,7 +1068,8 @@ final class ClotheslineMenuTarget: NSObject, NSMenuItemValidation {
     /// Dimmed while none of the line's files is still on disk: choosing it would show nothing.
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(toggleScreenshots) {
-            menuItem.state = Settings.hangScreenshots ? .on : .off
+            let state: NSControl.StateValue = Settings.hangScreenshots ? .on : .off
+            if menuItem.state != state { menuItem.state = state }
             return Settings.resultsDestination == .clothesline
         }
         return menuItem.action == #selector(showLine) ? Self.lineHasFiles() : true

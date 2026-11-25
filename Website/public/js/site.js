@@ -120,6 +120,251 @@
     while (hist.length > 2 && t - hist[0].t > 80) hist.shift();
   };
 
+  // ---------- Petal sound and haptics ----------
+  // The app ticks each time the highlighted petal changes (ThemeSound.swift › PetalFeedback). The page plays the same
+  // Pop, made here sample for sample from the app's recipe, when the pointer moves onto a key cap and when the
+  // highlight moves to a new petal, at the app's level (peak −19.6 dBFS) and with its sweep rule: faster sweeps run
+  // up to 1.3× higher and a fifth quieter. Only on those events and on the same frame as the highlight (apple-motion
+  // §13); never on load, on scroll, while the tab is hidden, or twice for one entry; at most one tick per 35 ms, so a
+  // fast sweep trills instead of machine-gunning. Browsers allow sound only after a gesture, so the one AudioContext
+  // is made on the first press or key press anywhere; until then hovering is silent. The Sound buttons beside the keys
+  // turn it on and off (kept in localStorage when the browser allows). Haptics only where navigator.vibrate exists
+  // (Android), only for a finger on a key cap or a petal, never for a hover. Reduce Motion leaves the sound on: it is
+  // feedback, not motion (apple-motion §14), and the Sound button is the way to turn it off.
+  const feedback = (() => {
+    const KEY = 'yummyorange.sound';
+    const RATE = 48000;    // the app's synthesis rate; the browser resamples to the device
+    const GAP = 0.035;     // s, the closest two ticks may start
+    const LATE = 150;      // ms; a tick that would start later than this is dropped (PetalSound.maximumDelay)
+    const IDLE = 4000;     // ms of quiet before the audio device is let go (PetalSound.idleStop)
+    const CROSSED = 3;     // most ticks for one move across several petals: 35 ms apart, inside the app's 100 ms spread
+    let on = true;
+    try { on = localStorage.getItem(KEY) !== 'off'; } catch (_) { /* storage blocked: on, for this visit */ }
+    let ctx = null, out = null, pop = null, lastAt = 0, lastChange = 0, idleTimer = 0, lastActive = 0, lastBuzz = 0;
+    let faded = false, hushId = 0, waking = null;
+    const live = new Set(); // ticks playing or waiting to start
+    const toggles = [];
+    const zones = [$('#scene'), $('.explorer')].filter(Boolean);
+    const wanted = () => on && document.visibilityState === 'visible';
+
+    // PetalSound.samples(.pop): a sine falling from 1.9 to 0.9 kHz with a breath of tilted noise at its start, a 2 ms
+    // end fade, peak 0.14 × 0.75. The noise uses the app's generator (a 64-bit LCG, hence BigInt), so it matches.
+    function popSamples() {
+      const n = Math.floor(0.04 * RATE), out = new Float64Array(n);
+      let phase = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / RATE;
+        phase += (2 * Math.PI * (900 + 1000 * Math.exp(-t / 0.004))) / RATE;
+        out[i] = (t < 0.001 ? t / 0.001 : 1) * Math.exp(-t / 0.008) * Math.sin(phase);
+      }
+      // (BigInt() calls, not 123n literals: an older browser without BigInt still parses the page, and gets plain noise.)
+      let white = () => Math.random() * 2 - 1;
+      if (typeof BigInt === 'function') {
+        const A = BigInt('6364136223846793005'), C = BigInt('1442695040888963407'), M = BigInt('0xFFFFFFFFFFFFFFFF'), S11 = BigInt(11);
+        let seed = BigInt('0x5EEDD1A1');
+        white = () => { seed = (seed * A + C) & M; return (Number(seed >> S11) / 2 ** 53) * 2 - 1; };
+      }
+      let prev = white();
+      const burst = 0.0005, len = Math.min(n, Math.floor(burst * 7 * RATE));
+      for (let i = 0; i < len; i++) {
+        const t = i / RATE, w = white(), d = (w - prev) * 0.7;
+        prev = w;
+        const ramp = t < burst ? Math.sin(((Math.PI / 2) * t) / burst) ** 2 : 1;
+        out[i] += 0.2 * d * Math.exp(-t / burst) * ramp;
+      }
+      const fade = Math.floor(0.002 * RATE);
+      for (let i = 0; i < Math.min(fade, n); i++) out[n - 1 - i] *= i / fade;
+      let top = 0;
+      for (let i = 0; i < n; i++) top = Math.max(top, Math.abs(out[i]));
+      const level = Math.fround(0.14) * 0.75;
+      return Float32Array.from(out, (v) => (v / (top || 1)) * level);
+    }
+
+    // What the pointer really did. When the page scrolls under a still pointer, browsers send hover events at the
+    // same spot; a tick needs the pointer itself to have moved (or pressed), and a moment's calm after any scroll.
+    // (`kind` says whether the last pointer event was a move, a press or a lift: only a move can cross petals.)
+    const ptr = { x: NaN, y: NaN, type: '', moved: false, kind: '' };
+    let input = '', scrolledAt = -1e9;
+    const opts = { capture: true, passive: true };
+    addEventListener('pointermove', (e) => {
+      ptr.moved = e.clientX !== ptr.x || e.clientY !== ptr.y;
+      ptr.x = e.clientX; ptr.y = e.clientY; ptr.type = e.pointerType; ptr.kind = 'move'; input = 'pointer';
+    }, opts);
+    const pressed = (kind) => (e) => { ptr.x = e.clientX; ptr.y = e.clientY; ptr.type = e.pointerType; ptr.moved = true; ptr.kind = kind; input = 'pointer'; };
+    addEventListener('pointerdown', pressed('down'), opts);
+    addEventListener('pointerup', pressed('up'), opts);
+    addEventListener('keydown', () => { input = 'key'; }, opts);
+    addEventListener('scroll', () => { scrolledAt = performance.now(); }, opts);
+    addEventListener('wheel', () => { scrolledAt = performance.now(); }, opts);
+    const calm = () => performance.now() - scrolledAt > 120;
+
+    // The context is made inside a gesture only, so the browser lets it start. Ambient: the page's ticks mix with
+    // other audio and follow the silent switch (playing-audio.md › Ambient), where the browser offers the choice.
+    function unlock() {
+      if (!wanted()) return false;
+      if (!ctx) {
+        if (navigator.userActivation && !navigator.userActivation.isActive) return false;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (_) { /* not offered */ }
+        try { ctx = new AC({ latencyHint: 'interactive' }); } catch (_) { return false; }
+        out = ctx.createGain(); // every tick goes through here, so a stop can fade instead of cutting
+        out.connect(ctx.destination);
+        const s = popSamples();
+        pop = ctx.createBuffer(1, s.length, RATE);
+        pop.getChannelData(0).set(s);
+        // However the context comes to run (a resume that lands after Sound was turned off or the tab was hidden, or
+        // the system ending an interruption), it stays running only while it is wanted, and then only until idle.
+        // A tick still queued when it stops running would play, stale, on the next resume: it goes.
+        ctx.onstatechange = () => {
+          if (ctx.state === 'running') { if (wanted()) idle(); else hush(); return; }
+          live.forEach((s) => { try { s.stop(); } catch (_) { /* already stopped */ } });
+          lastAt = 0;
+        };
+      }
+      if (ctx.state !== 'running') wake().catch(() => {});
+      idle();
+      return true;
+    }
+    // One resume at a time, however many moves and ticks ask for it while the device wakes.
+    function wake() { return waking || (waking = ctx.resume().finally(() => { waking = null; })); }
+    // (Not for the Sound button itself: turning sound off shouldn't wake the audio device, and turning it on unlocks.)
+    ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'].forEach((t) => addEventListener(t, (e) => {
+      if (!on || (e.target && e.target.closest && e.target.closest('[data-sound-toggle]'))) return;
+      if (!ctx || (ctx.state !== 'running' && zones.some((z) => z.contains(e.target)))) unlock();
+    }, opts));
+
+    // The audio device is let go after IDLE of quiet (no tick, and no pointer moving over a demo), and at once when
+    // the tab is hidden or Sound is turned off. A mouse moving over a demo warms it again: that takes a few ms, so
+    // the next tick is still on time.
+    function idle() {
+      lastActive = performance.now();
+      if (!idleTimer) idleTimer = setTimeout(idleCheck, IDLE);
+    }
+    function idleCheck() {
+      idleTimer = 0;
+      if (!ctx || ctx.state !== 'running') return; // suspended or interrupted: onstatechange re-arms on running
+      const left = IDLE - (performance.now() - lastActive);
+      if (left > 0) idleTimer = setTimeout(idleCheck, left);
+      else hush();
+    }
+    zones.forEach((z) => {
+      const warm = (e) => {
+        if (!ctx || e.pointerType === 'touch') return; // a finger's press unlocks; its moves are mostly scrolls
+        lastActive = performance.now();
+        if (ctx.state === 'running') { if (!idleTimer) idle(); } else if (ctx.state !== 'closed' && wanted()) wake().catch(() => {});
+      };
+      z.addEventListener('pointerenter', warm, { passive: true });
+      z.addEventListener('pointermove', warm, { passive: true });
+    });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') hush(); });
+
+    // Stops every tick that is playing or waiting (a suspended context keeps them, and would play them, stale, on its
+    // next resume), fading one that is sounding over 5 ms so it doesn't click, then lets the audio device go.
+    function hush() {
+      clearTimeout(idleTimer);
+      idleTimer = 0;
+      lastAt = 0;
+      if (!ctx || ctx.state === 'closed') return;
+      const sounding = ctx.state === 'running' && live.size > 0, t = ctx.currentTime, end = sounding ? t + 0.005 : 0;
+      if (sounding) {
+        out.gain.cancelScheduledValues(t);
+        out.gain.setValueAtTime(out.gain.value, t);
+        out.gain.linearRampToValueAtTime(0, end);
+        faded = true;
+      }
+      live.forEach((s) => { try { s.stop(end); } catch (_) { /* already stopped */ } });
+      const id = ++hushId, letGo = () => { if (id === hushId && ctx.state !== 'closed') ctx.suspend().catch(() => {}); };
+      if (sounding) setTimeout(letGo, 25); else letGo();
+    }
+
+    function start(rate, volume, force, count = 1) {
+      const now = ctx.currentTime;
+      if (!force && lastAt > now) return false; // one is already waiting: drop this one
+      hushId++; // a pending hush's suspend no longer applies
+      if (faded) { out.gain.cancelScheduledValues(now); out.gain.setValueAtTime(1, now); faded = false; }
+      let at = Math.max(now, lastAt + GAP);
+      for (let k = 0; k < count; k++, at += GAP) {
+        const src = ctx.createBufferSource();
+        src.buffer = pop;
+        src.playbackRate.value = rate;
+        let node = src;
+        if (volume !== 1) { node = ctx.createGain(); node.gain.value = volume; src.connect(node); }
+        node.connect(out);
+        live.add(src);
+        src.onended = () => { live.delete(src); src.disconnect(); if (node !== src) node.disconnect(); };
+        src.start(at);
+        lastAt = at;
+      }
+      idle();
+      return true;
+    }
+    function play(rate = 1, volume = 1, force = false, count = 1) {
+      if (!ctx || !wanted()) return false;
+      if (ctx.state === 'running') return start(rate, volume, force, count);
+      const asked = performance.now();
+      wake().then(() => {
+        // Sound may have been turned off, or the tab hidden, while the device woke; and a late tick reads as noise.
+        if (wanted() && ctx.state === 'running' && (force || performance.now() - asked <= LATE)) start(rate, volume, force, count);
+      }, () => {});
+      return true;
+    }
+    // A finger only (never a hover), after the page has been tapped once, at most every 50 ms.
+    function buzz() {
+      const t = performance.now();
+      if (!on || !navigator.vibrate || !navigator.userActivation || !navigator.userActivation.hasBeenActive || t - lastBuzz < 50) return;
+      lastBuzz = t;
+      try { navigator.vibrate(10); } catch (_) { /* not allowed here */ }
+    }
+
+    // `sample`: play one tick to hear what was turned on (not when another tab made the change).
+    function set(value, sample) {
+      on = value;
+      toggles.forEach((b) => b.setAttribute('aria-pressed', String(on)));
+      if (!on) { hush(); return; }
+      if (sample && unlock()) play(1, 1, true);
+    }
+    $$('[data-sound-toggle]').forEach((b) => {
+      toggles.push(b);
+      b.setAttribute('aria-pressed', String(on));
+      b.addEventListener('click', () => {
+        set(!on, true);
+        try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (_) { /* not kept: the choice lasts this visit */ }
+      });
+    });
+    addEventListener('storage', (e) => { if (e.key === KEY) set(e.newValue !== 'off', false); });
+
+    // Key caps: a tick when the pointer moves onto one; a finger gets its tick (and a tap) when the tap lands, so a
+    // touch that turns into a scroll stays silent.
+    $$('.keybtn').forEach((b) => {
+      let type = '';
+      b.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'touch' || !calm() || (e.clientX === ptr.x && e.clientY === ptr.y)) return;
+        play();
+      });
+      b.addEventListener('pointerdown', (e) => { type = e.pointerType; });
+      b.addEventListener('click', (e) => {
+        if (type === 'touch' && e.detail !== 0) { play(); buzz(); }
+        type = '';
+      });
+    });
+
+    return {
+      // The highlight moved by `steps` petals. As in PetalSound.plan: 5 petals/s or slower plays as made; the rate
+      // rises smoothly to 1.3× at 20/s, and the level eases off by up to a fifth.
+      // A move that crossed petals ticks for each, as the app does (up to three here, so they keep the 35 ms gap and
+      // stay inside the app's 100 ms spread); a tap, a click or a key that jumps plays one, as nothing was crossed.
+      petal(steps = 1) {
+        if (input === 'pointer' && (!ptr.moved || !calm())) return;
+        const t = performance.now(), interval = lastChange ? (t - lastChange) / 1000 : 1, n = Math.max(1, steps);
+        lastChange = t;
+        const x = clamp((n / Math.max(interval, 1e-3) - 5) / 15, 0, 1), eased = x * x * (3 - 2 * x);
+        play(1 + 0.3 * eased, 1 - 0.2 * eased, false, input === 'pointer' && ptr.kind === 'move' ? Math.min(n, CROSSED) : 1);
+        if (input === 'pointer' && ptr.type === 'touch') buzz();
+      },
+    };
+  })();
+
   // ---------- Wheel geometry (WheelGeometry.swift, in points) ----------
   const WM = { inner: 48.64, outer: 119.52, gap: 5, bdInner: 42.24, bdOuter: 125.92, intro: 50.4,
     labelBase: 40, labelFrac: 0.56, cornerEdge: 20.16, capW: 70, capH: 36, single: 8, secondW: 66 };
@@ -462,6 +707,12 @@
 
     highlight(i, { quiet = false } = {}) {
       if (i === this.hl) return;
+      if (!quiet && i >= 0 && this.petals[i]) {
+        // A tick for the new petal; a jump within one ring counts the petals it crossed (it sets the tick's rate).
+        const L = this.L, from = this.hl, r = L.ringOf(i);
+        const d = from >= 0 && L.ringOf(from) === r ? Math.abs(i - from) : 1;
+        feedback.petal(Math.max(1, Math.min(d, r.count - d)));
+      }
       if (this.hl >= 0 && this.petals[this.hl]) {
         const p = this.petals[this.hl];
         p.classList.remove('hl');
@@ -663,7 +914,7 @@
     const setState = (s) => {
       scene.dataset.state = s;
       if (s === 'idle') setNote(idleNote);
-      if (s === 'dragging') setNote(coarse ? 'Now tap a key below' : 'Now tap ⇧, ⌘ or ⌃');
+      if (s === 'dragging') setNote(coarse ? 'Now tap a key below' : 'Now tap ⇧, ⌘ or ⌥');
       if (s === 'selected') setNote('Now tap a key below');
       if (s === 'open') setNote(pg.via === 'keyboard' ? 'Pick a petal, then press Return' : pg.mode === 'convert' ? 'Let go on a format' : 'Let go on a petal');
     };
@@ -830,8 +1081,12 @@
       }
     }
 
-    const modeFromKey = (key) => (key === 'Shift' ? 'convert' : key === 'Meta' ? 'tools' : key === 'Control' || key === 'Alt' ? 'actions' : null);
-    const modeFromEvent = (e) => (e.shiftKey ? 'convert' : e.metaKey ? 'tools' : e.ctrlKey || e.altKey ? 'actions' : null);
+    // ⌥ (Alt) opens Actions, as in the app; ⌃ still works as a stand-in, but the page only ever names ⌥.
+    const modeFromKey = (key) => (key === 'Shift' ? 'convert' : key === 'Meta' ? 'tools' : key === 'Alt' || key === 'Control' ? 'actions' : null);
+    const modeFromEvent = (e) => (e.shiftKey ? 'convert' : e.metaKey ? 'tools' : e.altKey || e.ctrlKey ? 'actions' : null);
+    // A lone ⌥ would also show the browser's menu bar on Windows and Linux and take focus from the wheel; while the
+    // playground uses the key, it keeps it.
+    const ownAlt = (e) => { if (e.key === 'Alt' && (pg.drag || scene.contains(document.activeElement))) e.preventDefault(); };
 
     $$('.file', scene).forEach((btn) => {
       homes.set(btn, { x: new Spring(0, { response: 0.42, damping: 0.9, eps: 0.05 }), y: new Spring(0, { response: 0.42, damping: 0.9, eps: 0.05 }), running: false });
@@ -956,10 +1211,11 @@
     });
     scene.addEventListener('pointerdown', (e) => {
       // A press outside the wheel closes it, as in the app.
-      if (wheel.isOpen && !pg.drag && !wheel.el.contains(e.target) && !e.target.closest('.keybtn') && !e.target.closest('.file')) {
+      // (The Sound button sits in the key bar: pressing it changes nothing in the demo.)
+      if (wheel.isOpen && !pg.drag && !wheel.el.contains(e.target) && !e.target.closest('.keybar') && !e.target.closest('.file')) {
         closeWheel(); setState('idle');
       }
-      if (!e.target.closest('.file') && !e.target.closest('.keybtn') && !e.target.closest('.result-shelf') && !wheel.isOpen) {
+      if (!e.target.closest('.file') && !e.target.closest('.keybar') && !e.target.closest('.result-shelf') && !wheel.isOpen) {
         select(null); hideShelf(); setState('idle');
       }
     });
@@ -993,7 +1249,11 @@
       }
       const mode = modeFromKey(e.key);
       if (!mode) { pg.pending = null; return; }
+      ownAlt(e);
+      // (A held key repeats on Windows and Linux, and ⌃ stands in for ⌥: neither re-blooms the wheel that's up.)
+      if (e.repeat) return;
       if (pg.drag && pg.drag.started) {
+        if (wheel.isOpen && pg.mode === mode) return;
         const s = sceneRect();
         openWheel(mode, { x: pg.drag.last.x - s.left, y: pg.drag.last.y - s.top }, 'pointer');
         return;
@@ -1004,6 +1264,7 @@
       }
     });
     document.addEventListener('keyup', (e) => {
+      ownAlt(e);
       const p = pg.pending;
       pg.pending = null;
       if (!p || p.key !== e.key || performance.now() - p.t > 800) return;
@@ -1052,7 +1313,7 @@
 
   // ---------- Explorer: every kind of file, one wheel at a time ----------
   // The kinds are a vertical tab list (a row on narrow screens); the key caps switch the wheel, as the keys do in the
-  // app, and a lone tap of ⇧, ⌘ or ⌃ (or ⌥) does the same while focus is in the explorer.
+  // app, and a lone tap of ⇧, ⌘ or ⌥ (or ⌃, its stand-in) does the same while focus is in the explorer.
   const esc2 = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const kindTabs = $('#kind-tabs');
   if (kindTabs) {
@@ -1096,7 +1357,19 @@
     };
     new ResizeObserver(fit).observe(host);
     w.el.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') w.highlight(w.indexAt(e.clientX, e.clientY)); });
-    w.el.addEventListener('pointerdown', (e) => { w.highlight(w.indexAt(e.clientX, e.clientY)); });
+    // A finger picks a petal when it lifts on the one it pressed, so a swipe that starts on the wheel scrolls the page
+    // (touch-action in site.css) and stays silent; the highlight, the tick and the tap land together on the lift.
+    let tap = null;
+    w.el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') { tap = { id: e.pointerId, i: w.indexAt(e.clientX, e.clientY) }; return; }
+      w.highlight(w.indexAt(e.clientX, e.clientY));
+    });
+    w.el.addEventListener('pointerup', (e) => {
+      const t = tap;
+      tap = null;
+      if (t && t.id === e.pointerId && t.i >= 0 && w.indexAt(e.clientX, e.clientY) === t.i) w.highlight(t.i);
+    });
+    w.el.addEventListener('pointercancel', () => { tap = null; });
     w.el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') w.highlight(-1); });
     w.el.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); w.step(1); }
@@ -1131,7 +1404,7 @@
       } else {
         w.el.hidden = true;
         w.isOpen = false;
-        empty(mode === 'tools' ? `${k.tab} have no ⌘ Tools wheel. ⇧ converts them, and ⌃ Actions work on any file.` : `${k.tab} don’t convert. ⌘ Extract unpacks them.`);
+        empty(mode === 'tools' ? `${k.tab} have no ⌘ Tools wheel. ⇧ converts them, and ⌥ Actions work on any file.` : `${k.tab} don’t convert. ⌘ Extract unpacks them.`);
         cap.innerHTML = '';
       }
       showFacts();
@@ -1159,11 +1432,17 @@
       b.addEventListener('click', () => setMode(b.dataset.mode));
     });
     let pending = null;
+    // (A lone ⌥ would also show the browser's menu bar on Windows and Linux and take focus from the wheel; while the
+    // explorer uses the key, it keeps it.)
+    const ownAlt = (e) => { if (e.key === 'Alt' && explorer.contains(document.activeElement)) e.preventDefault(); };
     document.addEventListener('keydown', (e) => {
-      const m = e.key === 'Shift' ? 'convert' : e.key === 'Meta' ? 'tools' : e.key === 'Control' || e.key === 'Alt' ? 'actions' : null;
+      ownAlt(e);
+      if (e.repeat) return;
+      const m = e.key === 'Shift' ? 'convert' : e.key === 'Meta' ? 'tools' : e.key === 'Alt' || e.key === 'Control' ? 'actions' : null;
       pending = m && explorer.contains(document.activeElement) ? { m, key: e.key, t: performance.now() } : null;
     });
     document.addEventListener('keyup', (e) => {
+      ownAlt(e);
       const p = pending;
       pending = null;
       if (p && p.key === e.key && performance.now() - p.t < 800) setMode(p.m);

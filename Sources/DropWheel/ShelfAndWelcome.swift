@@ -45,9 +45,14 @@ enum ShelfAndWelcome: FeatureModule {
     static func menuItems() -> [NSMenuItem] {
         let shelf = NSMenuItem(title: "New Shelf", action: #selector(ShelfMenuTarget.newShelf), keyEquivalent: "")
         shelf.target = ShelfMenuTarget.shared
+        return [shelf]
+    }
+
+    /// Welcome Tour…, which AppDelegate.makeMenu puts with Talk to the Founder…: the menu's help items.
+    static func tourMenuItem() -> NSMenuItem {
         let tour = NSMenuItem(title: "Welcome Tour…", action: #selector(ShelfMenuTarget.welcomeTour), keyEquivalent: "")
         tour.target = ShelfMenuTarget.shared
-        return [shelf, tour]
+        return tour
     }
 
     static func snapshot(_ id: String, files: [URL], options: ToolOptions) -> NSView? {

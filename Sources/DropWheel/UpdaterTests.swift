@@ -9,10 +9,12 @@ import UserNotifications
 /// download's length, checksum and Ed25519 signature, the code-signature policies and checks on tiny apps built and
 /// signed here (with this Mac's Apple Development or Developer ID identity when there is one, and ad hoc), the
 /// permissions of an unpacked app, the replace step (with its second check and putting the old app back) on a fake
-/// installed app in a temporary folder, Skip This Version and Remind Me Later, the notification's permission and
+/// installed app in a temporary folder, Skip This Version and Remind Me Later, how an update reaches the person (a
+/// banner, the permission question, or the update alert at a quiet moment, once per build) and the notification's
 /// actions, the menu items, the setting, the relaunch helper (waiting on a `sleep`, running `touch`), a full check,
 /// download, verify and replace against a `python3 -m http.server` on 127.0.0.1 that the test starts and stops, the
-/// release check release.sh runs, and the release scripts' refusals (run on copies in a temporary folder).
+/// release check release.sh runs, and the release scripts' refusals (run on copies in a temporary folder; left out by
+/// `--selftest updater-quick`).
 ///
 /// Nothing here launches YummyOrange, signals a YummyOrange process, writes the real preferences, the Keychain, Desktop,
 /// Downloads or Pictures, or uses the network beyond 127.0.0.1: settings live in memory, the keys are made here and
@@ -24,7 +26,7 @@ enum UpdaterTests {
     static let feedURL = URL(string: "https://yummyorange.com/updates/appcast.json")!
     static let system = OperatingSystemVersion(majorVersion: 13, minorVersion: 6, patchVersion: 0)
 
-    static func run() -> String {
+    static func run(scripts runScripts: Bool = true) -> String {
         let c = Checker()
         let savedDefaults = Settings.defaults
         Settings.defaults = SettingsMemoryStore()
@@ -50,13 +52,14 @@ enum UpdaterTests {
         replace(c, kit)
         policy(c)
         notifications(c)
+        notices(c)
         menu(c)
         settings(c)
         relauncher(c, dir)
         fullRun(c, kit)
         releaseCheck(c, kit)
-        scripts(c, kit, dir)
-        return c.report("updater")
+        if runScripts { scripts(c, kit, dir) } else { c.notes.append("the release scripts’ refusals were left out (updater-quick)") }
+        return c.report(runScripts ? "updater" : "updater-quick")
     }
 
     // MARK: Helpers
@@ -76,6 +79,11 @@ enum UpdaterTests {
                                       unavailableReason: "test: no network here")
         let updater = Updater(environment: env)
         updater.ui = ui
+        // Never busy, nothing on show, launched long ago: a notice shows as soon as it may (the notice checks set
+        // their own). A video playing on this Mac while the tests run changes nothing here.
+        updater.isBusy = { false }
+        updater.isPresenting = { false }
+        updater.launchedAt = .distantPast
         return updater
     }
 
@@ -695,24 +703,38 @@ enum UpdaterTests {
     // MARK: Notifications
 
     final class RecordingNotifier: UpdateNotifying {
-        var grant = true
-        var requests = 0, checks = 0
+        /// What the notification settings say now.
+        var current: UpdateNotificationPermission = .notAsked
+        /// What answering the permission question makes them; nil: the question is never answered (see `answer`).
+        var answer: UpdateNotificationPermission? = .banners
+        var requests = 0, reads = 0
         var requestedOptions: [UNAuthorizationOptions] = []
         var posted: [String] = []
         var withdrawn = 0
+        private var unanswered: ((Bool) -> Void)?
         func requestPermission(_ options: UNAuthorizationOptions, _ done: @escaping (Bool) -> Void) {
             requests += 1
             requestedOptions.append(options)
-            done(grant)
+            guard let answer else { unanswered = done; return }
+            current = answer
+            done(answer == .banners)
         }
-        func checkPermission(_ done: @escaping (Bool) -> Void) { checks += 1; done(grant) }
+        /// The question left unanswered is answered now (late).
+        func answerNow(_ permission: UpdateNotificationPermission) {
+            current = permission
+            unanswered?(permission == .banners)
+            unanswered = nil
+        }
+        func permission(_ done: @escaping (UpdateNotificationPermission) -> Void) { reads += 1; done(current) }
         func post(_ item: UpdateItem) { posted.append(item.build) }
         func withdraw() { withdrawn += 1 }
     }
 
-    final class RecordingUI: UpdateUI {
+    class RecordingUI: UpdateUI {
         var choice: UpdateChoice = .later
         var offers: [String] = []
+        /// For each offer: whether the alert came up by itself (an automatic check's notice).
+        var unprompted: [Bool] = []
         var told: [(String, String)] = []
         var progress: [(String, Double?)] = []
         var ended: [String?] = []
@@ -723,7 +745,11 @@ enum UpdaterTests {
         var restartAsked: [[String]] = []
         /// Whether the relaunch helper starts.
         var helperStarts = true
-        func offer(_ item: UpdateItem, current: String) -> UpdateChoice { offers.append(item.build); return choice }
+        func offer(_ item: UpdateItem, current: String, unprompted: Bool) -> UpdateChoice {
+            offers.append(item.build)
+            self.unprompted.append(unprompted)
+            return choice
+        }
         func tell(_ title: String, _ message: String) { told.append((title, message)) }
         func progress(_ title: String, _ fraction: Double?) { progress.append((title, fraction)) }
         func endProgress(_ text: String?) { ended.append(text) }
@@ -732,43 +758,42 @@ enum UpdaterTests {
         func relaunch(_ app: URL) -> Bool { relaunched.append(app); return helperStarts }
     }
 
+    /// The permission policy, and the notification's own actions.
     static func notifications(_ c: Checker) {
+        Settings.defaults = SettingsMemoryStore()
+        c.check("permission is asked for banners only: not provisional (quiet, in Notification Center), no sound, no badge",
+                UpdatePolicy.notificationOptions == [.alert], "\(UpdatePolicy.notificationOptions.rawValue)")
+        let read: [(UNAuthorizationStatus, UNAlertStyle, UpdateNotificationPermission)] = [
+            (.notDetermined, .banner, .notAsked), (.denied, .banner, .off), (.provisional, .banner, .provisional),
+            (.authorized, .banner, .banners), (.authorized, .alert, .banners), (.authorized, .none, .quiet)]
+        c.check("macOS’s settings read as never asked, off, provisional (1.0.0’s grant), quiet (the alert style None, chosen) or banners",
+                read.allSatisfy { SystemUpdateNotifier.permission(status: $0.0, alertStyle: $0.1) == $0.2 })
+        c.check("policy: banners → a notification; quiet by choice → a notification too (it goes quietly to Notification Center, as asked), never an alert",
+                [false, true].allSatisfy { asked in UpdatePolicy.notice(for: .banners, askedForAlerts: asked) == .notification
+                    && UpdatePolicy.notice(for: .quiet, askedForAlerts: asked) == .notification })
+        c.check("…never asked or provisional → asked once, then the update alert; off → the update alert",
+                UpdatePolicy.notice(for: .notAsked, askedForAlerts: false) == .ask && UpdatePolicy.notice(for: .provisional, askedForAlerts: false) == .ask
+                && UpdatePolicy.notice(for: .notAsked, askedForAlerts: true) == .inApp && UpdatePolicy.notice(for: .provisional, askedForAlerts: true) == .inApp
+                && UpdatePolicy.notice(for: .off, askedForAlerts: false) == .inApp && UpdatePolicy.notice(for: .off, askedForAlerts: true) == .inApp)
+        Settings.defaults = SettingsMemoryStore(["updateAskedForNotifications": true])
+        c.check("1.0.0’s provisional request (its own key) doesn’t count as asked: those copies are asked once for banners",
+                !UpdatePreferences.askedForAlerts)
+
         Settings.defaults = SettingsMemoryStore()
         let ui = RecordingUI()
         let updater = idleUpdater(ui: ui)
         let notifier = RecordingNotifier()
         updater.notifier = notifier
-        updater.announce(item(build: "2"))
-        c.check("the first update found asks for notification permission, then posts", notifier.requests == 1 && notifier.posted == ["2"]
-                && UpdatePreferences.askedForNotifications)
-        c.check("…provisionally, so macOS delivers it quietly and never shows a permission prompt nobody asked for",
-                notifier.requestedOptions == [[.alert, .provisional]], "\(notifier.requestedOptions.map(\.rawValue))")
-        updater.announce(item(build: "2"))
-        c.check("the same update isn’t announced twice", notifier.posted == ["2"])
-        updater.announce(item(version: "1.0.2", build: "3"))
-        c.check("a later update doesn’t ask again: it checks the permission and posts", notifier.requests == 1 && notifier.checks == 1 && notifier.posted == ["2", "3"])
-        notifier.grant = false
-        updater.announce(item(version: "1.0.3", build: "4"))
-        c.check("with notifications turned off, nothing is posted (the menu item remains)", notifier.posted == ["2", "3"] && notifier.requests == 1)
-
-        Settings.defaults = SettingsMemoryStore()
-        let fresh = RecordingNotifier()
-        fresh.grant = false
-        updater.notifier = fresh
-        updater.announce(item(build: "2"))
-        updater.announce(item(version: "1.0.2", build: "3"))
-        c.check("permission is asked for only once, even when it was declined", fresh.requests == 1 && fresh.checks == 1 && fresh.posted.isEmpty)
-
         updater.respond(to: .skip, build: "3")
-        c.check("the notification’s Skip This Version skips that build and withdraws it", UpdatePreferences.skippedBuild == "3" && fresh.withdrawn >= 1)
+        c.check("the notification’s Skip This Version skips that build and withdraws it", UpdatePreferences.skippedBuild == "3" && notifier.withdrawn >= 1)
         updater.respond(to: .later, build: "3")
         c.check("its Remind Me Later snoozes it", UpdatePreferences.snoozedBuild == "3" && UpdatePreferences.snoozedUntil != nil)
         updater.latest = item(version: "1.0.2", build: "3")
         ui.choice = .later
         let toldBefore = ui.told.count
         updater.respond(to: .show, build: "3")
-        c.check("clicking it opens the update alert with the release notes, and installs nothing by itself",
-                ui.offers == ["3"] && ui.told.count == toldBefore, "offers \(ui.offers), told \(ui.told.map(\.0))")
+        c.check("clicking it opens the update alert with the release notes (as asked for, so Return installs), and installs nothing by itself",
+                ui.offers == ["3"] && ui.unprompted == [false] && ui.told.count == toldBefore, "offers \(ui.offers), told \(ui.told.map(\.0))")
         ui.choice = .install
         updater.respond(to: .show, build: "3")
         c.check("…Install Update there starts the update (here: the install step, which says this updater can’t)",
@@ -776,6 +801,388 @@ enum UpdaterTests {
         updater.respond(to: .show, build: "9")
         c.check("clicking one about an update no longer known checks again instead", ui.told.last?.0 == "YummyOrange can’t check for updates.", "\(ui.told.map(\.0))")
         updater.latest = nil
+
+        let manual = SystemUpdateUI.offerAlert(item(), current: "1.0.0", unprompted: false)
+        let unprompted = SystemUpdateUI.offerAlert(item(), current: "1.0.0", unprompted: true)
+        c.check("the update alert: Install Update, Remind Me Later (Esc), Skip This Version; asked for, Return is Install Update",
+                manual.buttons.map(\.title) == ["Install Update", "Remind Me Later", "Skip This Version"]
+                && manual.buttons[0].keyEquivalent == "\r" && manual.buttons[1].keyEquivalent == "\u{1b}",
+                manual.buttons.map { "\($0.title)=\($0.keyEquivalent.debugDescription)" }.joined(separator: " "))
+        c.check("…shown by itself, no button is the default (a Return meant for another app installs nothing); Esc is still Remind Me Later",
+                unprompted.buttons.map(\.title) == manual.buttons.map(\.title) && unprompted.buttons.allSatisfy { $0.keyEquivalent != "\r" }
+                && unprompted.buttons[1].keyEquivalent == "\u{1b}",
+                unprompted.buttons.map { "\($0.title)=\($0.keyEquivalent.debugDescription)" }.joined(separator: " "))
+        c.check("its words: the version in the title, and “available”, not “ready to install” (nothing is downloaded yet)",
+                manual.messageText == "YummyOrange 1.0.1 is available." && manual.informativeText == "You have 1.0.0. YummyOrange restarts after the update is installed."
+                && !manual.informativeText.contains("ready"), "\(manual.messageText) | \(manual.informativeText)")
+        Settings.defaults = SettingsMemoryStore()
+    }
+
+    // MARK: How an update reaches the person
+
+    /// An updater on a clock of its own, 10 minutes after launch, with the person not busy, for the notice checks.
+    final class NoticeRig {
+        let ui: RecordingUI
+        let notifier: RecordingNotifier?
+        let updater: Updater
+        var clock = Date(timeIntervalSince1970: 2_000_000_000)
+        var busy = false
+        var presenting = false
+
+        init(_ permission: UpdateNotificationPermission?, answer: UpdateNotificationPermission? = .banners) {
+            notifier = permission.map { p in
+                let n = RecordingNotifier()
+                n.current = p
+                n.answer = answer
+                return n
+            }
+            let ui = RecordingUI()
+            self.ui = ui
+            updater = UpdaterTests.idleUpdater(ui: ui)
+            updater.notifier = notifier
+            updater.now = { [unowned self] in self.clock }
+            updater.isBusy = { [unowned self] in self.busy }
+            updater.isPresenting = { [unowned self] in self.presenting }
+            updater.launchedAt = clock.addingTimeInterval(-600)
+        }
+
+        var posted: [String] { notifier?.posted ?? [] }
+        var requests: Int { notifier?.requests ?? 0 }
+
+        /// An automatic check found `found`, then everything that follows on its own.
+        func found(_ found: UpdateItem) {
+            updater.latest = found
+            updater.announce(found)
+            settle()
+        }
+
+        /// Runs what is queued (permission answers, the notice's timer), then the notice's next step as its timer
+        /// would at this clock time.
+        func settle() {
+            UpdaterTests.spin(until: { false }, timeout: 0.06)
+            updater.deliverPendingNotice()
+            UpdaterTests.spin(until: { false }, timeout: 0.06)
+        }
+
+        func advance(_ seconds: TimeInterval) {
+            clock = clock.addingTimeInterval(seconds)
+            settle()
+        }
+    }
+
+    static func notices(_ c: Checker) {
+        let two = item(build: "2"), three = item(version: "1.0.2", build: "3")
+
+        // Never asked (a first update), and the person allows banners.
+        Settings.defaults = SettingsMemoryStore()
+        var rig = NoticeRig(.notAsked, answer: .banners)
+        rig.found(two)
+        c.check("first update, never asked: permission is asked once, for banners, and allowed: one banner, no alert",
+                rig.requests == 1 && rig.notifier?.requestedOptions == [[.alert]] && rig.posted == ["2"] && rig.ui.offers.isEmpty
+                && UpdatePreferences.askedForAlerts && UpdatePreferences.notifiedBuild == "2" && rig.updater.pendingNotice == nil,
+                "requests \(rig.requests), posted \(rig.posted), offers \(rig.ui.offers)")
+        rig.advance(6 * 3600)
+        rig.found(two)
+        c.check("…the next check finds the same build: nothing more", rig.posted == ["2"] && rig.requests == 1 && rig.ui.offers.isEmpty)
+        rig.found(three)
+        c.check("…a later build: its own banner, without asking again", rig.posted == ["2", "3"] && rig.requests == 1 && rig.ui.offers.isEmpty)
+
+        // Banners already allowed.
+        Settings.defaults = SettingsMemoryStore(["updateAskedForAlerts": true])
+        rig = NoticeRig(.banners)
+        rig.found(two)
+        rig.found(two)
+        c.check("banners allowed: one banner per build, no question, no alert", rig.posted == ["2"] && rig.requests == 0 && rig.ui.offers.isEmpty)
+
+        // Never asked, and the person declines.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.notAsked, answer: .off)
+        rig.ui.choice = .later
+        rig.found(two)
+        c.check("first update, permission declined: no banner; the update alert, by itself (no default button), once",
+                rig.requests == 1 && rig.posted.isEmpty && rig.ui.offers == ["2"] && rig.ui.unprompted == [true],
+                "requests \(rig.requests), posted \(rig.posted), offers \(rig.ui.offers)")
+        rig.advance(6 * 3600)
+        rig.found(two)
+        c.check("…Remind Me Later there: the next check finds it again and stays quiet", rig.ui.offers == ["2"] && rig.requests == 1)
+        rig.advance(18 * 3600 + 1)
+        rig.found(two)
+        c.check("…until the 24 hours are over: the alert once more (never the question again)", rig.ui.offers == ["2", "2"] && rig.requests == 1)
+
+        // Turned off in System Settings before any update.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.off)
+        rig.ui.choice = .skip
+        rig.found(two)
+        rig.found(two)
+        c.check("notifications off: the update alert by itself, once; nothing is posted, and macOS isn’t asked (it can’t ask again)",
+                rig.ui.offers == ["2"] && rig.ui.unprompted == [true] && rig.posted.isEmpty && rig.requests == 0)
+        c.check("…Skip This Version there: that build never comes back", { rig.advance(48 * 3600); rig.found(two); return rig.ui.offers == ["2"] }()
+                && UpdatePreferences.skippedBuild == "2")
+        rig.found(three)
+        c.check("…a later build is offered", rig.ui.offers == ["2", "3"])
+
+        // A skipped build is never announced at all.
+        Settings.defaults = SettingsMemoryStore(["updateSkippedBuild": "2"])
+        for permission in [UpdateNotificationPermission.notAsked, .banners, .off] {
+            rig = NoticeRig(permission)
+            rig.found(two)
+            c.check("a skipped build (permission \(permission)): no question, no banner, no alert, nothing waiting",
+                    rig.requests == 0 && rig.posted.isEmpty && rig.ui.offers.isEmpty && rig.updater.pendingNotice == nil)
+        }
+
+        // 1.0.0's provisional grant (quiet without the person choosing it) is asked about once.
+        Settings.defaults = SettingsMemoryStore(["updateAskedForNotifications": true])
+        rig = NoticeRig(.provisional, answer: .provisional)
+        rig.found(two)
+        c.check("a provisional grant: asked once for banners; still provisional afterwards (no answer), so the update alert says it",
+                rig.requests == 1 && rig.posted.isEmpty && rig.ui.offers == ["2"], "requests \(rig.requests), offers \(rig.ui.offers)")
+
+        // The alert style None, chosen in System Settings: the notification goes quietly to Notification Center, as
+        // the person asked; no alert overrides that, and they aren't asked again.
+        for asked in [false, true] {
+            Settings.defaults = SettingsMemoryStore(["updateAskedForAlerts": asked])
+            rig = NoticeRig(.quiet)
+            rig.found(two)
+            rig.advance(3600)
+            c.check("alert style None\(asked ? "" : " (never asked)"): one notification, delivered quietly; no question, no alert",
+                    rig.posted == ["2"] && rig.requests == 0 && rig.ui.offers.isEmpty && UpdatePreferences.notifiedBuild == "2",
+                    "posted \(rig.posted), requests \(rig.requests), offers \(rig.ui.offers)")
+        }
+
+        // The question is never answered.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.notAsked, answer: nil)
+        rig.found(two)
+        rig.advance(59)
+        let early = rig.ui.offers
+        rig.advance(2)
+        c.check("no answer to the question: no alert for a minute, then the update alert",
+                rig.requests == 1 && early.isEmpty && rig.ui.offers == ["2"], "early \(early), then \(rig.ui.offers)")
+        rig.notifier?.answerNow(.banners)
+        rig.settle()
+        c.check("…an Allow after that posts nothing (the alert already said it)", rig.posted.isEmpty && rig.ui.offers == ["2"])
+
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.notAsked, answer: nil)
+        rig.found(two)
+        rig.advance(20)
+        rig.notifier?.answerNow(.banners)
+        rig.settle()
+        rig.advance(60)
+        c.check("an Allow within the minute: the banner, and the alert waiting behind it is dropped",
+                rig.posted == ["2"] && rig.ui.offers.isEmpty && rig.updater.pendingNotice == nil)
+
+        // Busy, or just launched.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.off)
+        rig.busy = true
+        rig.found(two)
+        rig.advance(30)
+        let whileBusy = rig.ui.offers
+        rig.busy = false
+        rig.advance(30)
+        c.check("while the person is busy (a button down, a modal window or sheet, input in the last 2 s): no alert; it shows once they aren’t",
+                whileBusy.isEmpty && rig.ui.offers == ["2"], "busy \(whileBusy), then \(rig.ui.offers)")
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.off)
+        rig.updater.launchedAt = rig.clock.addingTimeInterval(-30)
+        rig.found(two)
+        rig.advance(60)
+        let soon = rig.ui.offers
+        rig.advance(31)
+        c.check("nothing appears by itself in the first 2 minutes after launch", soon.isEmpty && rig.ui.offers == ["2"],
+                "\(soon) then \(rig.ui.offers)")
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.notAsked, answer: .banners)
+        rig.updater.launchedAt = rig.clock.addingTimeInterval(-30)
+        rig.found(two)
+        let askedSoon = rig.requests
+        rig.advance(91)
+        c.check("…not the permission question either", askedSoon == 0 && rig.requests == 1 && rig.posted == ["2"])
+
+        // Something on show (a video, a presentation, a call, a full-screen app): the alert waits, for up to 4 hours.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.off)
+        rig.presenting = true
+        rig.found(two)
+        rig.advance(2 * 3600)
+        let watching = rig.ui.offers
+        rig.presenting = false
+        rig.advance(30)
+        c.check("while something is on show (a video, a presentation, a call, a full-screen app): no alert; it shows after",
+                watching.isEmpty && rig.ui.offers == ["2"], "on show \(watching), then \(rig.ui.offers)")
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.off)
+        rig.presenting = true
+        rig.found(two)
+        rig.advance(UpdatePolicy.noticePatience - 60)
+        let patient = rig.ui.offers
+        rig.advance(90)
+        c.check("…but for no longer than 4 hours (the display kept awake all day, or work in full screen), and never while busy",
+                UpdatePolicy.noticePatience == 4 * 3600 && patient.isEmpty && rig.ui.offers == ["2"], "\(patient) then \(rig.ui.offers)")
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(.notAsked, answer: .banners)
+        rig.presenting = true
+        rig.found(two)
+        let askedWhileShowing = rig.requests
+        rig.presenting = false
+        rig.advance(30)
+        c.check("…and the permission question waits too", askedWhileShowing == 0 && rig.requests == 1 && rig.posted == ["2"])
+        rig = NoticeRig(.banners)
+        rig.presenting = true
+        Settings.defaults = SettingsMemoryStore(["updateAskedForAlerts": true])
+        rig.found(three)
+        c.check("…while a notification (no modal, no keyboard taken; macOS keeps it off a shared or mirrored screen) is posted at once",
+                rig.posted == ["3"])
+
+        // The moment checks themselves, on made-up system states.
+        c.check("the display kept awake (a video, Keynote, a call) counts as on show; the system’s own UserIsActive doesn’t",
+                UpdateMoment.keepsDisplayAwake(["PreventUserIdleDisplaySleep": NSNumber(value: 1)])
+                && UpdateMoment.keepsDisplayAwake(["NoDisplaySleepAssertion": NSNumber(value: 2)])
+                && !UpdateMoment.keepsDisplayAwake(["PreventUserIdleDisplaySleep": NSNumber(value: 0), "UserIsActive": NSNumber(value: 1),
+                                                    "PreventUserIdleSystemSleep": NSNumber(value: 1)])
+                && !UpdateMoment.keepsDisplayAwake([:]))
+        let screens = [CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: 1512, y: -200, width: 2560, height: 1440)]
+        func window(_ pid: Int32, _ frame: CGRect, layer: Int = 0) -> [String: Any] {
+            [kCGWindowOwnerPID as String: NSNumber(value: pid), kCGWindowLayer as String: NSNumber(value: layer),
+             kCGWindowBounds as String: frame.dictionaryRepresentation]
+        }
+        c.check("the app in front fills a screen (either display): on show; a big window that leaves the menu bar, another app’s, or a panel above: not",
+                UpdateMoment.fillsScreen([window(42, screens[0])], pid: 42, screens: screens)
+                && UpdateMoment.fillsScreen([window(42, CGRect(x: 0, y: 0, width: 1512, height: 900)), window(42, screens[1].offsetBy(dx: 0.5, dy: 0))], pid: 42, screens: screens)
+                && !UpdateMoment.fillsScreen([window(42, CGRect(x: 0, y: 33, width: 1512, height: 949))], pid: 42, screens: screens)
+                && !UpdateMoment.fillsScreen([window(7, screens[0])], pid: 42, screens: screens)
+                && !UpdateMoment.fillsScreen([window(42, screens[0], layer: 25)], pid: 42, screens: screens)
+                && !UpdateMoment.fillsScreen([[kCGWindowOwnerPID as String: NSNumber(value: 42)]], pid: 42, screens: screens))
+        let frames = UpdateMoment.screenFrames()
+        c.check("the screens’ frames, as the window server counts them: the main one at (0, 0)",
+                frames.first.map { $0.origin == .zero && $0.size == NSScreen.screens[0].frame.size } ?? NSScreen.screens.isEmpty)
+        _ = UpdateMoment.isPresenting()   // reads the real state (the menu-latency self-test times it)
+
+        // What drops a notice still waiting.
+        func waiting() -> NoticeRig {
+            Settings.defaults = SettingsMemoryStore()
+            let r = NoticeRig(.off)
+            r.busy = true
+            r.found(two)
+            return r
+        }
+        rig = waiting()
+        let queued = rig.updater.pendingNotice?.stage == .alert && UpdatePreferences.notifiedBuild == nil
+        rig.updater.skip("2")
+        rig.busy = false
+        rig.advance(30)
+        c.check("a waiting alert is dropped by Skip This Version (from the notification or the menu)",
+                queued && rig.updater.pendingNotice == nil && rig.ui.offers.isEmpty)
+        rig = waiting()
+        rig.updater.remindLater("2")
+        rig.busy = false
+        rig.advance(30)
+        c.check("…by Remind Me Later", rig.updater.pendingNotice == nil && rig.ui.offers.isEmpty)
+        rig = waiting()
+        rig.found(three)
+        rig.busy = false
+        rig.advance(30)
+        c.check("…and replaced by a newer build: only that one shows", rig.ui.offers == ["3"])
+        rig = waiting()
+        rig.updater.latest = nil   // a later check: up to date (the build was withdrawn)
+        rig.busy = false
+        rig.advance(30)
+        c.check("…and dropped once a check says YummyOrange is up to date", rig.ui.offers.isEmpty && rig.updater.pendingNotice == nil)
+        rig = waiting()
+        rig.found(three)
+        rig.updater.remindLater("2")
+        rig.updater.skip("2")
+        rig.busy = false
+        rig.advance(30)
+        c.check("…but not by Remind Me Later or Skip This Version for an older build: the newer one’s notice still comes",
+                rig.ui.offers == ["3"], "\(rig.ui.offers)")
+        rig = waiting()
+        Settings.checkForUpdatesAutomatically = false
+        rig.updater.reschedule(launch: false)
+        let droppedByOff = rig.updater.pendingNotice == nil
+        rig.busy = false
+        rig.advance(30)
+        c.check("…and by turning Check for updates automatically off: nothing appears by itself afterwards",
+                droppedByOff && rig.ui.offers.isEmpty, "offers \(rig.ui.offers)")
+        Settings.checkForUpdatesAutomatically = true
+        rig = NoticeRig(.off)
+        rig.busy = true
+        rig.found(two)
+        let queuedBeforeOff = rig.updater.pendingNotice != nil
+        Settings.checkForUpdatesAutomatically = false   // off, without the reschedule that drops it
+        rig.busy = false
+        rig.advance(30)
+        c.check("…even when the notice’s own timer comes first", queuedBeforeOff && rig.ui.offers.isEmpty && rig.updater.pendingNotice == nil)
+        Settings.checkForUpdatesAutomatically = true
+
+        // The update alert, asked for, while a notice for the same build waits: seeing it is the notice.
+        rig = waiting()
+        rig.updater.environment.unavailableReason = nil   // so Install Update gets as far as the unsaved-changes question
+        rig.ui.choice = .install
+        rig.updater.unsavedWork = { ["Untitled (Image Editor)"] }
+        rig.ui.restart = false   // Install Update, then not now at the unsaved-changes question
+        rig.updater.respond(to: .show, build: "2")
+        let asked = rig.ui.restartAsked.count
+        rig.busy = false
+        rig.advance(30)
+        rig.advance(6 * 3600)
+        rig.found(two)
+        c.check("the alert opened from the menu or the notification counts as the notice: Install Update called off there, it never comes again by itself",
+                asked == 1 && rig.ui.offers == ["2"] && rig.ui.unprompted == [false] && rig.updater.pendingNotice == nil
+                && UpdatePreferences.notifiedBuild == "2", "offers \(rig.ui.offers) \(rig.ui.unprompted)")
+
+        // Delivered, not queued, is what counts.
+        rig = waiting()
+        let undelivered = UpdatePreferences.notifiedBuild == nil
+        let again = NoticeRig(.off)   // YummyOrange quit before the alert could show, and started again
+        again.found(two)
+        c.check("a notice is recorded only once delivered: one that never showed (YummyOrange quit first) comes after the next launch",
+                undelivered && rig.ui.offers.isEmpty && again.ui.offers == ["2"], "\(again.ui.offers)")
+
+        // While the update alert is up, nothing else of the updater's starts: its modal run loop fires the 15-minute
+        // timer, the wake check and notification clicks.
+        final class CheckingUI: RecordingUI {
+            var during: (() -> Void)?
+            var phaseDuring: Updater.Phase?
+            override func offer(_ item: UpdateItem, current: String, unprompted: Bool) -> UpdateChoice {
+                let choice = super.offer(item, current: current, unprompted: unprompted)
+                during?()
+                return choice
+            }
+        }
+        Settings.defaults = SettingsMemoryStore()
+        let checkingUI = CheckingUI()
+        let live = idleUpdater(ui: checkingUI)
+        live.environment.unavailableReason = nil   // so a check would start (it fails at once: no feed address)
+        live.notifier = RecordingNotifier()
+        live.latest = two
+        checkingUI.choice = .install
+        live.unsavedWork = { [] }
+        checkingUI.during = { [unowned live, unowned checkingUI] in
+            live.tick()                                  // the timer: a check is due
+            live.check(manual: false)                    // the wake check
+            live.check(manual: true)                     // Check for Updates… from the menu
+            live.respond(to: .show, build: "2")          // the banner clicked
+            checkingUI.phaseDuring = live.phase
+        }
+        live.offerLatest()
+        c.check("under the update alert, the timer’s check, the wake check, Check for Updates… and a notification click start nothing (no second alert)",
+                checkingUI.phaseDuring == .idle && checkingUI.offers == ["2"] && !live.isAsking, "phase \(String(describing: checkingUI.phaseDuring)), offers \(checkingUI.offers)")
+        c.check("…so its Install Update starts the update (here: the install step, which fails at once without a feed key)",
+                checkingUI.progress.first?.0 == "Downloading YummyOrange 1.0.1…" || checkingUI.told.last?.0 == "YummyOrange can’t install updates."
+                || checkingUI.told.last?.0 == "YummyOrange couldn’t install the update.", "progress \(checkingUI.progress.map(\.0)), told \(checkingUI.told.map(\.0))")
+        UpdaterTests.spin(until: { live.phase == .idle }, timeout: 10)
+        live.tick()
+        c.check("…and once it is answered, checks run again", live.phase != .idle || UpdatePreferences.lastAttempt != nil)
+        UpdaterTests.spin(until: { live.phase == .idle }, timeout: 10)
+
+        // No notifier (not an app): the alert says it.
+        Settings.defaults = SettingsMemoryStore()
+        rig = NoticeRig(nil)
+        rig.found(two)
+        c.check("without the notification center: the update alert, by itself", rig.ui.offers == ["2"] && rig.ui.unprompted == [true])
         Settings.defaults = SettingsMemoryStore()
     }
 
@@ -809,8 +1216,8 @@ enum UpdaterTests {
                     && UpdateMenuTarget.shared.validateMenuItem($0!) && !($0?.toolTip ?? "").isEmpty })
         ui.choice = .later
         if let update { menu.performActionForItem(at: menu.index(of: update)) }
-        c.check("choosing the update item shows the update alert (Remind Me Later chosen here)",
-                ui.offers == ["2"] && UpdatePreferences.snoozedBuild == "2", "\(ui.offers)")
+        c.check("choosing the update item shows the update alert, as asked for (Remind Me Later chosen here)",
+                ui.offers == ["2"] && ui.unprompted == [false] && UpdatePreferences.snoozedBuild == "2", "\(ui.offers)")
         ui.choice = .skip
         if let update { menu.performActionForItem(at: menu.index(of: update)) }
         UpdateMenu.refresh(menu, updater: updater)
@@ -818,6 +1225,11 @@ enum UpdaterTests {
         if let check { menu.performActionForItem(at: menu.index(of: check)) }
         c.check("choosing “Check for Updates…” checks by hand (here it says why this copy can’t)",
                 ui.told.last?.0 == "YummyOrange can’t check for updates." && ui.told.last?.1 == "test: no network here")
+        updater.latest = item(version: "1.0.2", build: "3")
+        c.check("the menu-bar icon has its dot while the menu offers an update, and says so to VoiceOver",
+                AppDelegate.statusIcon(for: updater).accessibilityDescription == "YummyOrange, update available")
+        updater.skip("3")
+        c.check("…and loses it after Skip This Version", AppDelegate.statusIcon(for: updater).accessibilityDescription == "YummyOrange")
         updater.latest = nil
         Settings.defaults = SettingsMemoryStore()
     }
@@ -838,7 +1250,23 @@ enum UpdaterTests {
         updater.reschedule(launch: false)
         c.check("the automatic checks follow the setting (on: scheduled; off: stopped)", on && !updater.isScheduled)
         c.check("Settings explains it, or says why this copy can’t update",
-                UpdateSetting.detail(nil).contains("Nothing is installed until you choose") && UpdateSetting.detail("Not here.") == "Not here.")
+                UpdateSetting.detail(nil) == "Looks for new versions a few times a day and tells you when one is available. Nothing installs until you choose."
+                && UpdateSetting.detail("Not here.") == "Not here.")
+        let about = idleUpdater()
+        let at = Date(timeIntervalSince1970: 2_000_000_000)
+        let reason = UpdateSetting.status(about, now: at)
+        about.environment.unavailableReason = nil
+        let never = UpdateSetting.status(about, now: at)
+        UpdatePreferences.lastCheck = at.addingTimeInterval(-2 * 3600)
+        let ago = UpdateSetting.status(about, now: at)
+        UpdatePreferences.lastCheck = at.addingTimeInterval(-20)
+        let justNow = UpdateSetting.status(about, now: at)
+        about.latest = item(version: "1.0.1", build: "2")
+        let found = UpdateSetting.status(about, now: at)
+        c.check("About › Updates says why this copy can’t, when it last checked, or the update it found",
+                reason == "test: no network here" && never == "Not checked yet." && ago == "Last checked 2 hours ago."
+                && justNow == "Last checked just now." && found == "YummyOrange 1.0.1 is available.",
+                [reason, never, ago, justNow, found].joined(separator: " | "))
         Settings.defaults = SettingsMemoryStore()
     }
 
@@ -1162,7 +1590,7 @@ enum UpdaterTests {
         let finished = spin(until: { !ui.relaunched.isEmpty || !ui.told.isEmpty }, timeout: 60)
         let downloadsShown = ui.progress.filter { $0.0 == "Downloading YummyOrange 1.0.1…" }.compactMap(\.1)
         c.check("by hand: Check for Updates… shows the alert, Install Update downloads with progress, installs and relaunches the new app",
-                finished && ui.offers == ["2"] && ui.relaunched.map(\.standardizedFileURL) == [app.standardizedFileURL] && marker(app) == "new"
+                finished && ui.offers == ["2"] && ui.unprompted == [false] && ui.relaunched.map(\.standardizedFileURL) == [app.standardizedFileURL] && marker(app) == "new"
                 && downloadsShown.last == 1.0 && ui.progress.contains { $0.0 == "Installing YummyOrange 1.0.1…" }
                 && ui.ended.last == "Restarting YummyOrange…" && updater.latest == nil && ui.restartAsked.isEmpty,
                 "offers \(ui.offers), told \(ui.told.map(\.0)), relaunched \(ui.relaunched.map(\.path)), progress \(ui.progress.map(\.0).uniqued())")
@@ -1188,13 +1616,15 @@ enum UpdaterTests {
         let quietUI = RecordingUI(), notifier = RecordingNotifier()
         quiet.ui = quietUI
         quiet.notifier = notifier
+        quiet.isBusy = { false }
+        quiet.launchedAt = .distantPast
         quiet.environment.appURL = app
         Settings.defaults = SettingsMemoryStore()
         quiet.check(manual: false)
-        spin(until: { quiet.phase == .idle }, timeout: 20)
-        c.check("automatic: an update found is announced (permission asked once) and offered in the menu, without an alert",
+        spin(until: { quiet.phase == .idle && !notifier.posted.isEmpty }, timeout: 20)
+        c.check("automatic: an update found is announced (permission for banners asked once, allowed here) and offered in the menu, without an alert",
                 notifier.requests == 1 && notifier.posted == ["2"] && quiet.menuUpdate?.build == "2" && quietUI.offers.isEmpty && quietUI.told.isEmpty
-                && UpdatePreferences.lastCheck != nil)
+                && UpdatePreferences.lastCheck != nil, "requests \(notifier.requests), posted \(notifier.posted), offers \(quietUI.offers)")
         publish(lowerFeed)
         quiet.check(manual: true)
         spin(until: { !quietUI.told.isEmpty }, timeout: 20)

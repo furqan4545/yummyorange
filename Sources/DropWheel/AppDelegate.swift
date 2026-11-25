@@ -5,9 +5,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let monitor = DragMonitor()
     private let overlay = OverlayController()
-    private var loginItem: NSMenuItem!
+    private var updateObserver: NSObjectProtocol?
+    private var iconBadged: Bool?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LaunchAtLogin.refresh()   // the menu's checkmark, read off the main thread
         setUpStatusItem()
         _ = Capabilities.shared   // probe encoders once, up front
 
@@ -142,16 +144,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = MenuBarIcon.image()   // the app icon's wheel, as a template image
         let menu = Self.makeMenu(target: self)
         menu.delegate = self
-        loginItem = menu.item(withTag: MenuTag.login)
         statusItem.menu = menu
+        showUpdate()
+        // The update item and the icon's dot follow the updater as soon as it changes, so opening the menu changes no
+        // item: a menu that grows a row as it opens can leave the highlight a row off.
+        updateObserver = NotificationCenter.default.addObserver(forName: Updater.didChange, object: nil, queue: .main) { [weak self] _ in
+            self?.showUpdate()
+        }
+        // The first layout of a menu loads its font and the checkmark images (about 10 ms): done now, not on the
+        // first click on the icon.
+        DispatchQueue.main.async { _ = menu.size }
     }
 
+    /// The menu-bar icon, with its dot while an update is known, and the menu's “Update to YummyOrange 1.0.1…”.
+    private func showUpdate() {
+        let updater = UpdateMenuTarget.shared.updater
+        let badged = updater.menuUpdate != nil
+        if badged != iconBadged {
+            iconBadged = badged
+            statusItem.button?.image = Self.statusIcon(for: updater)
+        }
+        statusItem.button?.toolTip = updater.menuUpdate.map { "YummyOrange \($0.version) is available." }
+        // The row itself waits while the menu is open (UpdateMenu.follow); the dot and the tooltip don't.
+        if let menu = statusItem.menu { UpdateMenu.follow(menu, updater: updater) }
+    }
+
+    /// The app icon's wheel as a template image, with a dot in its corner while the menu offers an update (not after
+    /// Skip This Version). The dot never stands alone: the menu's first item and the update notice say the same.
+    static func statusIcon(for updater: Updater) -> NSImage { MenuBarIcon.image(badged: updater.menuUpdate != nil) }
+
     /// The menu-bar menu. `target` handles Launch at Login and Settings…; `--snapshot menu` draws it with nil.
-    /// “Update to YummyOrange 1.0.1…” heads it while an update is known (Updater.swift), “Check for Updates…” is always
-    /// above Settings….
+    /// “Update to YummyOrange 1.0.1…” heads it while an update is known (Updater.swift); Welcome Tour… and Talk to the
+    /// Founder… are the help group; “Check for Updates…” is always above Settings….
     static func makeMenu(target: AppDelegate?) -> NSMenu {
         let menu = NSMenu()
         UpdateMenu.topItems().forEach(menu.addItem)
@@ -159,12 +185,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         loginItem.target = target
         loginItem.tag = MenuTag.login
+        loginItem.state = LaunchAtLogin.isEnabled ? .on : .off
         menu.addItem(loginItem)
         let extra = Registry.modules.flatMap { $0.menuItems() }
         if !extra.isEmpty {
             menu.addItem(.separator())
             extra.forEach(menu.addItem)
         }
+        menu.addItem(.separator())
+        menu.addItem(ShelfAndWelcome.tourMenuItem())
+        menu.addItem(FounderMail.menuItem())
         menu.addItem(.separator())
         menu.addItem(UpdateMenu.checkItem())
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
@@ -175,15 +205,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
-    func menuWillOpen(_ menu: NSMenu) {
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        UpdateMenu.refresh(menu)
+    func menuWillOpen(_ menu: NSMenu) { Self.willOpen(menu) }
+    func menuDidClose(_ menu: NSMenu) { Self.didClose(menu) }
+
+    /// Opening the menu: the Launch at Login checkmark from the last status read, then a new read off the main thread,
+    /// which fixes the checkmark (even while the menu is open) if it was changed in System Settings meanwhile. AppKit
+    /// shows the menu only once this returns, so nothing here waits for anything. While it is open, no row comes or
+    /// goes (UpdateMenu.follow).
+    static func willOpen(_ menu: NSMenu) {
+        UpdateMenu.willOpen(menu)
+        guard let login = menu.item(withTag: MenuTag.login) else { return }
+        login.state = LaunchAtLogin.isEnabled ? .on : .off
+        LaunchAtLogin.refresh { [weak login] in login?.state = LaunchAtLogin.isEnabled ? .on : .off }
     }
+
+    /// The menu closed: an update found while it was open gets its row now.
+    static func didClose(_ menu: NSMenu) { UpdateMenu.didClose(menu) }
 
     @objc private func openSettings() { SettingsWindowController.shared.show() }
 
     @objc private func toggleLogin() {
-        if let message = LaunchAtLogin.set(SMAppService.mainApp.status != .enabled) {
+        if let message = LaunchAtLogin.set(!LaunchAtLogin.isEnabled) {
             HUD.shared.flash(message, isError: true)
         }
     }
@@ -206,18 +248,51 @@ extension OutputFormat {
     }
 }
 
-/// Launch at Login through SMAppService, shared by the menu and the Settings window.
+/// Launch at Login through SMAppService, shared by the menu and the Settings window. Reading SMAppService's status
+/// takes longer the larger the app's executable is (about 5 ms for the shipping app, 20 ms for a debug build), and the
+/// menu read it on the main thread at every open, before AppKit could show the menu (Settings read it a dozen times).
+/// So the status is read on a queue of its own and kept here: the menu and Settings show the last one read and ask
+/// for a fresh read without waiting for it.
 enum LaunchAtLogin {
-    static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
+    /// Posted on the main thread when a read finds the status changed (in System Settings, say).
+    static let didChange = Notification.Name("YummyOrangeLaunchAtLoginDidChange")
+    /// The last status read (main thread). Not registered until the first read at launch is back.
+    private(set) static var status: SMAppService.Status = .notRegistered
+    /// Reads the status; called on the queue below, never on the main thread. Self-tests swap it.
+    static var readStatus: () -> SMAppService.Status = { SMAppService.mainApp.status }
+    private static let queue = DispatchQueue(label: "com.yummyorange.app.launch-at-login", qos: .userInitiated)
+
+    static var isEnabled: Bool { status == .enabled }
+
+    /// Reads the status off the main thread; back on it, keeps it (posting `didChange` when it changed), then `done`.
+    static func refresh(_ done: (() -> Void)? = nil) {
+        let read = readStatus
+        queue.async {
+            let fresh = read()
+            DispatchQueue.main.async {
+                if fresh != status {
+                    status = fresh
+                    NotificationCenter.default.post(name: didChange, object: nil)
+                }
+                done?()
+            }
+        }
+    }
 
     /// Turns it on or off. Returns a message to show when that didn't work.
     @discardableResult
     static func set(_ on: Bool) -> String? {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            // What it is now, for the checkmark at once; the read that follows corrects it (when macOS wants it
+            // approved in Login Items, say).
+            status = on ? .enabled : .notRegistered
+            NotificationCenter.default.post(name: didChange, object: nil)
             NotificationCenter.default.post(name: Settings.didChange, object: nil)
+            refresh()
             return nil
         } catch {
+            refresh()
             return "Couldn’t change Launch at Login: \(error.localizedDescription)"
         }
     }
@@ -225,7 +300,7 @@ enum LaunchAtLogin {
     /// A note for the Settings window when macOS needs something from the user, nil when all is well.
     static var note: String? {
         if Bundle.main.bundleIdentifier == nil { return "Available when YummyOrange runs as an app." }
-        if SMAppService.mainApp.status == .requiresApproval {
+        if status == .requiresApproval {
             return "Allow YummyOrange in System Settings › General › Login Items."
         }
         return nil

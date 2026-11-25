@@ -1,5 +1,6 @@
 import AppKit
 import CryptoKit
+import IOKit.pwr_mgt
 import Security
 import UserNotifications
 import os
@@ -11,7 +12,9 @@ import os
 //   check     the feed and its detached Ed25519 signature (appcast.json.sig) over HTTPS with an ephemeral session
 //             (no cookies, no cache, short timeouts); the feed is read only once its signature checks out, and its
 //             addresses must stay on the feed's own site
-//   offer     a newer build only: a quiet (provisional) notification and a menu item; either opens the update alert
+//   offer     a newer build only: a menu item and a dot on the menu-bar icon, and once per build a notice: a
+//             notification with a banner when macOS allows one (asked for the first time an update is found), else
+//             the update alert itself, at a moment the person isn't busy. The notification opens the update alert
 //   download  the ZIP, capped at the length the feed gives, with progress in the HUD
 //   verify    length, SHA-256 and an Ed25519 signature made with the release key (public half in DWUpdatePublicKey)
 //   unpack    with ditto, into a temporary folder on the same volume as the installed app (the person's own temporary
@@ -920,7 +923,9 @@ enum UpdatePreferences {
         static let snoozedBuild = "updateSnoozedBuild"
         static let snoozedUntil = "updateSnoozedUntil"
         static let notified = "updateNotifiedBuild"
-        static let asked = "updateAskedForNotifications"
+        // Not "updateAskedForNotifications": 1.0.0 set that key when it asked for quiet (provisional) delivery only,
+        // and those copies should still be asked once for banners.
+        static let asked = "updateAskedForAlerts"
         static let lastCheck = "updateLastCheck"
         static let lastAttempt = "updateLastAttempt"
     }
@@ -938,13 +943,14 @@ enum UpdatePreferences {
         get { (defaults.object(forKey: Key.snoozedUntil) as? Double).map(Date.init(timeIntervalSince1970:)) }
         set { defaults.set(newValue?.timeIntervalSince1970, forKey: Key.snoozedUntil) }
     }
-    /// The build the last notification was about, so the same update is announced once (again after a snooze).
+    /// The build the last notice (a notification or the update alert) was about, so the same update is announced
+    /// once (again after a snooze). Set when the notice is delivered, not when it is queued.
     static var notifiedBuild: String? {
         get { defaults.string(forKey: Key.notified) }
         set { defaults.set(newValue, forKey: Key.notified) }
     }
-    /// Notification permission has been asked for (the first time an update was found).
-    static var askedForNotifications: Bool {
+    /// Permission for notifications with banners has been asked for (the first time an update was found).
+    static var askedForAlerts: Bool {
         get { defaults.object(forKey: Key.asked) as? Bool ?? false }
         set { defaults.set(newValue, forKey: Key.asked) }
     }
@@ -980,9 +986,33 @@ enum UpdatePolicy {
         return now.timeIntervalSince(lastCheck) >= every || lastCheck > now
     }
 
-    /// Notification permission for update notices: provisional, so macOS delivers them quietly to Notification Center
-    /// without ever putting up a permission prompt the person didn't ask for.
-    static let notificationOptions: UNAuthorizationOptions = [.alert, .provisional]
+    /// Notification permission for update notices: banners, nothing more (no sound, no badge). Not provisional: a
+    /// provisional notice goes quietly to Notification Center, where an update could go unseen for weeks.
+    static let notificationOptions: UNAuthorizationOptions = [.alert]
+    /// The permission prompt gets this long for an answer before the update alert says it instead.
+    static let permissionWait: TimeInterval = 60
+    /// A notice waiting for a moment the person isn't busy looks again this much later.
+    static let noticeRetry: TimeInterval = 30
+    /// Nothing appears by itself this soon after YummyOrange starts (HIG Alerts: not when an app starts).
+    static let noticeLaunchGrace: TimeInterval = 120
+    /// …nor within this long of the last key press, click or pointer move.
+    static let noticeIdle: TimeInterval = 2
+    /// A waiting update alert also holds back while something is being watched or shown (a video, a presentation, a
+    /// call or a full-screen app), but for no longer than this: someone who keeps the display awake all day, or
+    /// works in full screen, still hears about the update.
+    static let noticePatience: TimeInterval = 4 * 3600
+
+    /// How an update an automatic check found reaches the person: a notification when macOS lets YummyOrange post
+    /// one (with a banner, or quietly in Notification Center when the person chose the alert style None); the first
+    /// time, the question whether it may (also for a copy that only ever had 1.0.0's provisional permission);
+    /// otherwise (notifications off, or no answer to the question) the update alert.
+    static func notice(for permission: UpdateNotificationPermission, askedForAlerts: Bool) -> UpdateNoticeKind {
+        switch permission {
+        case .banners, .quiet: return .notification
+        case .notAsked, .provisional: return askedForAlerts ? .inApp : .ask
+        case .off: return .inApp
+        }
+    }
 
     static func isSkipped(_ item: UpdateItem) -> Bool {
         UpdatePreferences.skippedBuild.map { UpdateVersion.same($0, item.build) } ?? false
@@ -995,6 +1025,7 @@ enum UpdatePolicy {
     }
 
     /// An automatic check announces an update once: not a skipped one, not while it is snoozed, not twice.
+    /// (`notifiedBuild` is cleared by Remind Me Later, so a snoozed update is announced again once the snooze ends.)
     static func shouldNotify(_ item: UpdateItem, now: Date) -> Bool {
         !isSkipped(item) && !isSnoozed(item, now: now)
             && !(UpdatePreferences.notifiedBuild.map { UpdateVersion.same($0, item.build) } ?? false)
@@ -1006,6 +1037,87 @@ enum UpdatePolicy {
 
 // MARK: - Notifications
 
+/// What macOS lets update notifications do, read from the notification settings each time.
+enum UpdateNotificationPermission: Equatable {
+    /// Never asked.
+    case notAsked
+    /// A provisional grant, what 1.0.0 asked for: quiet, in Notification Center, without the person having chosen it.
+    case provisional
+    /// Allowed, with the alert style None chosen in System Settings: delivered quietly, as the person asked.
+    case quiet
+    /// Banners (or alerts).
+    case banners
+    /// Turned off in System Settings, or declined.
+    case off
+}
+
+/// How an update found by an automatic check reaches the person (UpdatePolicy.notice).
+enum UpdateNoticeKind: Equatable {
+    /// A notification: a banner, or quietly in Notification Center when that is what the person chose.
+    case notification
+    /// Ask for permission first, then decide again with the answer.
+    case ask
+    /// The update alert, at a moment the person isn't busy.
+    case inApp
+}
+
+/// Whether the update alert would interrupt something if it appeared by itself now.
+enum UpdateMoment {
+    /// A mouse button is down (a drag, and so the wheel), a modal window or a sheet is up (an editor's sheet, a
+    /// password prompt, another alert), or the person typed, clicked or moved the pointer in the last 2 seconds.
+    static func isBusy() -> Bool {
+        if NSEvent.pressedMouseButtons != 0 { return true }
+        if NSApp.modalWindow != nil || NSApp.windows.contains(where: { $0.isVisible && $0.attachedSheet != nil }) { return true }
+        // kCGAnyInputEventType: keys, clicks and pointer moves, in this login session.
+        let anyInput = CGEventType(rawValue: ~0)!
+        return CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput) < UpdatePolicy.noticeIdle
+    }
+
+    /// Something is being watched or shown, with no input for a while: an app keeps the display awake (video players,
+    /// Keynote presenting and calls do), or the app in front fills a screen (a full-screen video or app). An alert
+    /// then would cover it and take the keyboard (a presenter's clicker, say). Asked only once `isBusy` says no:
+    /// it asks powerd and the window server, a millisecond or two, every 30 s while an alert waits.
+    static func isPresenting() -> Bool {
+        if keepsDisplayAwake(assertionStatus()) { return true }
+        guard let front = NSWorkspace.shared.frontmostApplication, front != NSRunningApplication.current,
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else { return false }
+        return fillsScreen(windows, pid: front.processIdentifier, screens: screenFrames())
+    }
+
+    /// The system's power assertions, by type, with how many processes hold each (as `pmset -g assertions` lists them).
+    static func assertionStatus() -> [String: Any] {
+        var status: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsStatus(&status) == kIOReturnSuccess, let dictionary = status?.takeRetainedValue() else { return [:] }
+        return dictionary as? [String: Any] ?? [:]
+    }
+
+    /// Some process keeps the display from sleeping (kIOPMAssertionTypePreventUserIdleDisplaySleep, or its old name).
+    static func keepsDisplayAwake(_ status: [String: Any]) -> Bool {
+        ["PreventUserIdleDisplaySleep", "NoDisplaySleepAssertion"].contains { (status[$0] as? NSNumber)?.intValue ?? 0 > 0 }
+    }
+
+    /// The screens' frames in the window server's coordinates (top-left origin on the main screen), like window bounds.
+    static func screenFrames() -> [CGRect] {
+        guard let main = NSScreen.screens.first?.frame else { return [] }
+        return NSScreen.screens.map { CGRect(x: $0.frame.minX, y: main.maxY - $0.frame.maxY, width: $0.frame.width, height: $0.frame.height) }
+    }
+
+    /// One of `pid`'s ordinary (layer 0) windows on screen covers a whole screen, to within a point.
+    static func fillsScreen(_ windows: [[String: Any]], pid: pid_t, screens: [CGRect]) -> Bool {
+        windows.contains { window in
+            guard (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
+                  (window[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
+                  let raw = window[kCGWindowBounds as String], CFGetTypeID(raw as CFTypeRef) == CFDictionaryGetTypeID(),
+                  let bounds = CGRect(dictionaryRepresentation: raw as! CFDictionary) else { return false }
+            return screens.contains { screen in
+                abs(bounds.minX - screen.minX) <= 1 && abs(bounds.minY - screen.minY) <= 1
+                    && abs(bounds.width - screen.width) <= 1 && abs(bounds.height - screen.height) <= 1
+            }
+        }
+    }
+}
+
 enum UpdateNotificationAction: String {
     /// A click on the notification: the update alert, with the release notes (never an install without it).
     case show
@@ -1013,9 +1125,10 @@ enum UpdateNotificationAction: String {
     case later = "com.yummyorange.app.update.later"
 }
 
+/// The notification center as the updater uses it. Completions may come on any thread.
 protocol UpdateNotifying: AnyObject {
     func requestPermission(_ options: UNAuthorizationOptions, _ done: @escaping (Bool) -> Void)
-    func checkPermission(_ done: @escaping (Bool) -> Void)
+    func permission(_ done: @escaping (UpdateNotificationPermission) -> Void)
     func post(_ item: UpdateItem)
     func withdraw()
 }
@@ -1035,23 +1148,32 @@ final class SystemUpdateNotifier: NSObject, UpdateNotifying, UNUserNotificationC
         let skip = UNNotificationAction(identifier: UpdateNotificationAction.skip.rawValue, title: "Skip This Version", options: [],
                                         icon: UNNotificationActionIcon(systemImageName: "forward.end"))
         center.setNotificationCategories([UNNotificationCategory(identifier: Self.category, actions: [later, skip],
-                                                                 intentIdentifiers: [], options: [])])
+                                                                 intentIdentifiers: [], hiddenPreviewsBodyPlaceholder: "Update available",
+                                                                 options: [])])
     }
 
     func requestPermission(_ options: UNAuthorizationOptions, _ done: @escaping (Bool) -> Void) {
         center.requestAuthorization(options: options) { granted, _ in done(granted) }
     }
 
-    func checkPermission(_ done: @escaping (Bool) -> Void) {
-        center.getNotificationSettings { settings in
-            done(settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional)
+    func permission(_ done: @escaping (UpdateNotificationPermission) -> Void) {
+        center.getNotificationSettings { done(Self.permission(status: $0.authorizationStatus, alertStyle: $0.alertStyle)) }
+    }
+
+    static func permission(status: UNAuthorizationStatus, alertStyle: UNAlertStyle) -> UpdateNotificationPermission {
+        switch status {
+        case .notDetermined: return .notAsked
+        case .denied: return .off
+        case .authorized: return alertStyle == .none ? .quiet : .banners
+        default: return .provisional   // provisional, and anything later macOS adds
         }
     }
 
+    /// No title, so macOS shows the app's name there (HIG Notifications: avoid your app's name in the content).
+    /// "Available", not "ready to install": nothing is downloaded until the person chooses Install Update.
     func post(_ item: UpdateItem) {
         let content = UNMutableNotificationContent()
-        content.title = "YummyOrange \(item.version) is available"
-        content.body = "Click to see what’s new and install it."
+        content.body = "Version \(item.version) is available."
         content.categoryIdentifier = Self.category
         content.userInfo = ["build": item.build]
         content.interruptionLevel = .active
@@ -1092,8 +1214,9 @@ enum UpdateChoice { case install, later, skip }
 
 /// What the updater shows. The app's version uses alerts, the HUD, Finder and the relaunch helper; self-tests record.
 protocol UpdateUI: AnyObject {
-    /// The update alert: Install Update, Remind Me Later or Skip This Version.
-    func offer(_ item: UpdateItem, current: String) -> UpdateChoice
+    /// The update alert: Install Update, Remind Me Later or Skip This Version. `unprompted`: it appears by itself
+    /// (an automatic check found the update and no notification could say so), not after the person asked.
+    func offer(_ item: UpdateItem, current: String, unprompted: Bool) -> UpdateChoice
     func tell(_ title: String, _ message: String)
     /// Progress in the HUD: a fraction, or nil for a spinner-style bar.
     func progress(_ title: String, _ fraction: Double?)
@@ -1110,20 +1233,35 @@ protocol UpdateUI: AnyObject {
 final class SystemUpdateUI: UpdateUI {
     private var progressTitle: String?
 
-    func offer(_ item: UpdateItem, current: String) -> UpdateChoice {
+    func offer(_ item: UpdateItem, current: String, unprompted: Bool) -> UpdateChoice {
+        let alert = Self.offerAlert(item, current: current, unprompted: unprompted)
+        let previous = unprompted ? NSWorkspace.shared.frontmostApplication : nil
+        NSApp.activate(ignoringOtherApps: true)
+        let choice: UpdateChoice
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: choice = .install
+        case .alertThirdButtonReturn: choice = .skip
+        default: choice = .later
+        }
+        // It came up by itself over another app: after Remind Me Later or Skip, that app gets the keyboard back.
+        if choice != .install, let previous, previous != NSRunningApplication.current { previous.activate(options: []) }
+        return choice
+    }
+
+    /// The update alert. Esc is Remind Me Later. Return is Install Update, except when the alert appears by itself:
+    /// then no button is the default, so a Return meant for another app never installs and restarts anything (HIG
+    /// Alerts: to have people read an alert, "avoid making any button the default button").
+    static func offerAlert(_ item: UpdateItem, current: String, unprompted: Bool) -> NSAlert {
         let alert = NSAlert()
-        alert.messageText = "A new version of YummyOrange is available."
-        alert.informativeText = "YummyOrange \(item.version) is ready to install. You have \(current). YummyOrange restarts once it’s installed."
-        alert.addButton(withTitle: "Install Update")
+        // The version in the title, the one fact that matters (HIG Alerts: "complete and specific").
+        alert.messageText = "YummyOrange \(item.version) is available."
+        alert.informativeText = "You have \(current). YummyOrange restarts after the update is installed."
+        let install = alert.addButton(withTitle: "Install Update")
+        if unprompted { install.keyEquivalent = "" }
         alert.addButton(withTitle: "Remind Me Later").keyEquivalent = "\u{1b}"
         alert.addButton(withTitle: "Skip This Version")
-        alert.accessoryView = Self.notesView(item)
-        NSApp.activate(ignoringOtherApps: true)
-        switch alert.runModal() {
-        case .alertFirstButtonReturn: return .install
-        case .alertThirdButtonReturn: return .skip
-        default: return .later
-        }
+        alert.accessoryView = notesView(item)
+        return alert
     }
 
     /// The release notes (if the feed has any) in a small scrolling text view, with a link to the full notes.
@@ -1306,10 +1444,34 @@ final class Updater {
         let app: URL
     }
 
+    /// An update an automatic check found that hasn't reached the person yet: waiting for a moment to ask for
+    /// notification permission (`ask`), or to show the update alert (`alert`), not before `due`.
+    struct PendingNotice: Equatable {
+        enum Stage: Equatable { case ask, alert }
+        var item: UpdateItem
+        var stage: Stage
+        var due: Date
+    }
+
     var environment: Environment
     var ui: UpdateUI = SystemUpdateUI()
     var notifier: UpdateNotifying?
     var now: () -> Date = Date.init
+    /// Whether the update alert would interrupt something now (UpdateMoment); self-tests make their own.
+    var isBusy: () -> Bool = UpdateMoment.isBusy
+    /// Whether something is being watched or shown (UpdateMoment.isPresenting), which holds a waiting notice back for
+    /// up to `UpdatePolicy.noticePatience`; self-tests make their own.
+    var isPresenting: () -> Bool = UpdateMoment.isPresenting
+    /// The update alert or the restart question is up. Nothing else of the updater's starts meanwhile: their modal
+    /// run loop still fires the 15-minute timer, the wake check and notification clicks, and a check started under
+    /// the alert made its Install Update do nothing (`install` needs the updater idle), a second alert stacked on it.
+    private(set) var isAsking = false
+    /// When this run of YummyOrange started, for the launch grace (start() sets it again).
+    var launchedAt = Date()
+    private(set) var pendingNotice: PendingNotice?
+    /// Fires the pending notice's next step. In the default run-loop mode only, so it never fires while a menu is
+    /// open or a modal window runs.
+    private var noticeTimer: Timer?
     /// Editor windows a restart would close without saving (see PendingWork); self-tests make their own.
     var unsavedWork: () -> [String] = PendingWork.unsavedEditors
     /// The newest higher build the last check found (nil when up to date).
@@ -1343,6 +1505,7 @@ final class Updater {
 
     /// From the app's launch: notifications, the 10-second launch check, the timer and the wake check.
     func start() {
+        launchedAt = now()
         guard isAvailable else {
             Self.log.notice("updates are off: \(self.environment.unavailableReason ?? "", privacy: .public)")
             return
@@ -1374,7 +1537,8 @@ final class Updater {
         timer = nil
         launchCheck?.cancel()
         launchCheck = nil
-        guard automatic else { return }
+        // Turned off: a notice an automatic check left waiting doesn't appear by itself afterwards either.
+        guard automatic else { dropNotice(); return }
         let first = DispatchWorkItem { [weak self] in
             guard Settings.checkForUpdatesAutomatically else { return }
             self?.check(manual: false)
@@ -1397,7 +1561,9 @@ final class Updater {
         UpdatePolicy.isDue(lastCheck: UpdatePreferences.lastCheck, lastAttempt: UpdatePreferences.lastAttempt, now: now(), every: every)
     }
 
-    private func tick() {
+    /// The timer's look whether a check is due (in the common modes, so also while a menu is open: two preference
+    /// reads, about a microsecond; the menu-latency self-test times it).
+    func tick() {
         guard Settings.checkForUpdatesAutomatically, isDue(every: UpdatePolicy.interval) else { return }
         check(manual: false)
     }
@@ -1497,6 +1663,9 @@ final class Updater {
     /// Results come back through MainThread.async rather than the main queue: they may run an alert, which must not
     /// hold up the main queue (see MainThread in Extensions.swift), and they stay in order with the progress.
     func check(manual: Bool) {
+        // The update alert (or the restart question) is up: it is the answer, and a check now would keep its Install
+        // Update from starting. The timer looks again in 15 minutes.
+        guard !isAsking else { return }
         if case .checking(let wasManual) = phase {
             if manual && !wasManual {   // an automatic check is running: report its result
                 phase = .checking(manual: true)
@@ -1530,11 +1699,13 @@ final class Updater {
             if manual { offer(item) } else { announce(item) }
         case .success(.upToDate):
             latest = nil
+            dropNotice()
             if manual {
                 ui.tell("You’re up to date.", "YummyOrange \(environment.version) is the newest version.")
             }
         case .success(.needsNewerSystem(let item)):
             latest = nil
+            dropNotice()
             if manual {
                 ui.tell("YummyOrange \(item.version) needs macOS \(item.minimumSystemVersion ?? "") or later.",
                         "This Mac has macOS \(UpdateVersion.string(environment.system)), so YummyOrange \(environment.version) stays as it is.")
@@ -1545,17 +1716,93 @@ final class Updater {
         }
     }
 
-    /// An automatic check found an update: a notification, once. Permission is asked for the first time only, and
-    /// provisionally, so macOS shows no prompt for it.
+    /// An automatic check found an update: the person hears about it once, through a notification when macOS lets
+    /// YummyOrange post one (a banner, or quietly in Notification Center if that's what they chose), otherwise through
+    /// the update alert (see UpdatePolicy.notice). Never twice for one build, never for a skipped one or during a
+    /// snooze. The menu item and the icon's dot show it meanwhile, and after.
     func announce(_ item: UpdateItem) {
-        guard UpdatePolicy.shouldNotify(item, now: now()), let notifier else { return }
-        UpdatePreferences.notifiedBuild = item.build
-        if !UpdatePreferences.askedForNotifications {
-            UpdatePreferences.askedForNotifications = true
-            notifier.requestPermission(UpdatePolicy.notificationOptions) { granted in if granted { notifier.post(item) } }
-        } else {
-            notifier.checkPermission { allowed in if allowed { notifier.post(item) } }
+        guard UpdatePolicy.shouldNotify(item, now: now()) else { return }
+        if let pending = pendingNotice, UpdateVersion.same(pending.item.build, item.build) { return }
+        guard let notifier else { queueNotice(item, .alert, due: now()); return }
+        notifier.permission { permission in MainThread.async { self.deliver(item, permission) } }
+    }
+
+    /// The notice for `item`, once the permission is known (and again once the permission question is answered).
+    /// The notice is recorded as delivered (`notifiedBuild`) only when the banner is posted or the alert shows, so
+    /// one that never made it (YummyOrange quit first) comes at the next launch.
+    func deliver(_ item: UpdateItem, _ permission: UpdateNotificationPermission) {
+        guard isNews(item) else { return }
+        switch UpdatePolicy.notice(for: permission, askedForAlerts: UpdatePreferences.askedForAlerts) {
+        case .notification:
+            dropNotice()
+            UpdatePreferences.notifiedBuild = item.build
+            notifier?.post(item)
+        case .ask:
+            queueNotice(item, .ask, due: now())
+        case .inApp:
+            queueNotice(item, .alert, due: now())
         }
+    }
+
+    /// The pending notice's next step, from its timer (self-tests call it themselves). It waits while it is too soon
+    /// after launch, before its `due` time, while the person is busy or the updater is, or (for up to 4 hours) while
+    /// something is being watched or shown, looking again 30 s later; then asks for permission (the alert follows if
+    /// no answer comes within a minute) or shows the update alert.
+    func deliverPendingNotice() {
+        noticeTimer?.invalidate()
+        noticeTimer = nil
+        guard let pending = pendingNotice else { return }
+        guard isNews(pending.item) else { pendingNotice = nil; return }
+        let current = now()
+        let wait = max(pending.due.timeIntervalSince(current),
+                       launchedAt.addingTimeInterval(UpdatePolicy.noticeLaunchGrace).timeIntervalSince(current))
+        if wait > 0 { scheduleNotice(after: wait); return }
+        guard phase == .idle, !isAsking, !isBusy() else { scheduleNotice(after: UpdatePolicy.noticeRetry); return }
+        if current.timeIntervalSince(pending.due) < UpdatePolicy.noticePatience, isPresenting() {
+            scheduleNotice(after: UpdatePolicy.noticeRetry)
+            return
+        }
+        let item = pending.item
+        switch pending.stage {
+        case .ask:
+            guard let notifier else { queueNotice(item, .alert, due: current); return }
+            UpdatePreferences.askedForAlerts = true
+            queueNotice(item, .alert, due: current.addingTimeInterval(UpdatePolicy.permissionWait))
+            // A late answer changes nothing once the alert has shown: by then the build is notified, snoozed or
+            // skipped, and `deliver` drops it.
+            notifier.requestPermission(UpdatePolicy.notificationOptions) { _ in
+                notifier.permission { permission in MainThread.async { self.deliver(item, permission) } }
+            }
+        case .alert:
+            offer(item, unprompted: true)   // records it as notified
+        }
+    }
+
+    /// Still worth a notice: the newest update known, not skipped, snoozed or announced, not being installed, and
+    /// automatic checks still on (turned off meanwhile, nothing appears by itself).
+    private func isNews(_ item: UpdateItem) -> Bool {
+        guard Settings.checkForUpdatesAutomatically, let latest, UpdateVersion.same(latest.build, item.build),
+              UpdatePolicy.shouldNotify(item, now: now()) else { return false }
+        return phase != .downloading && phase != .installing
+    }
+
+    private func queueNotice(_ item: UpdateItem, _ stage: PendingNotice.Stage, due: Date) {
+        pendingNotice = PendingNotice(item: item, stage: stage, due: due)
+        scheduleNotice(after: max(0, due.timeIntervalSince(now())))
+    }
+
+    private func scheduleNotice(after seconds: TimeInterval) {
+        noticeTimer?.invalidate()
+        let timer = Timer(timeInterval: seconds, repeats: false) { [weak self] _ in self?.deliverPendingNotice() }
+        RunLoop.main.add(timer, forMode: .default)
+        noticeTimer = timer
+    }
+
+    /// The person has seen the update (or it went away): no notice is still to come.
+    private func dropNotice() {
+        pendingNotice = nil
+        noticeTimer?.invalidate()
+        noticeTimer = nil
     }
 
     /// The menu's “Update to YummyOrange 1.0.1…”: the alert, then what was chosen.
@@ -1565,16 +1812,37 @@ final class Updater {
         offer(item)
     }
 
-    private func offer(_ item: UpdateItem) {
-        switch ui.offer(item, current: environment.version) {
+    /// The update alert, then what was chosen. Seeing it is the notice for that build, asked for or not: a notice still
+    /// waiting for it is dropped and the build counts as announced, so its alert never comes a second time by itself
+    /// (after an Install Update called off at the unsaved-changes question, say). Not while the alert or the restart
+    /// question is already up (a notification clicked meanwhile).
+    private func offer(_ item: UpdateItem, unprompted: Bool = false) {
+        guard !isAsking else { return }
+        if let pending = pendingNotice, UpdateVersion.same(pending.item.build, item.build) { dropNotice() }
+        UpdatePreferences.notifiedBuild = item.build
+        let choice = asking { ui.offer(item, current: environment.version, unprompted: unprompted) }
+        switch choice {
         case .install: install(item)
         case .later: remindLater(item.build)
         case .skip: skip(item.build)
         }
     }
 
+    /// Runs one of the updater's alerts, with `isAsking` set meanwhile.
+    private func asking<T>(_ body: () -> T) -> T {
+        isAsking = true
+        defer { isAsking = false }
+        return body()
+    }
+
+    /// The notice waiting for `build`, if that is the build it's for, is dropped (one for a newer build stays).
+    private func dropNotice(for build: String) {
+        if let pending = pendingNotice, UpdateVersion.same(pending.item.build, build) { dropNotice() }
+    }
+
     func skip(_ build: String) {
         UpdatePreferences.skippedBuild = build
+        dropNotice(for: build)
         notifier?.withdraw()
         changed()
     }
@@ -1583,6 +1851,7 @@ final class Updater {
         UpdatePreferences.snoozedBuild = build
         UpdatePreferences.snoozedUntil = now().addingTimeInterval(UpdatePolicy.snooze)
         UpdatePreferences.notifiedBuild = nil   // announce it again once the snooze is over
+        dropNotice(for: build)
         notifier?.withdraw()
         changed()
     }
@@ -1603,7 +1872,7 @@ final class Updater {
     /// Asks before a restart would close editor windows with unsaved changes. True to go ahead.
     private func mayRestart(for item: UpdateItem) -> Bool {
         let unsaved = unsavedWork()
-        return unsaved.isEmpty || ui.confirmRestart(unsaved, version: item.version)
+        return unsaved.isEmpty || asking { ui.confirmRestart(unsaved, version: item.version) }
     }
 
     /// Downloads, verifies and installs the update, then restarts YummyOrange. When an editor window has unsaved
@@ -1616,6 +1885,7 @@ final class Updater {
         }
         guard mayRestart(for: item) else { return }
         phase = .downloading
+        dropNotice()
         notifier?.withdraw()
         let title = "Downloading YummyOrange \(item.version)…"
         ui.progress(title, 0)
@@ -1682,7 +1952,8 @@ final class Updater {
 // MARK: - Menu
 
 /// “Update to YummyOrange 1.0.1…” at the top of the menu-bar menu (hidden while there is none), and “Check for
-/// Updates…” above Settings…. AppDelegate.makeMenu adds them and refreshes them each time the menu opens.
+/// Updates…” above Settings…. AppDelegate.makeMenu adds them, and refreshes them whenever the updater changes, but
+/// never while the menu is open (nor as it opens), so its rows never move under the pointer.
 enum UpdateMenu {
     static let checkTitle = "Check for Updates…"
     static let updateTag = 4801, separatorTag = 4802, checkTag = 4803
@@ -1708,6 +1979,26 @@ enum UpdateMenu {
         item.tag = checkTag
         item.toolTip = "Looks for a new version of YummyOrange now."
         return item
+    }
+
+    /// Menus open now (AppDelegate's menuWillOpen and menuDidClose say so).
+    private static let openMenus = NSHashTable<NSMenu>.weakObjects()
+
+    static func isOpen(_ menu: NSMenu) -> Bool { openMenus.contains(menu) }
+
+    static func willOpen(_ menu: NSMenu) { openMenus.add(menu) }
+
+    /// The menu closed: the update row catches up with what the updater found while it was open.
+    static func didClose(_ menu: NSMenu, updater: Updater = UpdateMenuTarget.shared.updater) {
+        openMenus.remove(menu)
+        refresh(menu, updater: updater)
+    }
+
+    /// The updater changed: the update row follows, unless the menu is open. A row that appears (or goes) at the top
+    /// of an open menu moves every row under the pointer, and the highlight lands a row off; it waits for `didClose`.
+    static func follow(_ menu: NSMenu, updater: Updater = UpdateMenuTarget.shared.updater) {
+        guard !isOpen(menu) else { return }
+        refresh(menu, updater: updater)
     }
 
     /// Shows the update item with its version, or hides it.
@@ -1745,6 +2036,8 @@ enum UpdaterModule: FeatureModule {
     static func selfTest(_ name: String) -> String? {
         #if DEBUG
         if name == "updater" { return UpdaterTests.run() }
+        // Everything but the release scripts' refusals, which run copies of build.sh and release.sh.
+        if name == "updater-quick" { return UpdaterTests.run(scripts: false) }
         // `--selftest updater-release:<Website/public folder>`: release.sh's output, read by this updater's own code.
         if name.hasPrefix("updater-release:") { return UpdaterTests.checkRelease(folder: String(name.dropFirst("updater-release:".count))) }
         #endif

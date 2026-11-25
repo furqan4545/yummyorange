@@ -1,6 +1,6 @@
 import AppKit
 
-/// Actions on the Control wheel. They act on the files themselves and work for any file or folder.
+/// Actions on the Actions wheel (⌥ by default). They act on the files themselves and work for any file or folder.
 enum FileAction: String, CaseIterable {
     case copy = "Copy"
     case copyPath = "Copy Path"

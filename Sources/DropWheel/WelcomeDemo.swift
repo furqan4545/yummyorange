@@ -60,7 +60,7 @@ final class WelcomeDemoModel: ObservableObject {
             result = nil
             // A wheel key already held as the drag starts opens its wheel (hold ⇧, then drag).
             previousFlags = flags.intersection(Self.relevantFlags)
-            if let mode = keys().mode(newlyPressed: previousFlags) { open(mode) }
+            if let mode = keys().mode(heldAtPress: previousFlags) { open(mode) }
             startMonitor()
         } else {
             modifiersChanged(flags)

@@ -47,14 +47,28 @@ struct WheelKeyMap: Equatable {
     private(set) var convert: WheelKey
     private(set) var tools: WheelKey
     private(set) var actions: WheelKey
+    /// Whether ⌃ may stand in for the ⌥ wheel (`controlStandsInFor`). False only for a key map saved before 1.0.1,
+    /// when ⌃ was the Actions key: a map saved then without ⌃ was made on purpose (to keep ⌃ for ⌃← and ⌃→ during a
+    /// drag, say), so ⌃ keeps opening nothing for that person. Not shown anywhere, so not part of `==`.
+    private(set) var controlStandIn: Bool
 
-    static let defaults = WheelKeyMap(convert: .shift, tools: .command, actions: .control)
+    /// ⇧ Convert, ⌘ Tools, ⌥ Actions. Until 1.0.1 Actions was ⌃, but macOS reads a ⌃-press as a right-click, so it
+    /// could only be tapped mid-drag; ⌥ can also be held before dragging. Only the default changed: a map someone
+    /// saved keeps its keys (`Settings.wheelKeys` stores all three together), and ⌃ still opens the ⌥ wheel when no
+    /// wheel uses ⌃ (`controlStandsInFor`), so a ⌃ habit keeps working.
+    static let defaults = WheelKeyMap(convert: .shift, tools: .command, actions: .option)
 
-    init(convert: WheelKey, tools: WheelKey, actions: WheelKey) {
+    init(convert: WheelKey, tools: WheelKey, actions: WheelKey, controlStandIn: Bool = true) {
         self.convert = convert
         self.tools = tools
         self.actions = actions
+        self.controlStandIn = controlStandIn
         repairDuplicates()
+    }
+
+    /// Two maps are equal when their keys are, which is all Settings shows (Restore Defaults compares with this).
+    static func == (a: WheelKeyMap, b: WheelKeyMap) -> Bool {
+        a.convert == b.convert && a.tools == b.tools && a.actions == b.actions
     }
 
     func key(for mode: WheelMode) -> WheelKey {
@@ -75,28 +89,66 @@ struct WheelKeyMap: Equatable {
         set(key, for: mode)
     }
 
-    /// The wheel whose key is among the newly pressed flags, checked in wheel order. nil when none.
-    /// ⌥ also opens the wheel that uses ⌃ while no wheel uses ⌥: holding ⌃ as the mouse goes down is a right-click
-    /// in macOS, so a ⌃ wheel can only be reached by tapping ⌃ mid-drag, whereas ⌥ can be held before dragging.
+    /// The wheel a key pressed during a drag opens: the one whose key is among the newly pressed flags, checked in
+    /// wheel order; nil when none. Two keys stand in for each other while only one of them is in use:
+    ///   - ⌥ also opens the wheel that uses ⌃ while no wheel uses ⌥: holding ⌃ as the mouse goes down is a
+    ///     right-click in macOS, so a ⌃ wheel can only be reached by tapping ⌃ mid-drag, whereas ⌥ can be held
+    ///     before dragging.
+    ///   - ⌃ also opens the wheel that uses ⌥ while no wheel uses ⌃ (with the default keys, ⌃ opens Actions as it
+    ///     did before 1.0.1), except in a map saved before 1.0.1 (`controlStandIn`).
     func mode(newlyPressed flags: NSEvent.ModifierFlags) -> WheelMode? {
-        if let mode = WheelMode.allCases.first(where: { key(for: $0).flag.map(flags.contains) ?? false }) { return mode }
+        if let mode = ownWheel(flags) { return mode }
+        if flags.contains(.option), let mode = optionStandsInFor { return mode }
+        if flags.contains(.control), let mode = controlStandsInFor { return mode }
+        return nil
+    }
+
+    /// The wheel the keys already held as the mouse goes down arm (hold ⌥, then drag). Like `mode(newlyPressed:)`,
+    /// except that ⌃ never stands in here: a ⌃-press is a right-click, and with no wheel on ⌃ it stays a plain one
+    /// (no wheel armed, no Hold the key first hint after a ⌃-click in Finder).
+    func mode(heldAtPress flags: NSEvent.ModifierFlags) -> WheelMode? {
+        if let mode = ownWheel(flags) { return mode }
         return flags.contains(.option) ? optionStandsInFor : nil
     }
 
-    /// The wheel ⌥ opens on behalf of ⌃, if any.
+    /// The first wheel, in wheel order, whose own key is among `flags`.
+    private func ownWheel(_ flags: NSEvent.ModifierFlags) -> WheelMode? {
+        WheelMode.allCases.first { key(for: $0).flag.map(flags.contains) ?? false }
+    }
+
+    /// The wheel ⌥ opens on behalf of ⌃, if any: some wheel uses ⌃ and none uses ⌥.
     var optionStandsInFor: WheelMode? {
         guard !WheelMode.allCases.contains(where: { key(for: $0) == .option }) else { return nil }
         return WheelMode.allCases.first { key(for: $0) == .control }
     }
 
+    /// The wheel ⌃ opens on behalf of ⌥, if any: some wheel uses ⌥ and none uses ⌃ (Actions, with the default keys),
+    /// unless the map was saved before 1.0.1 (`controlStandIn`).
+    var controlStandsInFor: WheelMode? {
+        guard controlStandIn, !WheelMode.allCases.contains(where: { key(for: $0) == .control }) else { return nil }
+        return WheelMode.allCases.first { key(for: $0) == .option }
+    }
+
     /// True when every wheel is Off.
     var allOff: Bool { WheelMode.allCases.allSatisfy { key(for: $0) == .off } }
 
-    /// "⇧ Convert · ⌘ Tools · ⌃ Actions", skipping wheels that are off.
+    /// "⇧ Convert · ⌘ Tools · ⌥ Actions", skipping wheels that are off.
     var hint: String {
         WheelMode.allCases.filter { key(for: $0) != .off }
             .map { "\(key(for: $0).symbol) \($0.rawValue)" }
             .joined(separator: " · ")
+    }
+
+    /// The keys that open a wheel when held before the press (`mode(heldAtPress:)`), as a sentence says them: each
+    /// wheel's own key in wheel order, then ⌥ when it stands in for ⌃. "⇧, ⌘ or ⌥" with the defaults, "⇧, ⌘, ⌃ or ⌥"
+    /// with Actions on ⌃, "⇧ or ⌘", "⇧"; nil when every wheel is off. ⌃ standing in for ⌥ isn't listed: it works
+    /// only as a tap mid-drag.
+    var heldKeyList: String? {
+        var keys = WheelMode.allCases.map { key(for: $0) }.filter { $0 != .off }
+        if optionStandsInFor != nil { keys.append(.option) }
+        let symbols = keys.map(\.symbol)
+        guard let last = symbols.last else { return nil }
+        return symbols.count == 1 ? last : symbols.dropLast().joined(separator: ", ") + " or " + last
     }
 
     private mutating func set(_ key: WheelKey, for mode: WheelMode) {
@@ -145,6 +197,8 @@ enum Settings {
         static let welcomeCard = "clotheslineWelcomeRemoved"
         static let autoUpdate = "checkForUpdatesAutomatically"
         static func wheel(_ mode: WheelMode) -> String { "wheelKey.\(mode.rawValue.lowercased())" }
+        /// `WheelKeyMap.controlStandIn`, saved with the keys since 1.0.1. A map saved before has keys but no value here.
+        static let controlStandIn = "wheelKey.controlStandIn"
     }
 
     /// Where a finished job's new files appear (Show New Files): a new shelf, the Clothesline, Finder, or nowhere but
@@ -214,13 +268,19 @@ enum Settings {
         set { store(newValue, Key.holdKey) }
     }
 
+    /// The keys, all three saved together on the first change (only the default changes between versions). Whether
+    /// ⌃ stands in for the ⌥ wheel is saved with them: nothing saved yet means it does (a ⌃ habit from before 1.0.1
+    /// keeps working, and keeps working after a later change); keys saved before 1.0.1, which have no such value,
+    /// mean it doesn't (with ⌃ then the Actions key, a map without ⌃ was made on purpose). Reading writes nothing.
     static var wheelKeys: WheelKeyMap {
         get {
             func read(_ mode: WheelMode) -> WheelKey {
                 defaults.string(forKey: Key.wheel(mode)).flatMap(WheelKey.init(rawValue:))
                     ?? WheelKeyMap.defaults.key(for: mode)
             }
-            return WheelKeyMap(convert: read(.convert), tools: read(.tools), actions: read(.actions))
+            let standIn = defaults.object(forKey: Key.controlStandIn) as? Bool
+                ?? !WheelMode.allCases.contains { defaults.object(forKey: Key.wheel($0)) != nil }
+            return WheelKeyMap(convert: read(.convert), tools: read(.tools), actions: read(.actions), controlStandIn: standIn)
         }
         set {
             var changed = false
@@ -230,6 +290,10 @@ enum Settings {
                     defaults.set(value, forKey: Key.wheel(mode))
                     changed = true
                 }
+            }
+            if defaults.object(forKey: Key.controlStandIn) as? Bool != newValue.controlStandIn {
+                defaults.set(newValue.controlStandIn, forKey: Key.controlStandIn)
+                changed = true
             }
             if changed { notify() }
         }
@@ -242,6 +306,7 @@ enum Settings {
         wheelKeys = map
     }
 
+    /// The default keys, ⌃ standing in for ⌥ again (also for a map saved before 1.0.1).
     static func resetWheelKeys() { wheelKeys = .defaults }
 
     // MARK: Storage
@@ -285,3 +350,19 @@ final class SettingsMemoryStore: UserDefaults {
     override func set(_ value: Bool, forKey key: String) { values[key] = value }
     override func removeObject(forKey key: String) { values[key] = nil }
 }
+
+#if DEBUG
+/// Preferences for a self-test that needs a UserDefaults of its own (Settings' tests swap in SettingsMemoryStore the
+/// same way): in memory, never a real suite. A suite made with
+/// `UserDefaults(suiteName:)` leaves ~/Library/Preferences/<suite>.plist behind even after `removePersistentDomain`
+/// and deleting the file: cfprefsd writes the emptied domain out a moment later, after the delete (measured: the
+/// file came back seconds after the self-test had removed it). 130-odd YummyOrange.selftest.<UUID>.plist and
+/// DropWheel.selftest.<UUID>.plist files had piled up that way.
+enum SelfTestDefaults {
+    /// Fresh, empty preferences kept only in memory (optionally seeded).
+    static func scratch(_ values: [String: Any] = [:]) -> UserDefaults { SettingsMemoryStore(values) }
+
+    /// Whether `defaults` stays off disk, as every self-test's preferences must.
+    static func isScratch(_ defaults: UserDefaults) -> Bool { defaults is SettingsMemoryStore }
+}
+#endif

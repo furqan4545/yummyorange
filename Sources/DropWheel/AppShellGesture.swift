@@ -99,7 +99,7 @@ struct DragGestureRecognizer {
     /// The wheel the current press has armed, if any.
     var armedMode: WheelMode? { press?.armed }
     /// A wheel key was held before the press and the mouse moved, but no drag ever started: what Finder does with a
-    /// ⇧/⌘-press on a file that is already selected (it deselects it) and a ⌃-press (a right-click).
+    /// ⇧/⌘-press on a file that is already selected (it deselects it) and a ⌃-press when a wheel uses ⌃ (a right-click).
     var heldKeyPressStalled: Bool {
         guard let p = press else { return false }
         return p.armedAtPress && p.moved && p.files == nil
@@ -139,8 +139,9 @@ struct DragGestureRecognizer {
             let candidates = [lastUpPoll?.changeCount, event?.changeCount].compactMap { $0 }
             let baseline = candidates.min() ?? input.changeCount
             var p = Press(location: location, changeCount: baseline, inDock: isInDock(location))
-            // A wheel key already held as the mouse goes down arms that wheel (hold ⇧, then drag).
-            p.armed = keys.mode(newlyPressed: input.flags)
+            // A wheel key already held as the mouse goes down arms that wheel (hold ⇧, then drag). ⌃ only counts for a
+            // wheel that uses ⌃ itself: as a stand-in for ⌥ it is tapped mid-drag, and a ⌃-press stays a right-click.
+            p.armed = keys.mode(heldAtPress: input.flags)
             p.armedAtPress = p.armed != nil
             press = p
         }
@@ -225,6 +226,11 @@ struct DockGeometry {
     }
 
     private static var cached: (edge: Edge, autohide: Bool, time: TimeInterval)?
+
+    #if DEBUG
+    /// The next `current()` reads the Dock's preferences again (the menu-latency self-test times that read).
+    static func forgetPreferences() { cached = nil }
+    #endif
 
     /// The current geometry. The Dock's preferences are re-read at most every two seconds.
     static func current() -> DockGeometry {

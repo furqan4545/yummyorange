@@ -773,8 +773,15 @@ final class ClotheslineEngine {
     }
 
     /// Whether any file on the line is still there, so a reveal would show something. It changes nothing (the Show
-    /// Clothesline menu item asks it each time the menu opens).
-    var hasFilesOnDisk: Bool { items.contains { location(of: $0) != nil } }
+    /// Clothesline menu item asks it each time the menu opens, on the main thread, before AppKit shows the menu). A
+    /// file on another volume (an external disk, a server) counts as there without a look: a look at a disk that is
+    /// asleep, or a server that went away, can take seconds, and the reveal drops what is gone anyway.
+    var hasFilesOnDisk: Bool { items.contains { Self.isOnOtherVolume($0.url) || location(of: $0) != nil } }
+
+    /// Under /Volumes (external disks, disk images, servers) or a network mount point, not on the startup volume.
+    static func isOnOtherVolume(_ url: URL) -> Bool {
+        ["/Volumes/", "/Network/", "/net/"].contains { url.path.hasPrefix($0) }
+    }
 
     /// Follows renamed files and drops files that no longer exist (done whenever the line reveals, and before an
     /// action on a card).

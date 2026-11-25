@@ -78,6 +78,8 @@
     <symbol id="i-person" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.8"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></symbol>
     <symbol id="i-original" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3"/></symbol>
     <symbol id="i-key" viewBox="0 0 16 16"><path d="M2 4.5h12v8H2zM4.5 7h1M7.5 7h1M10.5 7h1M5 10h6"/></symbol>
+    <symbol id="i-sound-on" viewBox="0 0 16 16"><path d="M1.75 6h2.5l3.5-3v10l-3.5-3h-2.5zM10.4 5.9a3 3 0 0 1 0 4.2M12.4 3.9a5.8 5.8 0 0 1 0 8.2"/></symbol>
+    <symbol id="i-sound-off" viewBox="0 0 16 16"><path d="M1.75 6h2.5l3.5-3v10l-3.5-3h-2.5zM10.6 6.1l3.6 3.8M14.2 6.1l-3.6 3.8"/></symbol>
     <symbol id="g-menubar" viewBox="-2 -2 68 68"><g fill="currentColor"><path opacity=".62" d="M37.59 17.72L40.44 12.77Q44.96 4.95 40.78 3.31A30 30 0 0 0 23.22 3.31Q19.04 4.95 23.56 12.77L26.41 17.72Q27.29 19.23 28.98 18.84A13.5 13.5 0 0 1 35.02 18.84Q36.71 19.23 37.59 17.72Z"/><path d="M49.93 28.10L55.64 28.10Q64.68 28.10 64 23.66A30 30 0 0 0 55.23 8.46Q51.72 5.65 47.20 13.47L44.34 18.42Q43.47 19.93 44.66 21.21A13.5 13.5 0 0 1 47.68 26.44Q48.18 28.10 49.93 28.10Z"/><path opacity=".62" d="M41.57 43.98L44.43 48.93Q48.95 56.75 52.46 53.94A30 30 0 0 0 61.23 38.74Q61.91 34.30 52.87 34.30L47.16 34.30Q45.41 34.30 44.90 35.96A13.5 13.5 0 0 1 41.89 41.19Q40.70 42.47 41.57 43.98Z"/><path opacity=".62" d="M26.41 46.28L23.56 51.23Q19.04 59.05 23.22 60.69A30 30 0 0 0 40.78 60.69Q44.96 59.05 40.44 51.23L37.59 46.28Q36.71 44.77 35.02 45.16A13.5 13.5 0 0 1 28.98 45.16Q27.29 44.77 26.41 46.28Z"/><path opacity=".62" d="M16.84 34.30L11.13 34.30Q2.09 34.30 2.77 38.74A30 30 0 0 0 11.54 53.94Q15.05 56.75 19.57 48.93L22.43 43.98Q23.30 42.47 22.11 41.19A13.5 13.5 0 0 1 19.10 35.96Q18.59 34.30 16.84 34.30Z"/><path opacity=".62" d="M22.43 20.02L19.57 15.07Q15.05 7.25 11.54 10.06A30 30 0 0 0 2.77 25.26Q2.09 29.70 11.13 29.70L16.84 29.70Q18.59 29.70 19.10 28.04A13.5 13.5 0 0 1 22.11 22.81Q23.30 21.53 22.43 20.02Z"/><circle cx="32" cy="32" r="9"/></g></symbol>
   </defs>
 </svg>
@@ -106,7 +108,7 @@
   <section class="hero wrap" id="top" aria-labelledby="hero-title">
     <img class="hero-icon" src="assets/icon-256.webp" width="128" height="128" alt="The YummyOrange icon: a cream six-petal wheel on a dahlia-pink tile">
     <h1 id="hero-title">Convert files in the middle of a&nbsp;drag</h1>
-    <p class="lede">Drag any file and, before you let go, tap <kbd class="k">⇧</kbd> <kbd class="k">⌘</kbd> or <kbd class="k">⌃</kbd>. A wheel opens under the pointer: drop the file on a petal to convert it, edit it or send it on.</p>
+    <p class="lede">Drag any file and, before you let go, tap <kbd class="k">⇧</kbd> <kbd class="k">⌘</kbd> or <kbd class="k">⌥</kbd>. A wheel opens under the pointer: drop the file on a petal to convert it, edit it or send it on.</p>
     <div class="cta-row">
       <a class="btn" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download for Mac</span><span class="dl-pending">Download coming soon</span></a>
       <a class="btn btn-quiet" href="#playground">Try it on this page</a>
@@ -150,18 +152,24 @@
           <span class="file-name">Trip</span></button></li>
       </ul>
 
-      <div class="keybar" role="group" aria-label="Wheel keys">
-        <button class="keybtn" type="button" data-mode="convert" aria-keyshortcuts="Shift">
-          <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
-          <span class="keybtn-label">Convert</span>
-        </button>
-        <button class="keybtn" type="button" data-mode="tools" aria-keyshortcuts="Meta">
-          <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
-          <span class="keybtn-label">Tools</span>
-        </button>
-        <button class="keybtn" type="button" data-mode="actions" aria-keyshortcuts="Control">
-          <span class="cap" aria-hidden="true"><span class="cap-sym">⌃</span><span class="cap-name">control</span></span>
-          <span class="keybtn-label">Actions</span>
+      <div class="keybar">
+        <div class="keys" role="group" aria-label="Wheel keys">
+          <button class="keybtn" type="button" data-mode="convert" aria-keyshortcuts="Shift">
+            <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
+            <span class="keybtn-label">Convert</span>
+          </button>
+          <button class="keybtn" type="button" data-mode="tools" aria-keyshortcuts="Meta">
+            <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
+            <span class="keybtn-label">Tools</span>
+          </button>
+          <button class="keybtn" type="button" data-mode="actions" aria-keyshortcuts="Alt">
+            <span class="cap" aria-hidden="true"><span class="cap-sym">⌥</span><span class="cap-name">option</span></span>
+            <span class="keybtn-label">Actions</span>
+          </button>
+        </div>
+        <button class="sound-toggle" type="button" aria-pressed="true" data-sound-toggle>
+          <span class="sound-icon" aria-hidden="true"><svg class="ic ic-on"><use href="#i-sound-on"/></svg><svg class="ic ic-off"><use href="#i-sound-off"/></svg></span>
+          <span class="sound-label">Sound</span>
         </button>
       </div>
 
@@ -169,7 +177,7 @@
       <div class="result-shelf" id="result-shelf" hidden></div>
     </div>
     <p class="scene-caption">A simulation: nothing leaves this page. In the app the same moves work on files in Finder, on your desktop, anywhere.</p>
-    <p class="visually-hidden" id="pg-help">Drag a file, then press Shift for Convert, Command for Tools, or Control for Actions. Or focus a file and press Enter, or tap a key below the files. Use the arrow keys to choose a petal, Enter to apply and Escape to close.</p>
+    <p class="visually-hidden" id="pg-help">Drag a file, then press Shift for Convert, Command for Tools, or Option for Actions. Or focus a file and press Enter, or tap a key below the files. Use the arrow keys to choose a petal, Enter to apply and Escape to close. The Sound button beside the keys turns the petal sound and vibration on or off.</p>
     <div class="visually-hidden" id="pg-live" role="status" aria-live="polite"></div>
   </section>
 
@@ -263,18 +271,24 @@
       <div class="ex-kinds" role="tablist" aria-label="Kind of file" aria-orientation="vertical" id="kind-tabs"></div>
       <div class="ex-panel" id="explorer" role="tabpanel" tabindex="-1">
         <div class="ex-stage">
-          <div class="ex-keys" role="group" aria-label="Wheel" id="ex-keys">
-            <button class="keybtn" type="button" data-mode="convert" aria-pressed="true">
-              <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
-              <span class="keybtn-label">Convert</span>
-            </button>
-            <button class="keybtn" type="button" data-mode="tools" aria-pressed="false">
-              <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
-              <span class="keybtn-label">Tools</span>
-            </button>
-            <button class="keybtn" type="button" data-mode="actions" aria-pressed="false">
-              <span class="cap" aria-hidden="true"><span class="cap-sym">⌃</span><span class="cap-name">control</span></span>
-              <span class="keybtn-label">Actions</span>
+          <div class="ex-controls">
+            <div class="ex-keys" role="group" aria-label="Wheel" id="ex-keys">
+              <button class="keybtn" type="button" data-mode="convert" aria-pressed="true">
+                <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
+                <span class="keybtn-label">Convert</span>
+              </button>
+              <button class="keybtn" type="button" data-mode="tools" aria-pressed="false">
+                <span class="cap" aria-hidden="true"><span class="cap-sym">⌘</span><span class="cap-name">command</span></span>
+                <span class="keybtn-label">Tools</span>
+              </button>
+              <button class="keybtn" type="button" data-mode="actions" aria-pressed="false">
+                <span class="cap" aria-hidden="true"><span class="cap-sym">⌥</span><span class="cap-name">option</span></span>
+                <span class="keybtn-label">Actions</span>
+              </button>
+            </div>
+            <button class="sound-toggle" type="button" aria-pressed="true" data-sound-toggle>
+              <span class="sound-icon" aria-hidden="true"><svg class="ic ic-on"><use href="#i-sound-on"/></svg><svg class="ic ic-off"><use href="#i-sound-off"/></svg></span>
+              <span class="sound-label">Sound</span>
             </button>
           </div>
           <div class="explorer-wheel" id="ex-wheel"></div>
@@ -369,11 +383,11 @@
     <div class="faq">
       <details>
         <summary>How do I open a wheel?</summary>
-        <p>Start dragging a file, then press ⇧ Shift, ⌘ Command or ⌃ Control. You can also hold the key first and then drag, and let go of the key once the wheel is up. Pressing another wheel’s key switches wheels, Esc closes the wheel, and , (comma) opens Settings.</p>
+        <p>Start dragging a file, then press ⇧ Shift, ⌘ Command or ⌥ Option. You can also hold the key first and then drag, and let go of the key once the wheel is up. Pressing another wheel’s key switches wheels, Esc closes the wheel, and , (comma) opens Settings.</p>
       </details>
       <details>
         <summary>Why doesn’t ⇧ or ⌘ work on a file that’s already selected?</summary>
-        <p>Finder treats ⇧ or ⌘ on a selected file as “deselect”, so no drag starts. Turn on Settings › Wheels › Hold the key first and YummyOrange holds that click back until it knows you meant to drag. That option needs Accessibility access; nothing else does. With ⌃, start the drag first, since macOS treats ⌃-click as a right-click.</p>
+        <p>Finder treats ⇧ or ⌘ on a selected file as “deselect”, so no drag starts. Turn on Settings › Wheels › Hold the key first and YummyOrange holds that click back until it knows you meant to drag. That option needs Accessibility access; nothing else does. ⌥ needs none of this: Finder doesn’t deselect a file when you press ⌥, so you can hold it before you drag. And if you drop on a Finder window instead of a petal while still holding ⌥, Finder copies the file, as ⌥-drag always does.</p>
       </details>
       <details>
         <summary>Where do converted files go?</summary>
@@ -400,6 +414,10 @@
         <p>Yes. A few times a day YummyOrange checks whether a new version is out and lets you know; choose Update in its menu-bar menu (or click the notification), read what’s new, then Install Update, and it downloads the update, checks that it is signed by its developer and notarized by Apple, replaces itself and restarts. If an editor window has unsaved changes, it asks first. Nothing is installed until you choose to, and your settings stay. Check for Updates… in the menu looks right away, and Settings › General can turn the automatic check off. New versions are also listed in the <a href="release-notes.html">release notes</a>.</p>
       </details>
       <details>
+        <summary>Can I talk to a person?</summary>
+        <p>Yes, to the founder, Ali, who builds YummyOrange and reads every message: <a data-config-mailto="supportEmail" data-config-text="supportEmail" hidden></a>. Talk to the Founder… in the menu-bar menu starts that email for you, with your YummyOrange and macOS versions filled in. Ideas, bugs and file types you’d like are all welcome.</p>
+      </details>
+      <details>
         <summary>Which Macs does it run on?</summary>
         <p>Macs with Apple silicon and macOS 13 Ventura or later. The app is about 7 MB and lives in the menu bar.</p>
       </details>
@@ -415,7 +433,7 @@
       <a href="release-notes.html">Release notes</a>
       <a href="privacy.html">Privacy policy</a>
       <a href="#faq">Questions</a>
-      <a data-config-mailto="supportEmail" hidden>Contact</a>
+      <a data-config-mailto="supportEmail" hidden>Talk to the founder</a>
     </nav>
     <p class="fine">© 2026 YummyOrange. Mac and macOS are trademarks of Apple Inc.</p>
   </div>

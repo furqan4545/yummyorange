@@ -51,7 +51,7 @@ enum ResultsDestination: String, CaseIterable, Identifiable {
 
     /// Whether the display the Clothesline hangs on has a camera housing (the line's own test); without one the line
     /// hangs from a zone at the middle of the menu bar. Self-tests swap it.
-    static var hasNotch: () -> Bool = { ClotheslineGeometry.preferredScreen().map(ClotheslineGeometry.init(screen:))?.hasNotch ?? false }
+    static var hasNotch: () -> Bool = { NotchCache.hasNotch }
 
     /// `--opt results=shelf|clothesline|finder|none`, or the older `--opt reveal=on|off` (on: In Finder, off: Don't Show).
     /// `results` wins when both are given; nil when neither names a choice.
@@ -62,6 +62,24 @@ enum ResultsDestination: String, CaseIterable, Identifiable {
         if ["1", "true", "yes", "on"].contains(reveal) { return ResultsDestination.finder }
         if ["0", "false", "no", "off"].contains(reveal) { return ResultsDestination.none }
         return nil
+    }
+}
+
+/// `hasNotch`, worked out once and again only when the displays change: the Show New Files submenu asks each time it
+/// opens, and going through the screens' notch areas took a tenth of a millisecond of that (2 ms at worst).
+private enum NotchCache {
+    private static var value: Bool?
+    private static var observer: NSObjectProtocol?
+
+    static var hasNotch: Bool {
+        if let value { return value }
+        if observer == nil {
+            observer = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                                                              object: nil, queue: .main) { _ in value = nil }
+        }
+        let found = ClotheslineGeometry.preferredScreen().map(ClotheslineGeometry.init(screen:))?.hasNotch ?? false
+        value = found
+        return found
     }
 }
 
@@ -165,14 +183,17 @@ final class ResultsMenu: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) { update(menu) }
 
-    /// Checks the current choice and unchecks the others. The explanations are set again each time, so On the
-    /// Clothesline follows the displays (a notch appears when a MacBook's lid opens).
+    /// Checks the current choice and unchecks the others. The explanations are looked at again each time, so On the
+    /// Clothesline follows the displays (a notch appears when a MacBook's lid opens). Only what changed is set: this
+    /// runs as the submenu opens.
     func update(_ menu: NSMenu) {
         let current = Settings.resultsDestination.rawValue
         for entry in menu.items {
             let choice = (entry.representedObject as? String).flatMap(ResultsDestination.init(rawValue:))
-            entry.state = choice?.rawValue == current ? .on : .off
-            entry.toolTip = choice?.detail
+            let state: NSControl.StateValue = choice?.rawValue == current ? .on : .off
+            if entry.state != state { entry.state = state }
+            let tip = choice?.detail
+            if entry.toolTip != tip { entry.toolTip = tip }
         }
     }
 

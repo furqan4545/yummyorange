@@ -70,6 +70,11 @@ final class DragMonitor {
         recognizer.frontmostBundleID = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
     }
 
+    /// Whether the left mouse button is down now; the menu-latency self-test presses it.
+    var isButtonDown: () -> Bool = {
+        NSEvent.pressedMouseButtons & 1 != 0 || CGEventSource.buttonState(.combinedSessionState, button: .left)
+    }
+
     func start() {
         settingsObserver = NotificationCenter.default.addObserver(forName: Settings.didChange, object: nil,
                                                                   queue: .main) { [weak self] _ in
@@ -102,7 +107,8 @@ final class DragMonitor {
     }
 
     /// A mouse-down from either monitor: where it happened, and the drag pasteboard's count before any drag began.
-    private func recordPress(_ event: NSEvent) {
+    /// (Also a click on the menu-bar icon, before its menu opens: the menu-latency self-test times it.)
+    func recordPress(_ event: NSEvent) {
         let location = event.window.map { $0.convertPoint(toScreen: event.locationInWindow) } ?? event.locationInWindow
         pendingPress = DragPressEvent(location: location, time: ProcessInfo.processInfo.systemUptime,
                                       changeCount: dragPasteboard.changeCount)
@@ -123,9 +129,10 @@ final class DragMonitor {
         return NSEvent.modifierFlags.union(cg).intersection(Self.relevantFlags)
     }
 
-    private func tick() {
-        let mouseDown = NSEvent.pressedMouseButtons & 1 != 0
-            || CGEventSource.buttonState(.combinedSessionState, button: .left)
+    /// One poll (the timer's; the menu-latency self-test times it). It runs 20 times a second in the common modes,
+    /// so also while a menu is open: only global-state reads, about a microsecond in all.
+    func tick() {
+        let mouseDown = isButtonDown()
         if mouseDown && !mouseWasDown { refreshCommaKeys() }
         mouseWasDown = mouseDown
         // Escape and comma only matter during a press; skip the key reads while idle.

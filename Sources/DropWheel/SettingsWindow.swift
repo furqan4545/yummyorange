@@ -35,30 +35,75 @@ extension WheelMode {
 final class SettingsWindowController: NSWindowController {
     static let shared = SettingsWindowController()
 
+    /// The window is open (from `show()` until it closes). Its four tabs stay built after it closes, so the model
+    /// forwards the updater's and the login status's changes only while it is open (SettingsModel).
+    private(set) static var isOpen = false
+
     private let tabs = SettingsTabViewController()
+    private var closeObserver: NSObjectProtocol?
+    private static let frameName = "DropWheelSettings"
 
     private init() {
-        let window = NSWindow(contentViewController: tabs)
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.toolbarStyle = .preference
-        window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName("DropWheelSettings")
+        let window = Self.makeWindow(tabs, remembersFrame: true)
         super.init(window: window)
-        if !window.setFrameUsingName("DropWheelSettings") { window.center() }
+        if !window.setFrameUsingName(Self.frameName) { window.center() }
+        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
+                                                               queue: .main) { _ in Self.isOpen = false }
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    /// The Settings window around `tabs`, already titled after the selected pane so it never shows "Untitled".
+    /// `remembersFrame`: only the real window saves where it was (self-tests and snapshots leave preferences alone).
+    static func makeWindow(_ tabs: SettingsTabViewController, remembersFrame: Bool) -> NSWindow {
+        let window = NSWindow(contentViewController: tabs)
+        // Minimize and zoom dimmed (HIG, Settings: "Dim a settings window’s minimize and maximize buttons"): ⌘, opens
+        // it in a moment, and it already fits each pane.
+        window.styleMask = [.titled, .closable]
+        window.toolbarStyle = .preference
+        window.isReleasedWhenClosed = false
+        if remembersFrame { window.setFrameAutosaveName(frameName) }
+        tabs.updateWindowTitle()
+        return window
+    }
+
     func show(_ section: SettingsSection? = nil) {
-        if let section, let index = SettingsSection.allCases.firstIndex(of: section) {
-            tabs.selectedTabViewItemIndex = index
+        if !Self.isOpen {
+            Self.isOpen = true
+            SettingsModel.shared.objectWillChange.send()   // what the updater and the login status did while closed
         }
+        if let section { tabs.select(section) }
         tabs.fitWindowToSelectedTab(animate: false)
+        LaunchAtLogin.refresh()   // in case it was changed in System Settings
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    /// `--snapshot settings-window [--opt section=general|wheels|look|about]`: a fresh Settings window drawn whole,
+    /// title bar and toolbar included, so its title can be checked by eye. Never shown; its frame isn't saved.
+    static func snapshotView(section: SettingsSection, dark: Bool) -> NSView {
+        let tabs = SettingsTabViewController()
+        let window = makeWindow(tabs, remembersFrame: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        tabs.select(section)
+        tabs.fitWindowToSelectedTab(animate: false)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        guard let frameView = window.contentView?.superview else { return tabs.view }
+        frameView.layoutSubtreeIfNeeded()
+        frameView.display()
+        guard let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { return tabs.view }
+        frameView.cacheDisplay(in: frameView.bounds, to: rep)
+        let image = NSImage(size: frameView.bounds.size)
+        image.addRepresentation(rep)
+        let view = NSImageView(frame: CGRect(origin: .zero, size: frameView.bounds.size))
+        view.image = image
+        view.imageScaling = .scaleAxesIndependently
+        window.contentViewController = nil
+        return view
+    }
 }
 
-/// Toolbar-style tabs that resize the window to fit each tab, keeping its top edge in place.
+/// Toolbar-style tabs that resize the window to fit each tab, keeping its top edge in place, and title the window
+/// after the visible pane (HIG, Settings: "Update the window's title to reflect the currently visible pane").
 final class SettingsTabViewController: NSTabViewController {
     init() {
         super.init(nibName: nil, bundle: nil)
@@ -66,17 +111,50 @@ final class SettingsTabViewController: NSTabViewController {
         for section in SettingsSection.allCases {
             let host = NSHostingController(rootView: SettingsSectionView(section: section))
             host.sizingOptions = [.preferredContentSize]
-            let item = NSTabViewItem(viewController: host)
+            // The tab view controller takes the selected tab's title as its own, and the window shows it: without
+            // one the window was "Untitled" (in the title bar, Mission Control and to VoiceOver).
+            host.title = section.title
+            // The image goes on before the view controller. NSTabViewItem(viewController:) looks for images named
+            // after the controller's class in the app's asset catalog, which YummyOrange doesn't have: 6 failed
+            // lookups per tab, each logged as a CoreUI error, every time Settings… built its window. An item that
+            // already has an image skips them.
+            let item = NSTabViewItem(identifier: section.rawValue)
             item.label = section.title
             item.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: section.title)
+            item.viewController = host
             addTabViewItem(item)
         }
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    /// Every way a pane gets picked ends here: a toolbar click, the toolbar from the keyboard, and `select(_:)`.
     override func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
         super.tabView(tabView, didSelect: item)
+        updateWindowTitle()
         fitWindowToSelectedTab(animate: view.window?.isVisible ?? false)
+    }
+
+    /// The visible pane.
+    var selectedSection: SettingsSection {
+        let items = tabViewItems
+        guard items.indices.contains(selectedTabViewItemIndex),
+              let id = items[selectedTabViewItemIndex].identifier as? String else { return .general }
+        return SettingsSection(rawValue: id) ?? .general
+    }
+
+    /// Shows `section` (Settings… from a hint, comma while dragging, the welcome tour).
+    func select(_ section: SettingsSection) {
+        if let index = tabViewItems.firstIndex(where: { $0.identifier as? String == section.rawValue }) {
+            selectedTabViewItemIndex = index
+        }
+        updateWindowTitle()
+    }
+
+    /// Titles the window after the visible pane: "General", "Wheels", "Look" or "About". VoiceOver reads it too.
+    func updateWindowTitle() {
+        guard isViewLoaded, let window = view.window else { return }
+        let title = selectedSection.title
+        if window.title != title { window.title = title }
     }
 
     /// Sizes the window to the selected tab's content, keeping the title bar where it is.
@@ -102,11 +180,23 @@ final class SettingsModel: ObservableObject {
     @Published var loginError: String?
     private var observers: [NSObjectProtocol] = []
 
+    /// Whether the updater's and the login status's changes reach the views: while the Settings window is open.
+    /// Self-tests set their own.
+    static var followsLiveChanges: () -> Bool = { SettingsWindowController.isOpen }
+
     init() {
         // Settings, and whether clipboard screenshots can still be read (the caption under Hang copied screenshots).
         observers = [Settings.didChange, ClotheslineScreenshots.clipboardAccessDidChange].map {
             NotificationCenter.default.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in
                 self?.objectWillChange.send()
+            }
+        }
+        // The Launch at Login status read in the background, and the updater (General's Updates row): only while the
+        // window is open. Re-rendering the four tabs takes 10 to 17 ms, and these arrive by themselves, also while
+        // the menu-bar menu is open; `show()` catches up once instead.
+        observers += [LaunchAtLogin.didChange, Updater.didChange].map {
+            NotificationCenter.default.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in
+                if Self.followsLiveChanges() { self?.objectWillChange.send() }
             }
         }
     }
@@ -207,6 +297,7 @@ struct SettingsSectionView: View {
                     SettingLabel("Check for updates automatically", UpdateSetting.detail(Updater.shared.environment.unavailableReason))
                 }
                 .disabled(!Updater.shared.isAvailable)
+                UpdatesRow(updater: Updater.shared)
             }
         }
         .scrollDisabled(true)
@@ -231,12 +322,12 @@ struct SettingsSectionView: View {
                 Text("Start dragging files, then tap the key. Choosing a key another wheel uses swaps the two." +
                      (Settings.wheelKeys.optionStandsInFor.map { " ⌥ also opens \($0.rawValue): unlike ⌃, it can be held before you start dragging." } ?? ""))
                     .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)   // a grouped form's footer otherwise sets a second line flush right
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Section {
                 Toggle(isOn: model.holdKey) {
-                    SettingLabel("Hold the key first",
-                                 "Hold ⇧, ⌘, ⌃ or ⌥ before pressing on a file in Finder, even one that’s already selected. Clicks with a key held still select as usual.")
+                    SettingLabel("Hold the key first", HoldKeySetting.detail(Settings.wheelKeys))
                 }
                 if Settings.holdKeyFirst && !HoldKeyTap.isTrusted {
                     HStack(spacing: 8) {
@@ -321,6 +412,21 @@ struct SettingsSectionView: View {
                 .padding(.vertical, 4)
             }
             Section {
+                LabeledContent {
+                    Button(FounderMail.title) { FounderMail.contact() }
+                        .help(FounderMail.toolTip)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Questions or ideas")
+                        // Selectable, for people who write from webmail rather than a mail app.
+                        Text(verbatim: "Write to Ali, who makes YummyOrange, at \(FounderMail.address).")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            Section {
                 ToolRow(name: "ffmpeg", purpose: "Audio and video", tool: AboutInfo.ffmpeg,
                         missing: "Not found. Audio and video conversions are off.")
                 ToolRow(name: "cwebp", purpose: "WebP images", tool: AboutInfo.cwebp,
@@ -330,6 +436,7 @@ struct SettingsSectionView: View {
                 Text("Helper tools")
             } footer: {
                 Text(AboutInfo.licenseNote).font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -338,10 +445,68 @@ struct SettingsSectionView: View {
     }
 }
 
-/// The words under Check for updates automatically: what it does, or why this copy can't.
+/// General's Updates row, under Check for updates automatically: what the updater is doing or last found, and the
+/// menu's Check for Updates… (Update to YummyOrange 1.0.1… once it knows of one, like the menu's first item). The
+/// status line moves on by itself while the window is open ("Last checked 5 minutes ago").
+struct UpdatesRow: View {
+    let updater: Updater
+    /// Re-rendered with the rest of the window when the updater changes (the updater itself isn't observable).
+    @ObservedObject private var model = SettingsModel.shared
+
+    var body: some View {
+        LabeledContent {
+            if let update = updater.menuUpdate {
+                Button(UpdateMenu.title(for: update)) { updater.offerLatest() }
+                    .disabled(updater.phase != .idle)
+            } else {
+                Button(UpdateMenu.checkTitle) { updater.check(manual: true) }
+                    .disabled(!updater.isAvailable || updater.phase != .idle)
+            }
+        } label: {
+            // In a copy that can't update, the setting just above already says why.
+            TimelineView(.everyMinute) { context in
+                SettingLabel("Updates", updater.isAvailable ? UpdateSetting.status(updater, now: context.date) : nil)
+            }
+        }
+    }
+}
+
+/// The words under Check for updates automatically (what it does, or why this copy can't) and in the Updates row.
 enum UpdateSetting {
     static func detail(_ unavailableReason: String?) -> String {
-        unavailableReason ?? "Looks for a new version a few times a day and lets you know. Nothing is installed until you choose to, and the menu’s Check for Updates… works either way."
+        unavailableReason ?? "Looks for new versions a few times a day and tells you when one is available. Nothing installs until you choose."
+    }
+
+    /// Why this copy can't update, what the updater is doing, the update it found, or when it last checked.
+    static func status(_ updater: Updater, now: Date = Date()) -> String {
+        if let reason = updater.environment.unavailableReason { return reason }
+        switch updater.phase {
+        case .checking: return "Checking for updates…"
+        case .downloading: return "Downloading the update…"
+        case .installing: return "Installing the update…"
+        case .idle: break
+        }
+        if let update = updater.menuUpdate { return "YummyOrange \(update.version) is available." }
+        guard let last = UpdatePreferences.lastCheck else { return "Not checked yet." }
+        return "Last checked \(lastChecked(last, now: now))."
+    }
+
+    /// "just now", "5 minutes ago", "2 hours ago", "3 days ago" (in English, like the rest of YummyOrange).
+    static func lastChecked(_ date: Date, now: Date) -> String {
+        guard now.timeIntervalSince(date) >= 60 else { return "just now" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
+    }
+}
+
+/// The words under Hold the key first, naming the keys that can be held ("Hold ⇧, ⌘ or ⌥ before…" with the defaults,
+/// "Hold ⇧, ⌘, ⌃ or ⌥ before…" with Actions on ⌃, where ⌥ stands in for it as the footer above says).
+enum HoldKeySetting {
+    static func detail(_ keys: WheelKeyMap) -> String {
+        "Hold \(keys.heldKeyList ?? "a wheel’s key") before pressing on a file in Finder, even one that’s already selected. "
+            + "Clicks with a key held still select as usual."
     }
 }
 

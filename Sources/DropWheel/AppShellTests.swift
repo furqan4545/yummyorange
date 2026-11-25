@@ -115,9 +115,9 @@ enum AppShellTests {
             c.check("drag counts once moved with files", s.recognizer.isDragActive)
             c.check("⇧ opens Convert", s.tap(.shift) == open(.convert), "\(s.log)")
             c.check("⌘ switches to Tools", s.tap(.command) == open(.tools))
-            c.check("⌃ switches to Actions", s.tap(.control) == open(.actions))
+            c.check("⌥ switches to Actions", s.tap(.option) == open(.actions))
             c.check("⇧ switches back to Convert", s.tap(.shift) == open(.convert))
-            c.check("⌥ opens the ⌃ wheel (Actions) with default keys", s.tap(.option) == open(.actions))
+            c.check("⌃ opens the ⌥ wheel (Actions) with default keys, as it did before 1.0.1", s.tap(.control) == open(.actions))
             c.check("tapping the same key twice reports it twice", s.tap(.shift) == open(.convert) && s.tap(.shift) == open(.convert))
             c.check("release ends the drag", s.release() == [.dragEnded])
             c.check("nothing after release", s.tap(.shift).isEmpty && !s.recognizer.isDragActive)
@@ -200,7 +200,7 @@ enum AppShellTests {
             s.keyDown(.command); s.wait(0.5)       // ⌘ held well before the press
             s.press(); s.startDrag()
             c.check("hold ⌘ then drag: Tools opens", s.move(10) == open(.tools), "\(s.log)")
-            c.check("pressing ⌃ while dragging switches to Actions", s.keyDown(.control) == open(.actions))
+            c.check("pressing ⌥ while dragging switches to Actions", s.keyDown(.option) == open(.actions))
         }
         do {
             var s = Script()
@@ -215,7 +215,12 @@ enum AppShellTests {
             var s = Script()
             s.flags = .option
             s.press(); s.startDrag()
-            c.check("hold ⌥ then drag: Actions opens (⌥ stands in for ⌃, which would right-click)", s.move(10) == open(.actions))
+            c.check("hold ⌥ then drag: Actions opens (⌥ is its key by default)", s.move(10) == open(.actions))
+            var w = Script(keys: WheelKeyMap(convert: .shift, tools: .command, actions: .control))
+            w.flags = .option
+            w.press(); w.startDrag()
+            c.check("hold ⌥ then drag with Actions on ⌃: Actions opens (⌥ stands in for ⌃, which would right-click)",
+                    w.move(10) == open(.actions))
             var t = Script(keys: WheelKeyMap(convert: .shift, tools: .command, actions: .off))
             t.flags = .option
             t.press(); t.startDrag()
@@ -223,6 +228,32 @@ enum AppShellTests {
             var u = Script(keys: WheelKeyMap(convert: .shift, tools: .option, actions: .control))
             u.validDrag()
             c.check("⌥ opens its own wheel when one uses it (Tools), not the ⌃ wheel", u.tap(.option) == open(.tools))
+            c.check("…and ⌃ opens its own wheel (Actions)", u.tap(.control) == open(.actions))
+        }
+        do {
+            // ⌃ stands in for ⌥ only when tapped mid-drag: held as the mouse goes down it is a right-click.
+            var s = Script()
+            s.validDrag()
+            c.check("default keys: ⌃ tapped mid-drag opens Actions (no wheel uses ⌃)", s.tap(.control) == open(.actions))
+            var h = Script()
+            h.flags = .control
+            h.press()
+            c.check("default keys: holding ⌃ as the mouse goes down arms nothing (a ⌃-press stays a right-click)",
+                    h.recognizer.armedMode == nil)
+            h.startDrag()
+            c.check("…nor once a drag starts", h.move(10).isEmpty)
+            var r = Script()
+            r.flags = .control
+            r.press(); r.move(20)                  // a ⌃-click in Finder: the context menu, no drag
+            c.check("default keys: a ⌃-press that moves without a drag isn’t a stalled held-key press (no Hold the key first hint)",
+                    !r.recognizer.heldKeyPressStalled)
+            var k = Script(keys: WheelKeyMap(convert: .shift, tools: .command, actions: .control))
+            k.flags = .control
+            k.press()
+            c.check("Actions on ⌃: holding ⌃ as the mouse goes down arms Actions", k.recognizer.armedMode == .actions)
+            var o = Script(keys: WheelKeyMap(convert: .option, tools: .shift, actions: .command))
+            o.validDrag()
+            c.check("custom ⌥ wheel (Convert), no wheel on ⌃: ⌃ opens Convert", o.tap(.control) == open(.convert))
         }
         do {
             var s = Script()
@@ -245,7 +276,7 @@ enum AppShellTests {
             s.escape = true
             c.check("Esc again cancels again", s.tick() == [.cancel])
             s.escape = false; s.tick()
-            c.check("a tap after Esc opens again", s.tap(.control) == open(.actions))
+            c.check("a tap after Esc opens again", s.tap(.option) == open(.actions))
         }
         do {
             var s = Script(); s.press(); s.startDrag(); s.move(2); s.tap(.shift)
@@ -292,12 +323,17 @@ enum AppShellTests {
 
         // Custom keys
         do {
-            var s = Script(keys: WheelKeyMap(convert: .option, tools: .shift, actions: .off))
+            // Saved before 1.0.1, when ⌃ was the Actions key: a map without ⌃ took it off on purpose, so ⌃ stays free.
+            var s = Script(keys: WheelKeyMap(convert: .option, tools: .shift, actions: .off, controlStandIn: false))
             s.validDrag()
             c.check("custom: ⌥ opens Convert", s.tap(.option) == open(.convert))
             c.check("custom: ⇧ opens Tools", s.tap(.shift) == open(.tools))
-            c.check("custom: ⌃ opens nothing (Actions off)", s.tap(.control).isEmpty)
+            c.check("custom, saved before 1.0.1: ⌃ opens nothing (Actions off)", s.tap(.control).isEmpty)
             c.check("custom: ⌘ opens nothing (unassigned)", s.tap(.command).isEmpty)
+            var n = Script(keys: WheelKeyMap(convert: .option, tools: .shift, actions: .off))
+            n.validDrag()
+            c.check("the same keys made since 1.0.1: ⌃ stands in for ⌥ (Convert) while no wheel uses ⌃",
+                    n.tap(.control) == open(.convert))
         }
         do {
             var s = Script(keys: WheelKeyMap(convert: .off, tools: .off, actions: .off))
@@ -856,19 +892,64 @@ enum AppShellTests {
 
     // MARK: - Settings
 
+    /// The Settings window is titled after the visible pane (HIG, Settings: "Update the window's title to reflect the
+    /// currently visible pane"): before it first shows, and after a pick from the toolbar, the tab view or `select`.
+    /// A window of its own, never shown, whose frame isn't saved.
+    private static func windowTitles(_ c: Checker) {
+        let tabs = SettingsTabViewController()
+        let window = SettingsWindowController.makeWindow(tabs, remembersFrame: false)
+        defer { window.contentViewController = nil }
+        func titled(_ s: SettingsSection) -> Bool {
+            window.title == s.title && !window.title.trimmingCharacters(in: .whitespaces).isEmpty
+                && window.title != "Untitled" && tabs.selectedSection == s && tabs.title == s.title
+        }
+        c.check("each pane's controller carries its title", tabs.tabViewItems.allSatisfy { $0.viewController?.title == $0.label })
+        c.check("the window is titled General before it first shows", !window.isVisible && titled(.general), window.title)
+        c.check("the window doesn't save its frame when it isn't the real one", window.frameAutosaveName.isEmpty)
+        c.check("minimize and zoom are dimmed (HIG, Settings), close is not",
+                !window.styleMask.contains(.miniaturizable) && !window.styleMask.contains(.resizable)
+                && window.standardWindowButton(.miniaturizeButton)?.isEnabled == false
+                && window.standardWindowButton(.zoomButton)?.isEnabled == false
+                && window.standardWindowButton(.closeButton)?.isEnabled == true)
+        for s in SettingsSection.allCases.reversed() + [.wheels, .wheels] {   // `select` (Settings… from a hint), twice in a row too
+            tabs.select(s)
+            c.check("select(.\(s.rawValue)) titles the window \(s.title)", titled(s), window.title)
+        }
+        for (i, s) in SettingsSection.allCases.enumerated() {   // the tab view's own selection, as a toolbar click makes it
+            tabs.selectedTabViewItemIndex = i
+            c.check("selecting tab \(i) titles the window \(s.title)", titled(s), window.title)
+            let spoken = window.accessibilityTitle() ?? ""
+            c.check("VoiceOver reads \(s.title)", spoken == s.title, spoken)
+        }
+        // A click on a toolbar tab (or Space on it from the keyboard) sends the item's action.
+        let items = (window.toolbar?.items ?? []).filter { item in SettingsSection.allCases.contains { $0.rawValue == item.itemIdentifier.rawValue } }
+        if items.count == SettingsSection.allCases.count {
+            for item in items.reversed() {
+                guard let action = item.action, let s = SettingsSection(rawValue: item.itemIdentifier.rawValue) else { continue }
+                NSApp.sendAction(action, to: item.target, from: item)
+                c.check("clicking the \(s.title) toolbar tab titles the window \(s.title)", titled(s), window.title)
+            }
+        } else {
+            c.notes.append("toolbar tabs not built off screen (\(window.toolbar?.items.count ?? 0) items): toolbar clicks covered by tab selection")
+        }
+    }
+
     static func settings() -> String {
         let c = Checker()
 
         // Key map rules
         let d = WheelKeyMap.defaults
-        c.check("defaults are ⇧ ⌘ ⌃", d.key(for: .convert) == .shift && d.key(for: .tools) == .command && d.key(for: .actions) == .control)
-        c.check("default hint", d.hint == "⇧ Convert · ⌘ Tools · ⌃ Actions", d.hint)
+        c.check("defaults are ⇧ ⌘ ⌥ (Shift Convert, Command Tools, Option Actions)",
+                d.key(for: .convert) == .shift && d.key(for: .tools) == .command && d.key(for: .actions) == .option
+                && d == WheelKeyMap(convert: .shift, tools: .command, actions: .option))
+        c.check("default hint", d.hint == "⇧ Convert · ⌘ Tools · ⌥ Actions", d.hint)
+        c.check("no default names ⌃", !d.hint.contains("⌃") && !WheelMode.allCases.contains { d.key(for: $0) == .control })
         var m = d
         m.assign(.command, to: .convert)
         c.check("taking another wheel’s key swaps", m.key(for: .convert) == .command && m.key(for: .tools) == .shift
-                && m.key(for: .actions) == .control)
+                && m.key(for: .actions) == .option)
         m.assign(.off, to: .tools)
-        c.check("Off frees a wheel", m.key(for: .tools) == .off && m.hint == "⌘ Convert · ⌃ Actions", m.hint)
+        c.check("Off frees a wheel", m.key(for: .tools) == .off && m.hint == "⌘ Convert · ⌥ Actions", m.hint)
         m.assign(.off, to: .actions)
         c.check("several wheels can be Off", m.key(for: .tools) == .off && m.key(for: .actions) == .off)
         m.assign(.command, to: .tools)
@@ -895,8 +976,44 @@ enum AppShellTests {
         } } }
         c.check("\(cases) assignments keep every key on one wheel", broken == 0, "\(broken) broken")
         c.check("mode(newlyPressed:) follows the map",
-                d.mode(newlyPressed: .control) == .actions && d.mode(newlyPressed: .option) == .actions
-                && d.mode(newlyPressed: [.control, .shift]) == .convert)
+                d.mode(newlyPressed: .option) == .actions && d.mode(newlyPressed: .control) == .actions
+                && d.mode(newlyPressed: [.control, .shift]) == .convert && d.mode(newlyPressed: []) == nil)
+        c.check("mode(heldAtPress:): ⌥ arms Actions, ⌃ arms nothing with the defaults",
+                d.mode(heldAtPress: .option) == .actions && d.mode(heldAtPress: .control) == nil
+                && d.mode(heldAtPress: [.control, .command]) == .tools)
+        let ctrlMap = WheelKeyMap(convert: .shift, tools: .command, actions: .control)
+        c.check("stand-ins, default keys: ⌃ for the ⌥ wheel (Actions), ⌥ for nothing",
+                d.controlStandsInFor == .actions && d.optionStandsInFor == nil)
+        c.check("stand-ins, Actions on ⌃ (chosen in Settings): ⌥ still opens it, held or tapped",
+                ctrlMap.optionStandsInFor == .actions && ctrlMap.controlStandsInFor == nil
+                && ctrlMap.mode(newlyPressed: .option) == .actions && ctrlMap.mode(heldAtPress: .option) == .actions
+                && ctrlMap.mode(newlyPressed: .control) == .actions && ctrlMap.mode(heldAtPress: .control) == .actions)
+        let both = WheelKeyMap(convert: .control, tools: .option, actions: .shift)
+        let neither = WheelKeyMap(convert: .shift, tools: .command, actions: .off)
+        c.check("stand-ins: none while both ⌃ and ⌥ have wheels, or neither does",
+                both.optionStandsInFor == nil && both.controlStandsInFor == nil && both.mode(newlyPressed: .control) == .convert
+                && both.mode(newlyPressed: .option) == .tools && neither.optionStandsInFor == nil && neither.controlStandsInFor == nil
+                && neither.mode(newlyPressed: .control) == nil && neither.mode(newlyPressed: .option) == nil)
+        c.check("held-key lists: each wheel's key, then ⌥ when it stands in for ⌃ (never ⌃ standing in: a mid-drag tap)",
+                d.heldKeyList == "⇧, ⌘ or ⌥" && neither.heldKeyList == "⇧ or ⌘" && ctrlMap.heldKeyList == "⇧, ⌘, ⌃ or ⌥"
+                && WheelKeyMap(convert: .off, tools: .off, actions: .option).heldKeyList == "⌥"
+                && WheelKeyMap(convert: .off, tools: .off, actions: .control).heldKeyList == "⌃ or ⌥"
+                && WheelKeyMap(convert: .off, tools: .off, actions: .off).heldKeyList == nil,
+                "\(d.heldKeyList ?? "nil") / \(ctrlMap.heldKeyList ?? "nil")")
+        let holdDetail = HoldKeySetting.detail(d)
+        c.check("Hold the key first names the default keys, not ⌃", holdDetail.hasPrefix("Hold ⇧, ⌘ or ⌥ before pressing on a file")
+                && !holdDetail.contains("⌃"), holdDetail)
+        let ctrlDetail = HoldKeySetting.detail(ctrlMap)
+        c.check("Hold the key first follows the keys, and with Actions on ⌃ names ⌥ too (the footer says it can be held)",
+                ctrlDetail.hasPrefix("Hold ⇧, ⌘, ⌃ or ⌥ before")
+                && ctrlMap.mode(heldAtPress: .option) == .actions && ctrlMap.mode(heldAtPress: .control) == .actions
+                && HoldKeySetting.detail(WheelKeyMap(convert: .off, tools: .off, actions: .off)).hasPrefix("Hold a wheel’s key before"),
+                ctrlDetail)
+        c.check("the ⌃ stand-in is off only for a map saved before 1.0.1, and isn't part of ==",
+                WheelKeyMap(convert: .shift, tools: .command, actions: .option, controlStandIn: false).controlStandsInFor == nil
+                && WheelKeyMap(convert: .shift, tools: .command, actions: .option, controlStandIn: false) == d
+                && WheelKeyMap(convert: .shift, tools: .command, actions: .option, controlStandIn: false).mode(newlyPressed: .control) == nil
+                && WheelKeyMap(convert: .shift, tools: .command, actions: .option, controlStandIn: false).mode(newlyPressed: .option) == .actions)
 
         // Persistence, in memory only.
         let saved = Settings.defaults
@@ -922,10 +1039,10 @@ enum AppShellTests {
         c.check("a key saves (one notification)", Settings.wheelKeys.key(for: .tools) == .option
                 && suite.string(forKey: "wheelKey.tools") == "option" && posted == 1, "posted \(posted)")
         Settings.setKey(.option, for: .convert)
-        c.check("swaps persist", Settings.wheelKeys == WheelKeyMap(convert: .option, tools: .shift, actions: .control))
+        c.check("swaps persist", Settings.wheelKeys == WheelKeyMap(convert: .option, tools: .shift, actions: .command))
         c.check("keySymbol follows Settings", AppShell.keySymbol(for: .convert) == "⌥" && AppShell.keySymbol(for: .tools) == "⇧")
         c.check("WheelMode.from follows Settings", WheelMode.from(newlyPressed: .option) == .convert
-                && WheelMode.from(newlyPressed: .command) == nil)
+                && WheelMode.from(newlyPressed: .command) == .actions && WheelMode.from(newlyPressed: .control) == .convert)
         Settings.setKey(.off, for: .actions)
         c.check("an Off wheel has no symbol", AppShell.keySymbol(for: .actions) == "")
         c.check("menu hint follows Settings", AppDelegate.menuHint() == "Drag files, then tap ⌥ Convert · ⇧ Tools", AppDelegate.menuHint())
@@ -945,13 +1062,73 @@ enum AppShellTests {
         suite.set("command", forKey: "wheelKey.actions")
         c.check("unknown values fall back, and a repeated key is turned off",
                 Settings.wheelStyle == .glass && Settings.wheelKeys == WheelKeyMap(convert: .shift, tools: .command, actions: .off))
+
+        // Only the default changed: a key map someone saved keeps its keys (the three are always saved together).
+        let before = SettingsMemoryStore(["wheelKey.convert": "shift", "wheelKey.tools": "command", "wheelKey.actions": "control"])
+        Settings.defaults = before
+        c.check("a map saved before 1.0.1 keeps ⌃ for Actions, and Restore Defaults is offered",
+                Settings.wheelKeys == ctrlMap && Settings.wheelKeys != .defaults && Settings.wheelKeys.key(for: .actions) == .control)
+        c.check("…reading it writes nothing", before.string(forKey: "wheelKey.actions") == "control"
+                && before.string(forKey: "wheelKey.convert") == "shift" && before.string(forKey: "wheelKey.tools") == "command")
+        c.check("…and ⌥ still opens that Actions wheel", WheelMode.from(newlyPressed: .option) == .actions
+                && WheelMode.from(newlyPressed: .control) == .actions)
+        let customStore = SettingsMemoryStore(["wheelKey.convert": "command", "wheelKey.tools": "off", "wheelKey.actions": "shift"])
+        Settings.defaults = customStore
+        c.check("a custom saved map is untouched", Settings.wheelKeys == WheelKeyMap(convert: .command, tools: .off, actions: .shift)
+                && customStore.string(forKey: "wheelKey.convert") == "command" && customStore.string(forKey: "wheelKey.tools") == "off"
+                && customStore.string(forKey: "wheelKey.actions") == "shift")
+        let fresh = SettingsMemoryStore()
+        Settings.defaults = fresh
+        c.check("nothing saved: the new default, ⌥ Actions (nothing written)", Settings.wheelKeys == .defaults
+                && Settings.wheelKeys.key(for: .actions) == .option && fresh.object(forKey: "wheelKey.actions") == nil)
+        c.check("…and ⌃ opens Actions too, as before 1.0.1", Settings.wheelKeys.controlStandsInFor == .actions
+                && WheelMode.from(newlyPressed: .control) == .actions)
+        Settings.setKey(.off, for: .tools)
+        c.check("the first change saves all three keys, and that ⌃ still stands in",
+                fresh.string(forKey: "wheelKey.convert") == "shift" && fresh.string(forKey: "wheelKey.tools") == "off"
+                && fresh.string(forKey: "wheelKey.actions") == "option" && fresh.object(forKey: "wheelKey.controlStandIn") as? Bool == true)
+        c.check("…so a ⌃ habit survives a later change", WheelMode.from(newlyPressed: .control) == .actions)
+        Settings.setKey(.control, for: .tools)
+        c.check("a wheel on ⌃ takes ⌃ back", WheelMode.from(newlyPressed: .control) == .tools
+                && WheelMode.from(newlyPressed: .option) == .actions && fresh.string(forKey: "wheelKey.tools") == "control")
+
+        // A map saved before 1.0.1 without ⌃ (Actions moved to ⌥, or ⌃ freed): ⌃ keeps opening nothing.
+        let freedCtrl = SettingsMemoryStore(["wheelKey.convert": "shift", "wheelKey.tools": "command", "wheelKey.actions": "option"])
+        Settings.defaults = freedCtrl
+        c.check("a ⌃-free map saved before 1.0.1: ⌃ opens nothing, ⌥ opens Actions, and it reads as the defaults",
+                WheelMode.from(newlyPressed: .control) == nil && WheelMode.from(newlyPressed: .option) == .actions
+                && Settings.wheelKeys == .defaults && Settings.wheelKeys.controlStandsInFor == nil)
+        c.check("…reading it writes nothing", freedCtrl.object(forKey: "wheelKey.controlStandIn") == nil)
+        Settings.setKey(.off, for: .tools)
+        c.check("…and changing a key keeps ⌃ free", WheelMode.from(newlyPressed: .control) == nil
+                && freedCtrl.object(forKey: "wheelKey.controlStandIn") as? Bool == false)
+        let freedCustom = SettingsMemoryStore(["wheelKey.convert": "option", "wheelKey.tools": "shift", "wheelKey.actions": "off"])
+        Settings.defaults = freedCustom
+        c.check("a custom ⌃-free map saved before 1.0.1 (⌥ Convert, ⇧ Tools, Actions off): ⌃ opens nothing",
+                WheelMode.from(newlyPressed: .control) == nil && WheelMode.from(newlyPressed: .option) == .convert)
+        Settings.resetWheelKeys()
+        c.check("Restore Defaults brings back the default keys and ⌃ standing in for ⌥",
+                Settings.wheelKeys == .defaults && WheelMode.from(newlyPressed: .control) == .actions
+                && freedCustom.object(forKey: "wheelKey.controlStandIn") as? Bool == true)
+
+        // Snapshot options give keys as the Wheels pane does: one key alone doesn't turn another wheel off.
+        AppShell.useSnapshotSettings(["convert": "option"])
+        c.check("--opt convert=option: ⌥ Convert, ⌘ Tools, ⇧ Actions (swapped, not Off)",
+                Settings.wheelKeys == WheelKeyMap(convert: .option, tools: .command, actions: .shift),
+                "\(Settings.wheelKeys.hint)")
+        AppShell.useSnapshotSettings(["convert": "shift", "tools": "command", "actions": "control"])
+        c.check("--opt with all three keys: exactly those", Settings.wheelKeys == ctrlMap, Settings.wheelKeys.hint)
+        AppShell.useSnapshotSettings([:])
+        c.check("no key options: nothing saved, the defaults", Settings.wheelKeys == .defaults
+                && Settings.defaults.object(forKey: "wheelKey.actions") == nil)
+        Settings.defaults = suite
         NotificationCenter.default.removeObserver(token)
 
         // Settings window bindings
         Settings.resetWheelKeys()
         let model = SettingsModel()
         model.key(.actions).wrappedValue = .shift
-        c.check("the window’s key picker swaps too", Settings.wheelKeys == WheelKeyMap(convert: .control, tools: .command, actions: .shift))
+        c.check("the window’s key picker swaps too", Settings.wheelKeys == WheelKeyMap(convert: .option, tools: .command, actions: .shift))
         model.style.wrappedValue = .glass
         model.results.wrappedValue = .finder
         c.check("the window’s controls write Settings", Settings.wheelStyle == .glass && Settings.resultsDestination == .finder
@@ -971,6 +1148,7 @@ enum AppShellTests {
         let tabs = SettingsTabViewController()
         c.check("Settings has four toolbar tabs", tabs.tabViewItems.map(\.label) == ["General", "Wheels", "Look", "About"]
                 && tabs.tabViewItems.allSatisfy { $0.image != nil } && tabs.tabStyle == .toolbar)
+        windowTitles(c)
 
         // About
         let gpl = "configuration: --prefix=/x --enable-gpl --enable-version3 --enable-libx264"

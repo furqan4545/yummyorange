@@ -44,7 +44,7 @@ rubber-banding, reduced motion).
 - **Moments.** (1) The playground: a dahlia "desktop" with real-looking files where the wheel actually opens.
   (2) The Clothesline, right after it: the glowing gold-to-pink string that drops out of a notch with swinging
   polaroid cards. Everything else is quiet: warm neutrals, hairlines, one accent.
-- **Signature.** The app's key caps (`⇧ shift`, `⌘ command`, `⌃ control`): near-black caps that press and turn
+- **Signature.** The app's key caps (`⇧ shift`, `⌘ command`, `⌥ option`): near-black caps that press and turn
   dahlia when their wheel is open. They are the controls in both demos, and they switch the explorer's wheel. The
   key names and the cap layout (glyph top right, name bottom left) are the app's, so the site shows them as they are.
 
@@ -57,7 +57,7 @@ its own wheel (a list of kinds, one wheel switched by its key cap, and what the 
 - The kinds are sorted by how often people reach for them: Images, PDF, Documents, Video, Audio, Spreadsheets,
   Slides, Ebooks, Subtitles, then Folders next to Archives.
 - The formats table, the three-card row, the Actions section and the welcome tour are gone: the formats live in the
-  explorer's facts column, the Actions wheel is the explorer's ⌃ key, and the tour is one sentence in the download
+  explorer's facts column, the Actions wheel is the explorer's ⌥ key, and the tour is one sentence in the download
   steps. Desktop height went from about 10,300 px to about 7,000 px; a 390 px phone from about 13,250 to 8,260.
 
 ## Colour
@@ -141,11 +141,11 @@ accentDeep `#A74086`. The wheel's highlight uses the app's 3-stop gradient (acce
 
 ## Accessibility
 
-- Keyboard: every file is a button. Enter (or tapping ⇧ / ⌘ / ⌃ on its own) opens a wheel on the focused file;
+- Keyboard: every file is a button. Enter (or tapping ⇧ / ⌘ / ⌥ on its own) opens a wheel on the focused file;
   arrows move around the petals, Enter applies, Esc closes. The wheel is a `menu` with `aria-activedescendant`.
   Clothesline cards are buttons: ← → select, ⌥← ⌥→ move a card, Delete takes it off, ⌘Z puts it back. The explorer's
   kinds are WAI tabs (arrows in both directions; `aria-orientation` follows the layout) and its key caps are toggle
-  buttons (`aria-pressed`); a lone tap of ⇧ ⌘ ⌃ ⌥ switches the wheel while focus is in the explorer.
+  buttons (`aria-pressed`); a lone tap of ⇧, ⌘ or ⌥ (⌃ also opens Actions) switches the wheel while focus is in the explorer.
 - Screen readers: key caps inside buttons are `aria-hidden`, so buttons read "Convert", "Tools", "Actions"; file
   badges and durations are hidden, so files read "lake.png", "sunset.mp4". The playground's instructions are
   described once, on the list of files. Results and wheel changes are announced in a polite live region.

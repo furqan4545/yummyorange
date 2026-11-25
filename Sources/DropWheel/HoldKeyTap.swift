@@ -15,6 +15,8 @@ import os
 //   - 0.8 s pass first (a long press): the original mouse-down goes on unchanged (with a matching mouse-up if the
 //     button was released meanwhile, so no app is left thinking the button is down).
 // Everything else (presses with no wheel key, on empty space, on window chrome, outside Finder) is never touched.
+// ⌃ is a wheel key here only when a wheel uses it, or when it is down together with one: a ⌃⇧-press is a right-click
+// too, so its ⌃ is held and stripped with the ⇧. With the default keys, ⌃ alone stays an instant right-click.
 
 /// The pure decision part, so it can be self-tested without an event tap.
 struct HoldKeyDecider {
@@ -60,7 +62,11 @@ struct HoldKeyDecider {
             return .releaseAsClick
         case (.down, _):
             state = .idle
-            let held = flags.intersection(wheelFlags)
+            var held = flags.intersection(wheelFlags)
+            // ⌃ down with a wheel key is held and stripped with it, also when no wheel uses ⌃ (the default keys): left
+            // on, it would make the press a right-click and Finder would open a menu instead of dragging. ⌃ with no
+            // wheel key stays a plain right-click.
+            if !held.isEmpty, flags.contains(.maskControl) { held.insert(.maskControl) }
             guard !held.isEmpty, Self.shouldHold(held, target()) else { return .pass }
             state = .holding(location: location, time: time, strip: held)
             return .swallow
@@ -125,16 +131,23 @@ final class HoldKeyTap {
     private var run: TapRun?
     private var trustPoll: Timer?
     private var running = false
+    private var finderObservers: [NSObjectProtocol] = []
+
+    static let finderBundleID = "com.apple.finder"
 
     var isRunning: Bool { running }
     static var isTrusted: Bool { AXIsProcessTrusted() }
+    /// The Finder process the tap looks for under a press (0 when Finder isn't running).
+    var finderPID: pid_t { shared.withLock { $0.finderPID } }
 
     /// Starts or stops the tap to match the setting and the Accessibility permission. `prompt` shows the
     /// system's request when the permission is missing. While the setting is on, the permission is checked
     /// every 2 s: the tap starts once it is given and stops if it is taken away.
     func update(prompt: Bool = false) {
-        refreshShared()
+        let flags = Self.wheelFlags()
+        shared.withLock { $0.wheelFlags = flags }
         guard Settings.holdKeyFirst else { trustPoll?.invalidate(); trustPoll = nil; stop(); return }
+        watchFinder()
         if Self.isTrusted { start() } else {
             stop()
             if prompt {
@@ -143,19 +156,38 @@ final class HoldKeyTap {
             }
         }
         guard trustPoll == nil else { return }
+        // In the common modes, so it also runs while a menu is open: it only compares two flags (a fraction of a
+        // microsecond), and acts only when the permission changed.
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
-            guard let self, Settings.holdKeyFirst else { return }
-            self.refreshShared()   // Finder may have relaunched with a new pid
-            if Self.isTrusted != self.running { self.update() }
+            guard let self, Settings.holdKeyFirst, self.trustChanged else { return }
+            self.update()
         }
         RunLoop.main.add(t, forMode: .common)
         trustPoll = t
     }
 
-    private func refreshShared() {
-        let flags = Self.wheelFlags()
-        let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.processIdentifier ?? 0
-        shared.withLock { $0 = Shared(wheelFlags: flags, finderPID: pid) }
+    /// The Accessibility permission was given or taken away since the tap was last started or stopped.
+    var trustChanged: Bool { Self.isTrusted != running }
+
+    /// Keeps Finder's pid for the tap thread: looked up once, then followed through NSWorkspace's launch and quit
+    /// notifications (Finder relaunches with a new pid). Looking it up on every poll was a LaunchServices round trip
+    /// on the main thread every 2 s, also while a menu was open.
+    func watchFinder() {
+        guard finderObservers.isEmpty else { return }
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            let launched = name == NSWorkspace.didLaunchApplicationNotification
+            finderObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      app.bundleIdentifier == Self.finderBundleID else { return }
+                let pid = app.processIdentifier
+                self?.shared.withLock { s in
+                    if launched { s.finderPID = pid } else if s.finderPID == pid { s.finderPID = 0 }
+                }
+            })
+        }
+        let pid = NSRunningApplication.runningApplications(withBundleIdentifier: Self.finderBundleID).first?.processIdentifier ?? 0
+        shared.withLock { $0.finderPID = pid }
     }
 
     private func start() {
@@ -182,7 +214,9 @@ final class HoldKeyTap {
         run = nil
     }
 
-    /// The modifier flags that open a wheel with the current keys (⌥ included when it stands in for ⌃).
+    /// The modifier flags that open a wheel with the current keys (⌥ included when it stands in for ⌃). ⌃ is in only
+    /// when a wheel uses it: as a stand-in for ⌥ it is tapped mid-drag, so with the default keys a ⌃-press on a file
+    /// is never held back and stays an instant right-click.
     static func wheelFlags(_ keys: WheelKeyMap = Settings.wheelKeys) -> CGEventFlags {
         var flags: CGEventFlags = []
         for mode in WheelMode.allCases {
@@ -566,10 +600,37 @@ enum HoldKey: FeatureModule {
               == [.swallow, .releaseAsClick])
         let stripped = HoldKeyTap.removing(.maskShift, from: CGEventFlags(rawValue: CGEventFlags.maskShift.rawValue | 0x2 | 0x100))
         check("stripping ⇧ also clears the left-shift bit and keeps others", stripped.rawValue == 0x100)
-        check("wheel flags follow the keys (defaults: ⇧ ⌘ ⌃ plus ⌥ for ⌃)",
-              HoldKeyTap.wheelFlags(.defaults) == [.maskShift, .maskCommand, .maskControl, .maskAlternate])
+        check("wheel flags follow the keys (defaults: ⇧ ⌘ ⌥, no ⌃: its stand-in is a mid-drag tap)",
+              HoldKeyTap.wheelFlags(.defaults) == [.maskShift, .maskCommand, .maskAlternate])
+        check("with the defaults a ⌃-press on a file passes at once (a plain right-click)",
+              { var d = HoldKeyDecider()
+                return d.decide(.down, flags: .maskControl, location: p0, time: 0, wheelFlags: HoldKeyTap.wheelFlags(.defaults),
+                                target: { selectedFile }) == .pass }())
+        check("a wheel on ⌃: ⌃ is held, plus ⌥ standing in for it",
+              HoldKeyTap.wheelFlags(WheelKeyMap(convert: .shift, tools: .command, actions: .control))
+                == [.maskShift, .maskCommand, .maskControl, .maskAlternate])
         check("wheel flags: Off wheels add nothing",
               HoldKeyTap.wheelFlags(WheelKeyMap(convert: .shift, tools: .off, actions: .off)) == .maskShift)
+        // ⌃ with a wheel key, default keys (no wheel on ⌃): ⌃ is held and stripped too, or Finder would right-click.
+        func runDefaults(_ steps: [(HoldKeyDecider.Kind, CGEventFlags, CGPoint, TimeInterval)], target: HoldKeyTarget) -> [HoldKeyDecider.Action] {
+            var d = HoldKeyDecider()
+            let flags = HoldKeyTap.wheelFlags(.defaults)
+            return steps.map { d.decide($0.0, flags: $0.1, location: $0.2, time: $0.3, wheelFlags: flags, target: { target }) }
+        }
+        let far = CGPoint(x: 110, y: 100)
+        check("default keys, ⌃⇧ on a selected file: released as a drag without ⌃ or ⇧ (no context menu)",
+              runDefaults([(.down, [.maskControl, .maskShift], p0, 0), (.dragged, [.maskControl, .maskShift], far, 0.05)], target: selectedFile)
+                == [.swallow, .releaseAsDrag(strip: [.maskControl, .maskShift])])
+        check("default keys, ⌃⌘ or ⌃⌥ on an unselected file: held too (⌃ makes any file press a right-click)",
+              runDefaults([(.down, [.maskControl, .maskCommand], p0, 0), (.dragged, [.maskControl, .maskCommand], far, 0.05)],
+                          target: HoldKeyTarget(isFile: true, selected: false)) == [.swallow, .releaseAsDrag(strip: [.maskControl, .maskCommand])]
+              && runDefaults([(.down, [.maskControl, .maskAlternate], p0, 0)], target: HoldKeyTarget(isFile: true, selected: false)) == [.swallow])
+        check("default keys, ⌃⇧-click: given back unchanged (the right-click still happens)",
+              runDefaults([(.down, [.maskControl, .maskShift], p0, 0), (.up, [.maskControl, .maskShift], p0, 0.1)], target: selectedFile)
+                == [.swallow, .releaseAsClick])
+        check("default keys, ⌃ alone on a file, or ⌃⇧ off a file: passes",
+              runDefaults([(.down, .maskControl, p0, 0)], target: HoldKeyTarget(isFile: true, selected: false)) == [.pass]
+              && runDefaults([(.down, [.maskControl, .maskShift], p0, 0)], target: .none) == [.pass])
         let report = "\(passed)/\(passed + failures.count) checks passed"
         return failures.isEmpty ? "PASS holdkey: \(report)" : "FAIL holdkey: \(report)\n" + failures.map { "  ✗ \($0)" }.joined(separator: "\n")
     }

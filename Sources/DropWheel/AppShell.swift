@@ -157,7 +157,8 @@ enum AppShell: FeatureModule {
 
     // MARK: Snapshots
 
-    /// `--snapshot settings [--opt section=general|wheels|look|about|all]` and
+    /// `--snapshot settings [--opt section=general|wheels|look|about|all]` (the panes' content),
+    /// `--snapshot settings-window [--opt section=general|wheels|look|about]` (the whole window: title bar, toolbar) and
     /// `--snapshot wheel [--opt style=glass|metallic count=<n> mode=convert|tools|actions highlight=<i> accent=#RRGGBB
     /// opening=<seconds into the opening animation> rotation=<degrees clockwise>] [files]`.
     /// Settings options (style, convert, tools, actions, sounds, haptics, progress, results=shelf|clothesline|finder|none,
@@ -167,6 +168,10 @@ enum AppShell: FeatureModule {
         case "settings":
             useSnapshotSettings(options)
             return settingsSnapshot(options.string("section", "all"))
+        case "settings-window":
+            useSnapshotSettings(options)
+            let section = SettingsSection(rawValue: options.string("section", "general").lowercased()) ?? .general
+            return SettingsWindowController.snapshotView(section: section, dark: options.bool("dark", false))
         case "wheel":
             useSnapshotSettings(options)
             return wheelSnapshot(files: files, options: options)
@@ -180,10 +185,17 @@ enum AppShell: FeatureModule {
     static func useSnapshotSettings(_ options: ToolOptions) {
         var values: [String: Any] = [:]
         if let style = options["style"].flatMap({ WheelStyle(rawValue: $0.lowercased()) }) { values["wheelStyle"] = style.rawValue }
-        for mode in WheelMode.allCases {
-            if let key = options[mode.rawValue.lowercased()].flatMap({ WheelKey(rawValue: $0.lowercased()) }) {
-                values["wheelKey.\(mode.rawValue.lowercased())"] = key.rawValue
-            }
+        // Keys are given to the default map one at a time, as the Wheels pane gives them (a key another wheel has
+        // swaps), and all three are stored, as Settings saves them: `--opt convert=option` alone is ⌥ Convert, ⌘ Tools,
+        // ⇧ Actions, not Actions turned off for repeating the default ⌥.
+        let keys = WheelMode.allCases.compactMap { mode in
+            options[mode.rawValue.lowercased()].flatMap { WheelKey(rawValue: $0.lowercased()) }.map { (mode, $0) }
+        }
+        if !keys.isEmpty {
+            var map = WheelKeyMap.defaults
+            for (mode, key) in keys { map.assign(key, to: mode) }
+            for mode in WheelMode.allCases { values["wheelKey.\(mode.rawValue.lowercased())"] = map.key(for: mode).rawValue }
+            values["wheelKey.controlStandIn"] = true
         }
         for (option, key) in [("sounds", "petalSounds"), ("haptics", "haptics"), ("progress", "showProgressHUD"),
                               ("screenshots", "hangScreenshots")] {

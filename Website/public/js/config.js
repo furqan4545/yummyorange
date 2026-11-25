@@ -14,7 +14,7 @@ window.DROPWHEEL = {
   size: "7 MB",
   minimumOS: "macOS 13 Ventura or later",
   chip: "Apple silicon",   // build.sh builds for the Mac it runs on; a universal build would make this "Apple silicon or Intel"
-  supportEmail: "",
+  supportEmail: "ali@yummyorange.com",
 };
 // Set before the page paints, so the download buttons never flash a link that goes nowhere.
 document.documentElement.dataset.release = window.DROPWHEEL.dmgURL ? "out" : "pending";

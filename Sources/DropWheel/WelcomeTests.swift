@@ -125,8 +125,14 @@ enum WelcomeTests {
         c.check(m.wheel == .tools, "tapping ⌘ switches to Tools")
         m.cancelWheel()
         c.check(m.step == .shortcut && m.highlighted == nil, "Esc closes the wheel and the drag goes on")
+        m.modifiersChanged([.command, .option])
+        c.check(m.wheel == .actions, "tapping ⌥ opens Actions")
+        m.modifiersChanged([.command])
+        m.modifiersChanged([.command, .shift])
+        m.modifiersChanged([.command])
+        c.check(m.wheel == .convert, "tapping ⇧ switches back to Convert")
         m.modifiersChanged([.command, .control])
-        c.check(m.wheel == .actions, "tapping ⌃ opens Actions")
+        c.check(m.wheel == .actions, "tapping ⌃ still opens Actions (no wheel uses ⌃)")
         m.dragChanged(to: overPetal, flags: [.command, .control])
         let petal = m.highlighted
         m.dragEnded()
@@ -141,6 +147,14 @@ enum WelcomeTests {
         c.check(m.highlighted == nil, "the centre of the wheel is no petal")
         m.dragEnded()
         c.check(m.step == .drag && m.result == nil, "letting go off the petals puts the photo back")
+
+        let held = WelcomeDemoModel(live: false)
+        held.dragChanged(to: aside, flags: [.option])
+        c.check(held.wheel == .actions, "⌥ held as the drag starts opens Actions")
+        held.dragEnded()
+        held.dragChanged(to: aside, flags: [.control])
+        c.check(held.wheel == nil, "⌃ held as the drag starts opens nothing (a ⌃-press is a right-click)")
+        held.dragEnded()
 
         m.dragChanged(to: overPetal, flags: [.shift])
         c.check(m.wheel == .convert, "a key held as the drag starts opens its wheel")
@@ -200,9 +214,8 @@ enum WelcomeTests {
     // MARK: Navigation
 
     private static func navigation(_ c: Checker) {
-        let suite = "YummyOrange.selftest.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suite) else { c.check(false, "a scratch UserDefaults suite"); return }
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = SelfTestDefaults.scratch()
+        c.check(SelfTestDefaults.isScratch(defaults), "the tour's preferences stay in memory (no YummyOrange.selftest.<UUID>.plist)")
 
         let m = WelcomeModel(page: .welcome, live: false)
         m.defaults = defaults
