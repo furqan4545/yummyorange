@@ -189,10 +189,9 @@ final class HUD {
         fx.material = .popover
         fx.blendingMode = .behindWindow
         fx.state = .active
-        fx.wantsLayer = true
-        fx.layer?.cornerRadius = 16
-        fx.layer?.cornerCurve = .continuous
-        fx.layer?.masksToBounds = true
+        // The material is drawn by the window server behind the window, so a layer's rounded corners don't clip it
+        // (that left a square of frosted glass around the card). A mask image does, and the window's shadow follows it.
+        fx.maskImage = Self.roundedMask(radius: 16)
         fx.autoresizingMask = [.width, .height]
 
         content.frame = fx.bounds
@@ -230,6 +229,19 @@ final class HUD {
         fx.addSubview(content)
         panel.contentView = fx
         panel.setAccessibilityRole(.popover)
+    }
+
+    /// A stretchable rounded rectangle for the material's mask: the corners stay, the middle stretches.
+    static func roundedMask(radius: CGFloat) -> NSImage {
+        let side = radius * 2 + 1
+        let image = NSImage(size: CGSize(width: side, height: side), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
     }
 
     // MARK: Placing
@@ -356,9 +368,9 @@ final class HUD {
         hideWork?.cancel()
         lingerSeconds = nil
         let parts = text.components(separatedBy: "  ·  ")
-        jobTitle = parts.first
+        jobTitle = parts.first.map(Self.jobName)
         setKind(.working)
-        setText(parts.first ?? text, parts.dropFirst().joined(separator: "  ·  "))
+        setText(jobTitle ?? text, parts.dropFirst().joined(separator: "  ·  "))
         bar.isHidden = false
         bar.isIndeterminate = true
         bar.startAnimation(nil)
@@ -399,6 +411,11 @@ final class HUD {
             bar.startAnimation(nil)
         }
         presentWorking(always: always)
+    }
+
+    /// A job's name for the banner: a conversion's petal title "→ JPG" reads "Convert to JPG".
+    static func jobName(_ title: String) -> String {
+        title.hasPrefix("→ ") ? "Convert to " + title.dropFirst(2) : title
     }
 
     /// What the panel says when a job ends: "Saved photo.jpg", "Saved 3 files", or the errors after what was saved.
