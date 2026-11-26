@@ -1353,7 +1353,10 @@ final class SystemUpdateUI: UpdateUI {
     /// Quits once no conversion is running, so a restart never cuts one off halfway (and leaves a partial file).
     private func quitWhenNoJobRuns(after delay: TimeInterval) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            if JobRunner.runningCount > 0 { quitWhenNoJobRuns(after: 0.5) } else { NSApp.terminate(nil) }
+            if JobRunner.runningCount > 0 { quitWhenNoJobRuns(after: 0.5) } else {
+                DockPresence.quittingForUpdate = true   // unsaved work was asked about before the restart
+                NSApp.terminate(nil)
+            }
         }
     }
 }

@@ -370,13 +370,13 @@ enum ImageBackground {
         let name = url.lastPathComponent
         let style = try style(options)
         if style.lift && !canLift {
-            throw ConversionError.unsupported("Lifting the subject needs macOS 14 or later. Turn off “Lift subject first” "
-                                              + "to fill behind the see-through parts only.")
+            throw ConversionError.unsupported("Removing a photo’s own background needs macOS 14 or later. Turn off “Remove photo’s "
+                                              + "own background” to keep the picture as it is.")
         }
         let source = try SourceImage(url)
         try source.requireEveryFrame()
         if style.lift && source.frameCount > 1 {
-            throw ConversionError.unsupported("“Lift subject first” works on single pictures; \(name) has \(source.frameCount) frames.")
+            throw ConversionError.unsupported("“Remove photo’s own background” works on single pictures; \(name) has \(source.frameCount) frames.")
         }
         try checkResultSize(source, canvas: style.canvas, padding: style.padding, name: name)
         var first = try source.frame(0)
@@ -387,7 +387,7 @@ enum ImageBackground {
             || (1..<min(3, source.frameCount)).contains { (try? source.frame($0)).map(ImageExtras.isTransparent) ?? false }
         guard seeThrough || style.canvas != .original || style.padding > 0 || style.corners > 0 else {
             throw ConversionError.unsupported("\(name) has no see-through pixels to fill. Choose a canvas shape, some padding "
-                                              + "or rounded corners" + (canLift ? ", or turn on “Lift subject first”." : "."))
+                                              + "or rounded corners" + (canLift ? ", or turn on “Remove photo’s own background”." : "."))
         }
         var background: CGImage?
         if case .image(let bgURL) = style.fill {
@@ -482,8 +482,8 @@ enum ImageBackground {
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         try handler.perform([request])
         guard let result = request.results?.first, !result.allInstances.isEmpty else {
-            throw ConversionError.unsupported("No subject found in \(name). Turn off “Lift subject first” to fill behind "
-                                              + "the see-through parts only.")
+            throw ConversionError.unsupported("There’s no person, pet or object to cut out of \(name). “Remove photo’s own "
+                                              + "background” is for photos; leave it off for documents and screenshots.")
         }
         let mask = try result.generateScaledMaskForImage(forInstances: result.allInstances, from: handler)
         let input = CIImage(cgImage: image)

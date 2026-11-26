@@ -22,6 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         monitor.start()
         Registry.modules.forEach { $0.appDidLaunch() }
+        DockPresence.start()   // in the Dock while any of its windows is open
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        DockPresence.reopen(hasVisibleWindows: flag)
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        DockPresence.shouldTerminate()
     }
 
     // MARK: Wheel

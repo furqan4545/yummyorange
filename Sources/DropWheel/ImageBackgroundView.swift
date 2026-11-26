@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 extension ImageEditors {
     /// The Add Background window: a live preview of the result on the left and an inspector on the right — the
     /// Mac's wallpapers, soft gradients, colours and any picture as the background, sliders for padding, corner
-    /// radius and shadow, the canvas shape and (macOS 14 and later) Lift subject first. Reset and Save sit in the
+    /// radius and shadow, the canvas shape and (macOS 14 and later) Remove photo’s own background. Reset and Save sit in the
     /// toolbar. The preview is drawn by `ImageBackground.compose`, the code that writes the file, so what you see
     /// is what Save makes. Save runs the Add Background command with the window's options.
     final class BackgroundEditorView: EditorRootView {
@@ -38,6 +38,8 @@ extension ImageEditors {
         private var backgrounds: [URL: CGImage] = [:]
         private var loadingBackgrounds = Set<URL>()
         private var errorText: String?
+        /// A plain note for the status bar (not an error): why Remove photo’s own background turned itself off.
+        private var noteText: String?
 
         private var swatches: [Swatch] = []
         private var wallpaperGrid = NSGridView()
@@ -46,7 +48,7 @@ extension ImageEditors {
         private let paddingSlider = NSSlider(), cornersSlider = NSSlider(), shadowSlider = NSSlider()
         private let paddingValue = Style.label(""), cornersValue = Style.label(""), shadowValue = Style.label("")
         private let ratioControl = NSSegmentedControl()
-        private let liftBox = NSButton(checkboxWithTitle: "Lift subject first", target: nil, action: nil)
+        private let liftBox = NSButton(checkboxWithTitle: "Remove photo’s own background", target: nil, action: nil)
         private var resetItem: NSToolbarItem!
         private var saveItem: NSToolbarItem!
         private var customImage: URL?
@@ -237,9 +239,19 @@ extension ImageEditors {
             if ImageBackground.canLift {
                 liftBox.target = self
                 liftBox.action = #selector(liftToggled)
-                liftBox.toolTip = "Cut the person, pet or object out of its own background first"
+                liftBox.toolTip = "Cuts the person, pet or object out of the photo, so only it sits on the new background"
                 stack.setCustomSpacing(16, after: ratioControl)
                 stack.addArrangedSubview(liftBox)
+                // What it does, under the checkbox, lined up with its title.
+                let note = Style.label("Cuts out the person, pet or object so only it sits on the new background. "
+                                       + "For photos, not documents.", size: 11, color: .secondaryLabelColor)
+                note.lineBreakMode = .byWordWrapping
+                note.maximumNumberOfLines = 0
+                note.preferredMaxLayoutWidth = Self.inspectorWidth - 40 - 20
+                stack.setCustomSpacing(2, after: liftBox)
+                let indent = NSStackView(views: [note])
+                indent.edgeInsets = NSEdgeInsets(top: 0, left: 20, bottom: 0, right: 0)
+                stack.addArrangedSubview(indent)
             }
 
             let document = FlippedView()
@@ -378,9 +390,12 @@ extension ImageEditors {
             if let errorText {
                 statusBar.leading.stringValue = errorText
                 statusBar.leading.textColor = .systemRed
+            } else if let noteText {
+                statusBar.leading.textColor = .secondaryLabelColor
+                statusBar.leading.stringValue = noteText
             } else {
                 statusBar.leading.textColor = .secondaryLabelColor
-                statusBar.leading.stringValue = isLifting ? "Lifting the subject…"
+                statusBar.leading.stringValue = isLifting ? "Cutting out the subject…"
                     : !hasSomethingToFill ? "This picture has no see-through parts. Add padding, round the corners or pick a ratio."
                     : "Pick a background, then set the padding, corners and shadow. Return saves."
             }
@@ -412,6 +427,7 @@ extension ImageEditors {
             guard s != style else { return }
             style = s
             errorText = nil
+            noteText = nil
             preview.canvasSize = layout.canvas
             syncControls()
             scheduleRender()
@@ -467,6 +483,7 @@ extension ImageEditors {
         @objc private func resetClicked() {
             style = initial
             errorText = nil
+            noteText = nil
             preview.canvasSize = layout.canvas
             syncControls()
             scheduleRender()
@@ -543,7 +560,8 @@ extension ImageEditors {
                 case .success(let image): self.lifted = image
                 case .failure(let error):
                     self.style.lift = false
-                    self.errorText = error.localizedDescription
+                    _ = error
+                    self.noteText = "No person, pet or object to cut out here, so the picture stays as it is."
                 }
                 self.syncControls()
                 self.scheduleRender()
