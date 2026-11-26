@@ -1,12 +1,12 @@
 {
-  "build" : "8",
-  "length" : 4323744,
+  "build" : "9",
+  "length" : 4387259,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-26T02:26:23Z",
-  "releaseNotes" : "Edit PDF: white text on dark scanned backgrounds keeps its colour, italic text stays italic, and colours from the Colors window stick.",
+  "published" : "2026-11-26T08:27:04Z",
+  "releaseNotes" : "Add Background opens a window with a live preview: your Mac's wallpapers, gradients and colours, with padding, rounded corners and a soft shadow. Open Shelf keeps your files, and the corner banner now shows only for long jobs and errors.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "6a08a1c72f92b288aa5039c8d8084e06d08b08b967cb6deca1059d87f8e21bc2",
-  "signature" : "TembxFYppifsAZEelCmOCiB5nrC71SPNrwElQtTats3MWrszYerhSr4d48HwaHy3kW9WMj98hbvvQuNDAViuAA==",
-  "url" : "../downloads/YummyOrange-1.0.7-8.zip",
-  "version" : "1.0.7"
+  "sha256" : "94fdf915c14c7fd0d0a666cb13abfe1a73ea1d5748c3f51a794de90aaccdf985",
+  "signature" : "T+9sX0XJ/sUkqBw0LRQdTM5G/AdiPNArf+mdgqFKJjddjC97IA9q3SMBLzQmVcDSadQQvOcSKK95ON94pNXWDg==",
+  "url" : "../downloads/YummyOrange-1.0.8-9.zip",
+  "version" : "1.0.8"
 }
