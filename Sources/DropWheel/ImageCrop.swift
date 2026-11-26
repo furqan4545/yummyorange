@@ -3,14 +3,15 @@ import ImageIO
 
 /// Crop…, Redact… and Add Background… on the Tools wheel for images.
 ///
-/// Crop and Redact open editor windows from the ImageEditors family (same window, toolbar, status bar and
-/// save flow as Adjust and Annotate); Add Background asks with a small form. Every one also runs from the
-/// command line with options alone. Files:
+/// Crop, Redact and Add Background open editor windows from the ImageEditors family (same window, toolbar,
+/// status bar and save flow as Adjust and Annotate). Every one also runs from the command line with options alone. Files:
 /// - ImageCrop.swift: this module, and the crop model and renderer.
 /// - ImageCropView.swift: the Crop window.
 /// - ImageRedact.swift: redaction (pixels, Vision text and face finding, metadata-free writing).
 /// - ImageRedactView.swift: the Redact window.
-/// - ImageBackground.swift: Add Background (fill, canvas shapes, subject lifting on macOS 14 and later).
+/// - ImageBackground.swift: Add Background (wallpapers, gradients, colours, padding, corners, shadow, canvas shapes,
+///   subject lifting on macOS 14 and later).
+/// - ImageBackgroundView.swift: the Add Background window.
 /// - ImageFrameEditing.swift: box geometry, handles and pointers shared by Crop and Redact.
 /// - ImageCropRedactTests.swift: `--selftest image-crop-redact`.
 enum ImageCropRedact: FeatureModule {
@@ -34,7 +35,12 @@ enum ImageCropRedact: FeatureModule {
                          },
                          run: { files, options, progress in try each(files, progress) { try ImageRedact.save($0, options: options) } }),
             WheelCommand(wheel: .tools, id: "background", title: "Add Background…", symbol: "photo.on.rectangle",
-                         applies: ImageEditors.isImages, ask: ImageBackground.ask,
+                         applies: ImageEditors.isImages,
+                         present: { files in
+                             ImageEditors.EditorWindowController.open(subtitle: "Add Background", verb: "add a background to", files: files) {
+                                 ImageEditors.BackgroundEditorView(source: $0)
+                             }
+                         },
                          run: { files, options, progress in try each(files, progress) { try ImageBackground.run($0, options: options) } }),
         ]
     }
@@ -59,8 +65,17 @@ enum ImageCropRedact: FeatureModule {
     /// style=black|blur|pixelate for found text, faceStyle= for found faces.
     /// Both: width=, height= (content size), dark=true, window=false (content without the window).
     static func snapshot(_ id: String, files: [URL], options: ToolOptions) -> NSView? {
-        guard id == "crop-image" || id == "redact-image" else { return nil }
+        guard id == "crop-image" || id == "redact-image" || id == "background-image" else { return nil }
         do {
+            if id == "background-image" {
+                let size = CGSize(width: min(max(options.double("width", 1100), 200), 4000),
+                                  height: min(max(options.double("height", 720), 200), 4000))
+                let url = try files.first ?? ImageEditors.TestImages.sample()
+                let view = try ImageEditors.BackgroundEditorView.snapshot(source: try ImageEditors.SourceImage(url), options: options)
+                view.frame = CGRect(origin: .zero, size: size)
+                guard options.bool("window", true) else { return view }
+                return ImageEditors.windowSnapshot(view, url: url, subtitle: "Add Background", size: size, dark: options.bool("dark", false))
+            }
             func side(_ key: String, _ fallback: Double) -> CGFloat {
                 let v = options.double(key, fallback)
                 return CGFloat(v.isFinite ? min(max(v, 200), 4000) : fallback)

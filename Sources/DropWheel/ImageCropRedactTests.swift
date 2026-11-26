@@ -606,22 +606,47 @@ enum CropRedactTests {
                 t.check(false, "Lift subject first works on a clear subject: \(error.localizedDescription)")
             }
         }
-        // A macOS 13 Mac: no toggle, and lift=true says why.
+        // A macOS 13 Mac: lift=true says why, and filling still works.
         ImageBackground.liftOverride = false
         defer { ImageBackground.liftOverride = nil }
-        let keys = ImageBackground.fields([:]).map { field -> String in
-            switch field {
-            case .text(let k, _, _, _), .number(let k, _, _, _), .choice(let k, _, _, _), .toggle(let k, _, _), .color(let k, _, _): return k
-            }
-        }
-        t.check(keys == ["color", "canvas", "padding"], "without subject lifting the form has no toggle (\(keys.joined(separator: ", ")))")
         t.throwsError({ _ = try ImageBackground.run(alpha, options: ["lift": "true"]) }, containing: "needs macOS 14", "lift=true on macOS 13 is refused clearly")
         t.check((try? ImageBackground.run(alpha, options: ["lift": "false"])) != nil, "and filling still works there")
         ImageBackground.liftOverride = nil
-        if ImageBackground.canLift {
-            let keysNow = ImageBackground.fields([:]).count
-            t.check(keysNow == 4, "on this Mac (macOS 14 or later) the form offers “Lift subject first” (\(keysNow) fields)")
+
+        // Gradients, a picture as the background, rounded corners and a shadow.
+        let card = try Fixtures.write(Fixtures.solid(width: 400, height: 300, gray: 0.5), "card.png", in: dir)
+        let styled = try ImageBackground.run(card, options: ["gradient": "aurora", "padding": "10", "corners": "20", "shadow": "60"])
+        if let p = Fixtures.image(styled).map(Pixels.init) {
+            // 400 × 300 + 40 px each side; the picture spans x 40…440, y 40…340, corner radius 60.
+            let inside = p.at(240, 190), roundedOff = p.at(43, 43), edgeMid = p.at(240, 42)
+            t.check(p.width == 480 && p.height == 380, "padding 10% around 400 × 300 → \(p.width) × \(p.height)")
+            t.check(abs(inside.r - 128) < 6 && abs(inside.g - 128) < 6, "the picture's middle is untouched (\(inside))")
+            t.check(abs(roundedOff.r - 128) > 12 || abs(roundedOff.b - 128) > 12, "the rounded corner shows the gradient, not grey (\(roundedOff))")
+            t.check(abs(edgeMid.r - 128) < 6, "a straight edge stays the picture (\(edgeMid))")
+            let below = p.at(240, 352), farAbove = p.at(240, 6)
+            t.check(below.r + below.g + below.b < farAbove.r + farAbove.g + farAbove.b + 60,
+                    "the shadow darkens the gradient just under the picture (\(below) vs \(farAbove))")
         }
+        let wallpaper = try Fixtures.write(Fixtures.solid(width: 1200, height: 900, gray: 0.1), "wall.jpg", in: dir)
+        let onPicture = try ImageBackground.run(card, options: ["image": wallpaper.path, "padding": "5"])
+        if let p = Fixtures.image(onPicture).map(Pixels.init) {
+            let c = p.at(3, 3)
+            t.check(c.r < 40 && c.g < 40 && onPicture.pathExtension == "png", "a picture fills the background (\(c), \(onPicture.lastPathComponent))")
+        }
+        t.throwsError({ _ = try ImageBackground.run(card, options: ["gradient": "plaid", "padding": "5"]) }, containing: "isn’t a gradient",
+                      "an unknown gradient is refused")
+        t.throwsError({ _ = try ImageBackground.run(card, options: ["image": "/no/such/picture.png", "padding": "5"]) },
+                      containing: "isn’t there", "a missing background picture is refused")
+        t.throwsError({ _ = try ImageBackground.run(card, options: ["corners": "60"]) }, containing: "0 to 25", "corners 60% are refused")
+        let roundOnly = try ImageBackground.run(jpeg, options: ["corners": "10", "color": "#00FF00"])
+        if let p = Fixtures.image(roundOnly).map(Pixels.init) {
+            t.check(p.width == 400 && p.at(1, 1).g > 200 && p.at(1, 1).r < 60, "corners alone round an opaque picture onto the colour (\(p.at(1, 1)))")
+        }
+        let opts = ImageBackground.Style(fill: .gradient(ImageBackground.gradients[1]), canvas: .fourFive, padding: 12, corners: 3,
+                                         shadow: 40, lift: false).options
+        let back = try ImageBackground.style(opts)
+        t.check(back.canvas == .fourFive && back.padding == 12 && back.corners == 3 && back.shadow == 40 && back.fill == .gradient(ImageBackground.gradients[1]),
+                "the window's options read back to the same style (\(opts))")
     }
 
     /// A person emoji on a noisy, colourful background: a clear subject for foreground masking.
