@@ -1,12 +1,12 @@
 {
-  "build" : "10",
-  "length" : 4391301,
+  "build" : "11",
+  "length" : 4391227,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-26T08:42:33Z",
-  "releaseNotes" : "YummyOrange now shows in the Dock while one of its windows is open, so a hidden window is one click away. Quitting with unsaved edits asks first, and Add Background's subject cut-out is clearer.",
+  "published" : "2026-11-26T08:51:43Z",
+  "releaseNotes" : "The corner banner is one clean rounded card again, and a failed conversion says so plainly.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "7aa14c8e5d7ff994e8a3778d314b6d63c60cfe642f877935aa5cd7a87870dcd8",
-  "signature" : "vyqwur8bjtcHO58uVJzLgHmLMkJ44fVkI9oPsvA3hjuqx3KnDAE87sENnVn8P4uKkZQZTmVpjM/1BUGGKMGWBw==",
-  "url" : "../downloads/YummyOrange-1.0.9-10.zip",
-  "version" : "1.0.9"
+  "sha256" : "6d4ae212042125f8cd1a6672b7e938da57718acc09e2271c64bcfe0b2dbf9eb4",
+  "signature" : "6Cx8MESirWwHYd9gpKrQZTL+5S1EgzMs8feE7FfyQcObUsKNqwb4OPfnOBqNnAdBPLcDgbZaSk2s/g7kEwXwAA==",
+  "url" : "../downloads/YummyOrange-1.0.10-11.zip",
+  "version" : "1.0.10"
 }
