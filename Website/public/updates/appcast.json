@@ -1,12 +1,12 @@
 {
-  "build" : "6",
-  "length" : 4280720,
+  "build" : "7",
+  "length" : 4323364,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-25T20:55:58Z",
-  "releaseNotes" : "Edit PDF works on scanned pages: text you change is replaced on the page, in the closest matching font.",
+  "published" : "2026-11-26T02:05:30Z",
+  "releaseNotes" : "Edit PDF: sign with your signature, add pictures and stamps, highlight text, and change any line's font, bold, italic and colour.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "3e32f2e0f7936b51a3a564466b3e9d86e5b93d36e3ff9ea68a685dfe1bc5926a",
-  "signature" : "uiyuTaQQ7TwPjMPPU15EF8VN091QmZftpe7lbJQPmre9ycaNg9Bp7MIqqohR9GHXSJ+Xx5ojK756flp38NbMAQ==",
-  "url" : "../downloads/YummyOrange-1.0.5-6.zip",
-  "version" : "1.0.5"
+  "sha256" : "7c2a6a4e12201c06cb4ee5f01d08bf743da15da8b195367f7f76adddfe84ebca",
+  "signature" : "gpIqnWyRcTStDZkg6xZR8xyAxdjasTNx8ykctRuXyk4Fg0I1oAQVMaNp8VbJZMmMnUutD8h9do/Si6AEapNRDA==",
+  "url" : "../downloads/YummyOrange-1.0.6-7.zip",
+  "version" : "1.0.6"
 }
