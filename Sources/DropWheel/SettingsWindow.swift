@@ -281,14 +281,16 @@ struct SettingsSectionView: View {
                 ResultsDestinationPicker(selection: model.results) {
                     SettingLabel("Show new files", model.results.wrappedValue.detail)
                 }
-                // Only the Clothesline hangs screenshots: with another choice the switch stays, dimmed, and says why.
+                // Copied screenshots go on the Clothesline or your shelf: with another choice the switch stays, dimmed,
+                // and says why.
                 Toggle(isOn: model.screenshots) {
-                    SettingLabel("Hang copied screenshots", ScreenshotsSetting.detail(for: model.results.wrappedValue,
-                                                                                   clipboard: ClotheslineScreenshots.shared.clipboardAccess))
+                    SettingLabel(model.results.wrappedValue == .shelf ? "Shelve copied screenshots" : "Hang copied screenshots",
+                                 ScreenshotsSetting.detail(for: model.results.wrappedValue,
+                                                           clipboard: ClotheslineScreenshots.shared.clipboardAccess))
                 }
-                .disabled(model.results.wrappedValue != .clothesline)
+                .disabled(model.results.wrappedValue != .clothesline && model.results.wrappedValue != .shelf)
                 Toggle(isOn: model.progress) {
-                    SettingLabel("Show progress", "A small panel in the top-right corner while files are worked on. Errors always appear.")
+                    SettingLabel("Show progress", "A banner in the top-right corner while files are worked on and when they’re saved. Long jobs and errors always show it.")
                 }
             }
             Section {
@@ -526,8 +528,12 @@ enum HoldKeySetting {
 /// are skipped when they are, or how to make it available.
 enum ScreenshotsSetting {
     static func detail(for destination: ResultsDestination, clipboard: ClotheslineScreenshots.ClipboardAccess = .allowed) -> String {
-        guard destination == .clothesline else { return "Available when new files show On the Clothesline." }
-        let saved = "Copy a screenshot (⌘C in its preview, or take it with Control) and it hangs on the Clothesline, once."
+        guard destination == .clothesline || destination == .shelf else {
+            return "Available when new files show On a Shelf or On the Clothesline."
+        }
+        let saved = destination == .shelf
+            ? "Copy a screenshot (⌘C in its preview, or take it with Control) and it goes on your shelf, once."
+            : "Copy a screenshot (⌘C in its preview, or take it with Control) and it hangs on the Clothesline, once."
         switch clipboard {
         case .allowed:
             return saved + " The copy is saved in Pictures › Clothesline; macOS asks once before YummyOrange can paste it."

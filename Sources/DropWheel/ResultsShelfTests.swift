@@ -94,6 +94,10 @@ enum ResultsShelfTests {
                 "\(shown)")
         c.check("the HUD names what was saved before the error",
                 HUD.finishText(saved: [d], errors: ["e.pdf: Couldn’t read it."]) == "Saved 1. e.pdf: Couldn’t read it.")
+        c.check("the banner: quick jobs stay silent by default, long ones show after 1.5 s, and asked-for work shows at once",
+                HUD.revealDelay(always: false, showProgress: false) == 1.5 && HUD.revealDelay(always: false, showProgress: true) == 0
+                && HUD.revealDelay(always: true, showProgress: false) == 0
+                && HUD.finishLines(saved: [], errors: ["x"], job: "Compress").title == "Compress didn’t finish")
 
         reset()
         JobRunner.report(saved: [], errors: ["Couldn’t read it."])

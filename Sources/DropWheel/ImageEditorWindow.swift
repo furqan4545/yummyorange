@@ -423,7 +423,7 @@ extension ImageEditors {
 
     /// CGWindowListCreateImage for one of our own windows (no screen-recording permission needed for those).
     /// Looked up at run time: the macOS 15 SDK no longer exposes it to Swift.
-    private static func captureWindow(_ number: Int) -> CGImage? {
+    static func captureWindow(_ number: Int) -> CGImage? {
         typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         guard number > 0, let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return nil }
         let capture = unsafeBitCast(symbol, to: Capture.self)

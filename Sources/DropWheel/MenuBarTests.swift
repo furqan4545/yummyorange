@@ -36,7 +36,7 @@ enum MenuBarTests {
         let updater = UpdaterTests.idleUpdater()
         UpdateMenuTarget.shared.updater = updater
         let menu = AppDelegate.makeMenu(target: nil)
-        let expected = ["Show New Files", "Launch at Login", "—", "New Shelf", "Show Clothesline", "Hang Copied Screenshots", "—",
+        let expected = ["Show New Files", "Launch at Login", "—", "Open Shelf", "Show Clothesline", "Hang Copied Screenshots", "—",
                         "Welcome Tour…", FounderMail.title, "—", UpdateMenu.checkTitle, "Settings…", "Quit YummyOrange"]
         c.check("the menu, in order: where new files show and login; the shelf and the line; help (Welcome Tour…, Talk to the Founder…); updates, Settings… and Quit",
                 titles(menu) == expected, titles(menu).joined(separator: " | "))
@@ -50,8 +50,8 @@ enum MenuBarTests {
                 && founder?.isEnabled == true && founder?.toolTip?.contains(FounderMail.address) == true && founder?.keyEquivalent == "")
         let tour = menu.items.first { $0.title == "Welcome Tour…" }
         c.check("Welcome Tour… still opens the tour", tour?.target === ShelfMenuTarget.shared && tour?.action == #selector(ShelfMenuTarget.welcomeTour))
-        c.check("the shelf module adds only New Shelf now (Welcome Tour… moved to the help group)",
-                ShelfAndWelcome.menuItems().map(\.title) == ["New Shelf"])
+        c.check("the shelf module adds only Open Shelf now (Welcome Tour… moved to the help group)",
+                ShelfAndWelcome.menuItems().map(\.title) == ["Open Shelf"])
 
         // An update found while the menu is open (the timer's check, say): its row waits until the menu closes, so no
         // row moves under the pointer. The icon's dot doesn't wait (AppDelegate.showUpdate).

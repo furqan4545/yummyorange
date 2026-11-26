@@ -366,17 +366,23 @@ final class ClotheslineScreenshots {
     /// turned off and on), or no because YummyOrange is set to Deny in System Settings.
     enum ClipboardAccess: Equatable { case allowed, declined, denied }
 
-    var isEnabled: () -> Bool = { Settings.resultsDestination == .clothesline && Settings.hangScreenshots }
+    var isEnabled: () -> Bool = { Settings.screenshotsHaveAPlace && Settings.hangScreenshots }
     /// The pasteboard to watch (the real clipboard only in the app; tests pass a named one).
     var makePasteboard: () -> ScreenshotPasteboard = { PasteboardSource(.general) }
     /// Where clipboard screenshots are saved.
     var clipboardFolder: () -> URL = {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/Clothesline", isDirectory: true)
     }
-    /// Hangs a screenshot, flying up from a point in global screen coordinates (the pointer).
-    var hang: (URL, CGPoint) -> Void = { Clothesline.shared.hangScreenshot($0, from: $1) }
-    /// The line's files (a file already on it isn't hung again).
-    var lineFiles: () -> [URL] = { Clothesline.shared.files }
+    /// Hangs a screenshot, flying up from a point in global screen coordinates (the pointer); On a Shelf it goes on
+    /// your shelf instead, quietly (it is there when the shelf is open or next opens).
+    var hang: (URL, CGPoint) -> Void = { url, point in
+        if Settings.resultsDestination == .shelf { ShelfManager.shared.addToMine([url], show: false) }
+        else { Clothesline.shared.hangScreenshot(url, from: point) }
+    }
+    /// The line's files (a file already on it isn't hung again); On a Shelf, your shelf's.
+    var lineFiles: () -> [URL] = {
+        Settings.resultsDestination == .shelf ? ShelfManager.shared.savedFiles : Clothesline.shared.files
+    }
     var pointer: () -> CGPoint = { NSEvent.mouseLocation }
     var now: () -> Date = Date.init
     /// Tests: no timers, no key-value observing, inline reads.

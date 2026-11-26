@@ -43,7 +43,8 @@ enum ShelfAndWelcome: FeatureModule {
     }
 
     static func menuItems() -> [NSMenuItem] {
-        let shelf = NSMenuItem(title: "New Shelf", action: #selector(ShelfMenuTarget.newShelf), keyEquivalent: "")
+        let shelf = NSMenuItem(title: "Open Shelf", action: #selector(ShelfMenuTarget.openShelf), keyEquivalent: "")
+        shelf.toolTip = "Shows your shelf with its files. New files and copied screenshots go on it while Show New Files is On a Shelf."
         shelf.target = ShelfMenuTarget.shared
         return [shelf]
     }
@@ -103,8 +104,8 @@ enum ShelfAndWelcome: FeatureModule {
 final class ShelfMenuTarget: NSObject {
     static let shared = ShelfMenuTarget()
 
-    /// An empty shelf near the menu-bar icon (where the pointer is when the menu item is chosen).
-    @objc func newShelf() { ShelfManager.shared.open([]) }
+    /// Your shelf, with its files, near the menu-bar icon (where the pointer is when the menu item is chosen).
+    @objc func openShelf() { ShelfManager.shared.openMine() }
 
     @objc func welcomeTour() { WelcomeTour.show() }
 }

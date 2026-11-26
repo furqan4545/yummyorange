@@ -215,6 +215,9 @@ enum Settings {
 
     /// A screenshot copied to the clipboard hangs on the Clothesline too (only while new files go there; Settings ›
     /// General › Hang copied screenshots, under Show new files, and the menu's Hang Copied Screenshots).
+    /// Copied screenshots go somewhere only On the Clothesline (they hang) and On a Shelf (they go on your shelf).
+    static var screenshotsHaveAPlace: Bool { resultsDestination == .clothesline || resultsDestination == .shelf }
+
     static var hangScreenshots: Bool {
         get { bool(Key.screenshots, true) }
         set { store(newValue, Key.screenshots) }
@@ -233,9 +236,10 @@ enum Settings {
         set { store(newValue, Key.autoUpdate) }
     }
 
-    /// Show the progress panel and success messages. Errors are always shown.
+    /// Show the progress banner and "Saved" messages. Off by default: the shelf or the Clothesline already shows the new
+    /// files. Errors are always shown, and so is a job still running after HUD.slowJobDelay.
     static var showProgressHUD: Bool {
-        get { bool(Key.hud, true) }
+        get { bool(Key.hud, false) }
         set { store(newValue, Key.hud) }
     }
 

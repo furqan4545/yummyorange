@@ -1020,7 +1020,7 @@ enum AppShellTests {
         let suite = SettingsMemoryStore()
         Settings.defaults = suite
         defer { Settings.defaults = saved }
-        c.check("fresh defaults", Settings.resultsDestination == .shelf && Settings.showProgressHUD && Settings.petalSounds && !Settings.haptics
+        c.check("fresh defaults", Settings.resultsDestination == .shelf && !Settings.showProgressHUD && Settings.petalSounds && !Settings.haptics
                 && Settings.wheelStyle == .glass && Settings.wheelKeys == .defaults && Settings.petalSoundStyle == .pop)
         var posted = 0
         let token = NotificationCenter.default.addObserver(forName: Settings.didChange, object: nil, queue: nil) { _ in posted += 1 }

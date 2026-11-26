@@ -11,10 +11,21 @@ enum ShelfViewMode: String {
     }
 }
 
-/// Keeps every open shelf alive while the app runs (shelves aren't saved across launches) and opens new ones.
+/// Keeps every open shelf alive while the app runs and opens new ones. One of them is your shelf: Open Shelf shows it,
+/// new files go on it (Show New Files › On a Shelf), and so do copied screenshots. Its files are saved, so closing it or
+/// quitting loses nothing; other shelves (Float's) are gone when closed.
 final class ShelfManager {
     static let shared = ShelfManager()
     private(set) var shelves: [ShelfController] = []
+    /// Your shelf, while it is open.
+    private(set) weak var mine: ShelfController?
+    static let mineKey = "shelf.mine"
+    /// Where your shelf's files are kept: paths, oldest first, as the shelf orders them. Tests swap both, so no
+    /// preferences file is written.
+    static var loadPaths: () -> [String] = { UserDefaults.standard.stringArray(forKey: mineKey) ?? [] }
+    static var savePaths: ([String]) -> Void = { UserDefaults.standard.set($0, forKey: mineKey) }
+    /// The most files your shelf keeps; the oldest go first.
+    static let mineLimit = 500
     private var screenObserver: NSObjectProtocol?
 
     private init() {
@@ -24,6 +35,67 @@ final class ShelfManager {
             self?.shelves.forEach { $0.settle(animated: false, pointer: nil) }
         }
     }
+
+    // MARK: Your shelf
+
+    /// Your shelf's files: those still on disk, oldest first.
+    var savedFiles: [URL] {
+        get {
+            Self.loadPaths().map { URL(fileURLWithPath: $0) }
+                .filter { FileManager.default.fileExists(atPath: $0.path) }
+        }
+        set {
+            var seen = Set<String>()
+            let paths = newValue.map { $0.standardizedFileURL.path }.filter { seen.insert($0).inserted }
+            Self.savePaths(Array(paths.suffix(Self.mineLimit)))
+        }
+    }
+
+    /// Open Shelf: your shelf with its files, brought forward when it is already open, else opened near `point`.
+    @discardableResult
+    func openMine(near point: CGPoint = NSEvent.mouseLocation) -> ShelfController {
+        if let mine {
+            mine.model.refresh()
+            mine.panel.orderFrontRegardless()
+            return mine
+        }
+        let shelf = open(savedFiles, near: point)
+        adopt(shelf)
+        return shelf
+    }
+
+    /// Puts files on your shelf. Open, it shows them at once; closed, they are kept for the next time it opens, and
+    /// `show` opens it near the pointer (a finished job), while a copied screenshot goes on quietly.
+    func addToMine(_ files: [URL], show: Bool) {
+        if let mine {
+            mine.model.add(files)   // saved through the model's change handler
+            if show { mine.panel.orderFrontRegardless() }
+            return
+        }
+        savedFiles = savedFiles + files.filter { FileManager.default.fileExists(atPath: $0.path) }
+        if show { openMine() }
+    }
+
+    /// Whether a file is on your shelf (open or closed).
+    func mineContains(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        if let mine { return mine.model.urls.contains { $0.standardizedFileURL.path == path } }
+        return Self.loadPaths().contains(path)
+    }
+
+    /// Makes `shelf` your shelf: every change to its files (added, removed, cleared, followed after a move) is saved.
+    private func adopt(_ shelf: ShelfController) {
+        mine = shelf
+        let viewHandler = shelf.model.onChange
+        shelf.model.onChange = { [weak self, weak shelf] in
+            viewHandler?()
+            guard let self, let shelf, self.mine === shelf else { return }
+            self.savedFiles = shelf.model.urls
+        }
+        savedFiles = shelf.model.urls
+    }
+
+    // MARK: Other shelves
 
     /// Opens a new shelf near `point` (screen coordinates), holding `files`. An empty list opens an empty shelf.
     @discardableResult

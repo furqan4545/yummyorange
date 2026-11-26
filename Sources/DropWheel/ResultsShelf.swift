@@ -14,7 +14,7 @@ import SwiftUI
 
 /// Where a finished job's new files appear (Settings › General › Show new files, and the menu's Show New Files).
 enum ResultsDestination: String, CaseIterable, Identifiable {
-    /// A new shelf near the pointer holding exactly that job's files. The default.
+    /// Your shelf (Open Shelf), which keeps its files; it comes forward with the job's files on it. The default.
     case shelf
     /// Hung on the string under the notch for a moment; the line pulls up into the notch and drops again when the
     /// pointer rests there.
@@ -39,7 +39,7 @@ enum ResultsDestination: String, CaseIterable, Identifiable {
     /// One line under the setting, saying what the choice does.
     var detail: String {
         switch self {
-        case .shelf: return "Each job’s files open on a new shelf, ready to drag."
+        case .shelf: return "Each job’s files go on your shelf, ready to drag. Open Shelf in the menu shows it any time."
         case .clothesline:
             return Self.hasNotch()
                 ? "Each job’s files hang under the notch for a moment. Rest the pointer there to see them again."
@@ -123,7 +123,7 @@ enum ResultsPresenter {
     /// full-screen apps, without taking focus from the app you're in. The Clothesline adds the files to its string
     /// (newest on the left) and drops it for 2 s, also without taking focus. Self-tests swap all three (with `hook`
     /// off) to check that each choice reaches its own one, without a real shelf, line or Finder window.
-    static var openShelf: ([URL]) -> Void = { _ = ShelfManager.shared.open($0) }
+    static var openShelf: ([URL]) -> Void = { ShelfManager.shared.addToMine($0, show: true) }
     static var hangOnLine: ([URL]) -> Void = { Clothesline.shared.hang($0) }
     static var revealInFinder: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
 
@@ -215,6 +215,7 @@ enum ResultsShelf: FeatureModule {
     /// offscreen, so this draws the real menu's items (titles, checkmarks, submenu, shortcuts, disabled lines) in a
     /// menu-like panel. Settings options apply to this snapshot only; nothing is saved.
     static func snapshot(_ id: String, files: [URL], options: ToolOptions) -> NSView? {
+        if id == "hud" { return HUD.snapshotView(kind: options.string("kind", "error"), dark: options.bool("dark", false)) }
         guard id == "menu" else { return nil }
         AppShell.useSnapshotSettings(options)
         let menu = AppDelegate.makeMenu(target: nil)

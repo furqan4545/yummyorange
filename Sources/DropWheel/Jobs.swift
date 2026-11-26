@@ -131,53 +131,108 @@ enum JobRunner {
     }
 }
 
-/// A small floating status panel in the top-right corner (under the Clothesline's cards while new files go there).
-/// When "Show progress and results" is off in Settings it stays hidden for progress and success messages, but errors
-/// still appear, and so does what the person asked for directly (`always`: an update's download and restart).
+/// A small banner in the top-right corner, in the style of a macOS notification: an icon, a bold line and a grey one,
+/// on the system's frosted material. It appears for errors and for what the person asked for directly (`always`: an
+/// update's download and restart). Progress and "Saved" messages appear only when Settings › Show progress is on, which
+/// it is not by default: the shelf or the Clothesline already shows the new files, and that is feedback enough. A job
+/// that is still running after `slowJobDelay` (a long video, a big batch, a download) shows its progress anyway, and
+/// then says "Saved" when it ends.
+/// Clicking the banner dismisses it; while the pointer rests on it, it stays and shows a close button.
 final class HUD {
     static let shared = HUD()
 
+    enum Kind { case working, success, error, info }
+
+    static let width: CGFloat = 340
+    private static let pad: CGFloat = 14
+    private static let iconSide: CGFloat = 22
+
     private let panel: NSPanel
-    private let label = NSTextField(labelWithString: "")
+    private let content = HUDContentView()
+    private let icon = NSImageView()
+    private let spinner = NSProgressIndicator()
+    private let title = NSTextField(labelWithString: "")
+    private let body = NSTextField(wrappingLabelWithString: "")
     private let bar = NSProgressIndicator()
+    private let closeButton = NSButton()
     private var hideWork: DispatchWorkItem?
+    /// Shows a job's progress once it has run for `slowJobDelay`.
+    private var revealWork: DispatchWorkItem?
+    /// How long a job runs before its progress shows when Show progress is off.
+    static let slowJobDelay = 1.5
+
+    /// When work in progress shows: at once (asked for directly, or Show progress is on), or only if it is still
+    /// running after `slowJobDelay`.
+    static func revealDelay(always: Bool, showProgress: Bool) -> Double {
+        always || showProgress ? 0 : slowJobDelay
+    }
+    /// The seconds the current message stays once the pointer leaves it (nil while work is in progress).
+    private var lingerSeconds: Double?
+    /// The job's name from `begin` ("Add Background"), for the title of its error.
+    private var jobTitle: String?
+    private var kind: Kind = .info
 
     private init() {
-        let size = CGSize(width: 320, height: 62)
+        let size = CGSize(width: Self.width, height: 64)
         panel = NSPanel(contentRect: CGRect(origin: .zero, size: size),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
+        panel.hasShadow = true
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.animationBehavior = .none
 
         let fx = NSVisualEffectView(frame: CGRect(origin: .zero, size: size))
-        fx.material = .hudWindow
+        fx.material = .popover
+        fx.blendingMode = .behindWindow
         fx.state = .active
         fx.wantsLayer = true
-        fx.layer?.cornerRadius = 14
+        fx.layer?.cornerRadius = 16
+        fx.layer?.cornerCurve = .continuous
         fx.layer?.masksToBounds = true
+        fx.autoresizingMask = [.width, .height]
 
-        label.font = .systemFont(ofSize: 12, weight: .medium)
-        label.lineBreakMode = .byTruncatingMiddle
-        label.maximumNumberOfLines = 2
-        label.cell?.truncatesLastVisibleLine = true
-        // Two lines of 12 pt need 30 pt; the text sits at the top, so one line stays where it always was.
-        label.frame = CGRect(x: 14, y: 23, width: size.width - 28, height: 31)
+        content.frame = fx.bounds
+        content.autoresizingMask = [.width, .height]
+        content.onClick = { [weak self] in self?.dismiss() }
+        content.onHover = { [weak self] inside in self?.hovered(inside) }
+
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.isDisplayedWhenStopped = false
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        title.textColor = .labelColor
+        title.lineBreakMode = .byTruncatingMiddle
+        title.maximumNumberOfLines = 1
+        body.font = .systemFont(ofSize: 12)
+        body.textColor = .secondaryLabelColor
+        body.maximumNumberOfLines = 4
+        body.lineBreakMode = .byWordWrapping
+        body.cell?.truncatesLastVisibleLine = true
         bar.style = .bar
+        bar.controlSize = .small
         bar.minValue = 0
         bar.maxValue = 1
-        bar.frame = CGRect(x: 14, y: 10, width: size.width - 28, height: 12)
-        fx.addSubview(label)
-        fx.addSubview(bar)
+        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        closeButton.isBordered = false
+        closeButton.contentTintColor = .secondaryLabelColor
+        closeButton.target = self
+        closeButton.action = #selector(closeClicked)
+        closeButton.toolTip = "Close"
+        closeButton.isHidden = true
+
+        for v in [icon, spinner, title, body, bar, closeButton] as [NSView] { content.addSubview(v) }
+        fx.addSubview(content)
         panel.contentView = fx
+        panel.setAccessibilityRole(.popover)
     }
 
-    private func place() {
-        guard let screen = NSScreen.main else { return }
-        panel.setFrameOrigin(Self.origin(size: panel.frame.size, visibleFrame: screen.visibleFrame, line: Self.line(on: screen)))
-    }
+    // MARK: Placing
 
     /// Where the panel goes: the top-right corner, 12 pt under the menu bar. While new files go to the Clothesline
     /// and the line hangs on this screen (`line`), it goes 12 pt under the lowest a card can hang instead: the line
@@ -195,32 +250,133 @@ final class HUD {
         return ClotheslineGeometry(screen: lineScreen)
     }
 
-    /// Orders the panel in, unless progress is turned off and this isn't an error or shown `always`.
+    private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+
+    /// Lays the contents out for the current text and returns the panel's height.
+    private func layout() -> CGFloat {
+        let w = Self.width, pad = Self.pad, side = Self.iconSide
+        let textX = pad + side + 10
+        let textW = w - textX - pad - 14   // room for the close button
+        let hasBody = !body.stringValue.isEmpty, hasBar = !bar.isHidden
+        let titleH: CGFloat = 17
+        let bodyH = hasBody ? ceil(body.cell?.cellSize(forBounds: CGRect(x: 0, y: 0, width: textW, height: 200)).height ?? 16) : 0
+        var textH = titleH + (hasBody ? 2 + bodyH : 0) + (hasBar ? 8 + 6 : 0)
+        textH = max(textH, side)
+        let h = (textH + 2 * 12).rounded(.up)
+        // Flipped-free coordinates: y grows upward, so place from the top.
+        var y = h - 12 - titleH
+        title.frame = CGRect(x: textX, y: y, width: textW, height: titleH)
+        if hasBody {
+            y -= 2 + bodyH
+            body.frame = CGRect(x: textX, y: y, width: textW, height: bodyH)
+        }
+        if hasBar {
+            y -= 8 + 6
+            bar.frame = CGRect(x: textX, y: y, width: textW, height: 6)
+        }
+        // The icon sits level with the title (centred on the whole banner when it is one line).
+        let iconY = hasBody || hasBar ? h - 12 - side + 0.5 : (h - side) / 2
+        icon.frame = CGRect(x: pad, y: iconY, width: side, height: side)
+        spinner.frame = icon.frame.insetBy(dx: 3, dy: 3)
+        closeButton.frame = CGRect(x: w - 8 - 18, y: h - 8 - 18, width: 18, height: 18)
+        return h
+    }
+
+    /// Shows the message, or keeps it hidden unless it is an error, `always`, or progress is turned on.
     private func present(isError: Bool, always: Bool = false) {
         guard isError || always || Settings.showProgressHUD else {
-            panel.orderOut(nil)
+            if panel.isVisible { hide() }
             return
         }
-        place()
+        guard let screen = NSScreen.main else { return }
+        let size = CGSize(width: Self.width, height: layout())
+        let origin = Self.origin(size: size, visibleFrame: screen.visibleFrame, line: Self.line(on: screen))
+        let target = CGRect(origin: origin, size: size)
+        if panel.isVisible && panel.alphaValue > 0.5 {
+            // Already showing: grow or shrink in place, keeping the top edge.
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = reduceMotion ? 0 : 0.18
+                panel.animator().setFrame(target, display: true)
+            }
+            panel.invalidateShadow()
+            return
+        }
+        // Slides in a little from the right edge and fades up; with Reduce Motion it only fades.
+        panel.setFrame(reduceMotion ? target : target.offsetBy(dx: 18, dy: 0), display: true)
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
+        panel.invalidateShadow()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = reduceMotion ? 0.15 : 0.28
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+            panel.animator().setFrame(target, display: true)
+            panel.animator().alphaValue = 1
+        }
+        NSAccessibility.post(element: panel, notification: .announcementRequested,
+                             userInfo: [.announcement: [title.stringValue, body.stringValue].filter { !$0.isEmpty }.joined(separator: ". "),
+                                        .priority: NSAccessibilityPriorityLevel.medium.rawValue])
     }
 
-    /// Sentences (errors, notes, the helper's progress) wrap onto the second line; a job's title and "Saved photo.jpg"
-    /// keep one line and shorten a long file name in the middle. (A label that truncates in the middle never wraps,
-    /// so long errors used to lose their middle: "Couldn’t get the audio…connection and try again.")
-    private func setText(_ text: String, sentence: Bool) {
-        label.lineBreakMode = sentence ? .byWordWrapping : .byTruncatingMiddle
-        label.stringValue = text
+    private func setKind(_ kind: Kind) {
+        self.kind = kind
+        let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        switch kind {
+        case .working:
+            icon.image = nil
+            spinner.startAnimation(nil)
+        case .success:
+            spinner.stopAnimation(nil)
+            icon.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "Done")?.withSymbolConfiguration(config)
+            icon.contentTintColor = .systemGreen
+        case .error:
+            spinner.stopAnimation(nil)
+            icon.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Error")?.withSymbolConfiguration(config)
+            icon.contentTintColor = .systemOrange
+        case .info:
+            spinner.stopAnimation(nil)
+            icon.image = NSImage(systemSymbolName: "info.circle.fill", accessibilityDescription: "Note")?.withSymbolConfiguration(config)
+            icon.contentTintColor = .secondaryLabelColor
+        }
     }
 
-    func begin(_ title: String, always: Bool = false) {
+    private func setText(_ heading: String, _ detail: String = "") {
+        title.stringValue = heading
+        body.stringValue = detail
+    }
+
+    /// A long sentence goes in the grey line under a short heading; a short one is the heading itself.
+    private func setSentence(_ text: String, heading: String) {
+        if text.count <= 44 { setText(text) } else { setText(heading, text) }
+    }
+
+    // MARK: Messages
+
+    /// A job started: "Add Background  ·  photo.png" shows as the job's name over the file's.
+    func begin(_ text: String, always: Bool = false) {
         hideWork?.cancel()
-        setText(title, sentence: false)
-        label.textColor = .labelColor
+        lingerSeconds = nil
+        let parts = text.components(separatedBy: "  ·  ")
+        jobTitle = parts.first
+        setKind(.working)
+        setText(parts.first ?? text, parts.dropFirst().joined(separator: "  ·  "))
         bar.isHidden = false
         bar.isIndeterminate = true
         bar.startAnimation(nil)
-        present(isError: false, always: always)
+        presentWorking(always: always)
+    }
+
+    /// Shows work in progress now, or once it has gone on for `slowJobDelay` (quick jobs stay silent).
+    private func presentWorking(always: Bool) {
+        revealWork?.cancel()
+        let delay = Self.revealDelay(always: always, showProgress: Settings.showProgressHUD)
+        guard delay > 0 else { present(isError: false, always: true); return }
+        if panel.isVisible { present(isError: false, always: true); return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.kind == .working else { return }
+            self.present(isError: false, always: true)
+        }
+        revealWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     func update(progress: Double) {
@@ -230,10 +386,11 @@ final class HUD {
 
     /// Something a task waits for, with its own words and how far it is: the bar runs indeterminate until the
     /// fraction is known, then fills (YummyOrange’s own ffmpeg downloading: "Downloading ffmpeg for audio and video… 42%").
-    func progress(_ title: String, fraction: Double?, always: Bool = false) {
+    func progress(_ text: String, fraction: Double?, always: Bool = false) {
         hideWork?.cancel()
-        setText(title, sentence: true)
-        label.textColor = .labelColor
+        lingerSeconds = nil
+        setKind(.working)
+        setSentence(text, heading: "Working…")
         bar.isHidden = false
         if let fraction {
             update(progress: fraction)
@@ -241,7 +398,7 @@ final class HUD {
             bar.isIndeterminate = true
             bar.startAnimation(nil)
         }
-        if !panel.isVisible { present(isError: false, always: always) }
+        presentWorking(always: always)
     }
 
     /// What the panel says when a job ends: "Saved photo.jpg", "Saved 3 files", or the errors after what was saved.
@@ -250,39 +407,164 @@ final class HUD {
         return (saved.isEmpty ? "" : "Saved \(saved.count). ") + errors.joined(separator: " ")
     }
 
+    /// The banner's heading and line for a finished job.
+    static func finishLines(saved: [URL], errors: [String], job: String?) -> (title: String, body: String) {
+        if errors.isEmpty {
+            return ("Saved", saved.count == 1 ? saved[0].lastPathComponent : "\(saved.count) files")
+        }
+        let heading = saved.isEmpty ? (job.map { "\($0) didn’t finish" } ?? "Couldn’t finish")
+                                    : "Saved \(saved.count) of \(saved.count + errors.count)"
+        return (heading, errors.joined(separator: " "))
+    }
+
     func finish(saved: [URL], errors: [String]) {
+        revealWork?.cancel()
         bar.stopAnimation(nil)
         bar.isHidden = true
-        setText(Self.finishText(saved: saved, errors: errors), sentence: !errors.isEmpty)
+        let lines = Self.finishLines(saved: saved, errors: errors, job: jobTitle)
+        setText(lines.title, lines.body)
         if errors.isEmpty {
-            label.textColor = .labelColor
-            if panel.isVisible { scheduleHide(after: 2.0) }
+            setKind(.success)
+            if panel.isVisible {
+                present(isError: false, always: true)
+                scheduleHide(after: 2.0)
+            }
         } else {
-            label.textColor = .systemRed
+            setKind(.error)
             present(isError: true)
-            scheduleHide(after: 6.0)
+            scheduleHide(after: 8.0)
         }
     }
 
     func flash(_ text: String, isError: Bool = false, always: Bool = false, seconds: Double? = nil) {
         hideWork?.cancel()
-        setText(text, sentence: true)
-        label.textColor = isError ? .systemRed : .labelColor
+        revealWork?.cancel()
+        bar.stopAnimation(nil)
         bar.isHidden = true
+        setKind(isError ? .error : .info)
+        setSentence(text, heading: isError ? "Couldn’t do that" : "YummyOrange")
         present(isError: isError, always: always)
-        scheduleHide(after: seconds ?? (isError ? 4.0 : 1.6))
+        scheduleHide(after: seconds ?? (isError ? 6.0 : 2.0))
     }
 
     func hide() {
         hideWork?.cancel()
+        revealWork?.cancel()
         bar.stopAnimation(nil)
-        panel.orderOut(nil)
+        spinner.stopAnimation(nil)
+        guard panel.isVisible else { return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = reduceMotion ? 0.1 : 0.2
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            guard let self, self.panel.alphaValue < 0.01 else { return }
+            self.panel.orderOut(nil)
+            self.closeButton.isHidden = true
+        })
+    }
+
+    // MARK: Pointer
+
+    private func dismiss() { hide() }
+    @objc private func closeClicked() { hide() }
+
+    /// While the pointer rests on the banner it stays and offers its close button; it goes a moment after it leaves.
+    private func hovered(_ inside: Bool) {
+        closeButton.isHidden = !inside
+        if inside {
+            hideWork?.cancel()
+        } else if let lingerSeconds {
+            scheduleHide(after: min(lingerSeconds, 2.5))
+        }
     }
 
     private func scheduleHide(after seconds: Double) {
         hideWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.panel.orderOut(nil) }
+        lingerSeconds = seconds
+        let work = DispatchWorkItem { [weak self] in self?.hide() }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    /// `--snapshot hud`: the banner as it shows for `kind` (error by default), for checking its look.
+    static func snapshotView(kind: String, dark: Bool) -> NSView {
+        let hud = HUD.shared
+        switch kind {
+        case "success": hud.jobTitle = "Add Background"; hud.bar.isHidden = true; hud.setKind(.success)
+            hud.setText("Saved", "Screenshot 2026-11-26 at 4.11.34 PM background.png")
+        case "working": hud.bar.isHidden = false; hud.bar.isIndeterminate = false; hud.bar.doubleValue = 0.45; hud.setKind(.working)
+            hud.setText("Add Background", "Screenshot 2026-11-26 at 4.11.34 PM.png")
+        case "info": hud.bar.isHidden = true; hud.setKind(.info); hud.setText("Opened 5 of 8 images", "Editors open 5 at a time.")
+        default: hud.bar.isHidden = true; hud.setKind(.error)
+            hud.setText("Add Background didn’t finish", "photo.png has no see-through pixels to fill. Choose a canvas shape, some padding or rounded corners.")
+        }
+        let h = hud.layout()
+        // The material is drawn by the window server, so the real panel is shown far off screen and captured.
+        hud.panel.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        hud.panel.setFrame(CGRect(x: -30_000, y: -30_000, width: width, height: h), display: true)
+        hud.panel.alphaValue = 1
+        hud.panel.orderFrontRegardless()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        hud.panel.displayIfNeeded()
+        let image = ImageEditors.captureWindow(hud.panel.windowNumber)
+        hud.panel.orderOut(nil)
+        return HUDSnapshotView(image: image, size: CGSize(width: width, height: h), dark: dark)
+    }
+}
+
+/// The banner's contents: a click dismisses it, and hovering keeps it up.
+final class HUDContentView: NSView {
+    var onClick: (() -> Void)?
+    var onHover: ((Bool) -> Void)?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseUp(with event: NSEvent) {
+        if bounds.contains(convert(event.locationInWindow, from: nil)) { onClick?() }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { onHover?(true) }
+    override func mouseExited(with event: NSEvent) { onHover?(false) }
+
+    /// A hairline just inside the rounded edge, so the banner holds its shape over any wallpaper.
+    override func draw(_ dirtyRect: NSRect) {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 15.5, yRadius: 15.5)
+            path.lineWidth = 1
+            NSColor.separatorColor.withAlphaComponent(0.6).setStroke()
+            path.stroke()
+        }
+    }
+}
+
+/// `--snapshot hud`: the captured banner over a desktop-like backdrop, as it sits in the screen's corner.
+final class HUDSnapshotView: NSView {
+    let image: CGImage?
+    let banner: CGSize
+    let dark: Bool
+
+    init(image: CGImage?, size: CGSize, dark: Bool) {
+        self.image = image
+        banner = size
+        self.dark = dark
+        super.init(frame: CGRect(x: 0, y: 0, width: size.width + 80, height: size.height + 80))
+        appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func draw(_ dirtyRect: NSRect) {
+        ThemeDesktop.draw(in: bounds, dark: dark)
+        guard let image, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        // The capture includes the window's shadow around the banner; centre it.
+        let w = CGFloat(image.width) / 2, h = CGFloat(image.height) / 2
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h))
     }
 }

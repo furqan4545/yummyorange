@@ -36,8 +36,33 @@ enum ShelfAndWelcomeTests {
         let c = Checker()
         do { try shelfModel(c) } catch { c.check(false, "model setup", error.localizedDescription) }
         shelfGeometry(c)
+        do { try yourShelf(c) } catch { c.check(false, "your shelf setup", error.localizedDescription) }
         do { try shelfView(c) } catch { c.check(false, "view setup", error.localizedDescription) }
         return c.report
+    }
+
+    /// Your shelf keeps its files while closed: what goes on it is saved (each file once, only files that exist) and
+    /// read back without the ones deleted since.
+    private static func yourShelf(_ c: Checker) throws {
+        let dir = try scratch("your-shelf")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var stored: [String] = []
+        let (load, save) = (ShelfManager.loadPaths, ShelfManager.savePaths)
+        ShelfManager.loadPaths = { stored }
+        ShelfManager.savePaths = { stored = $0 }
+        defer { ShelfManager.loadPaths = load; ShelfManager.savePaths = save }
+        let a = dir.appendingPathComponent("Screenshot a.png"), b = dir.appendingPathComponent("b.pdf")
+        try touch(a, bytes: 10); try touch(b, bytes: 10)
+        let shelves = ShelfManager.shared
+        guard shelves.mine == nil else { c.check(false, "your shelf is closed at the start of the test"); return }
+        shelves.addToMine([a], show: false)
+        shelves.addToMine([a, b, dir.appendingPathComponent("gone.png")], show: false)
+        c.check(stored.map { URL(fileURLWithPath: $0).lastPathComponent } == ["Screenshot a.png", "b.pdf"],
+                "files put on your closed shelf are kept, each once, missing ones left out", "\(stored)")
+        c.check(shelves.mineContains(a) && !shelves.mineContains(dir.appendingPathComponent("c.png")), "it knows what it holds")
+        try FileManager.default.removeItem(at: b)
+        c.check(shelves.savedFiles.map(\.lastPathComponent) == ["Screenshot a.png"], "a file deleted since isn't shown when it opens")
+        c.check(ShelfAndWelcome.menuItems().first?.title == "Open Shelf", "the menu offers Open Shelf (your shelf), not New Shelf")
     }
 
     private static func shelfModel(_ c: Checker) throws {

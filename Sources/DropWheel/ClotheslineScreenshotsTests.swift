@@ -370,11 +370,15 @@ enum ClotheslineScreenshotsTests {
         co.pointer = { pointer }
         // Live: real timers and the helper observed (the pasteboard is still the named one).
         co.live = true
-        Settings.resultsDestination = .shelf
+        Settings.resultsDestination = .finder
         co.start()
         func state() -> String { "clipboard \(co.clipboardWatcher?.isPolling ?? false), helper \(co.helper.isObserving)" }
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-        c.check(!co.isWatching && co.clipboardWatcher == nil, "new files on a shelf: nothing watches (no poll, no helper observer)", state())
+        c.check(!co.isWatching && co.clipboardWatcher == nil, "new files in Finder: nothing watches (no poll, no helper observer)", state())
+        Settings.resultsDestination = .shelf
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        c.check(co.clipboardWatcher?.isPolling == true && co.helper.isObserving,
+                "On a Shelf: copied screenshots are watched too (they go on your shelf)", state())
         Settings.resultsDestination = .clothesline
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         c.check(co.clipboardWatcher?.isPolling == true && co.helper.isObserving,
@@ -579,11 +583,13 @@ enum ClotheslineScreenshotsTests {
             return (all.count, all.filter { !$0.isEnabled }.count)
         }
         // Launch at login and Check for updates automatically are dimmed in a self-test (no bundle), so they count in both.
-        let shelf = switches(.shelf), line = switches(.clothesline)
-        c.check(shelf.count == 4 && line.count == 4 && shelf.disabled == line.disabled + 1,
-                "Hang copied screenshots is shown with Show new files and dimmed (not hidden) unless On the Clothesline",
-                "shelf: \(shelf.disabled) of \(shelf.count) dimmed; clothesline: \(line.disabled) of \(line.count)")
-        c.check(ScreenshotsSetting.detail(for: .clothesline).contains("Clothesline") && ScreenshotsSetting.detail(for: .shelf).contains("On the Clothesline")
+        let shelf = switches(.shelf), line = switches(.clothesline), finder = switches(.finder)
+        c.check(shelf.count == 4 && line.count == 4 && finder.count == 4 && shelf.disabled == line.disabled
+                && finder.disabled == line.disabled + 1,
+                "the copied-screenshots switch is shown with Show new files, on for a shelf or the Clothesline and dimmed (not hidden) otherwise",
+                "shelf: \(shelf.disabled) of \(shelf.count) dimmed; clothesline: \(line.disabled); finder: \(finder.disabled)")
+        c.check(ScreenshotsSetting.detail(for: .clothesline).contains("Clothesline") && ScreenshotsSetting.detail(for: .shelf).contains("your shelf")
+                && ScreenshotsSetting.detail(for: .finder).contains("On a Shelf or On the Clothesline")
                 && ScreenshotsSetting.detail(for: .clothesline).hasSuffix(".") && ScreenshotsSetting.detail(for: .none).hasSuffix("."),
                 "its explanation says what it does, or how to turn it on")
     }

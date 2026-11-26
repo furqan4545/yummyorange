@@ -1062,6 +1062,8 @@ final class ClotheslineMenuTarget: NSObject, NSMenuItemValidation {
     @objc func showLine() { Self.revealLine() }
 
     static let screenshotsTitle = "Hang Copied Screenshots"
+    /// The same switch's name while new files go on your shelf.
+    static let shelfScreenshotsTitle = "Shelve Copied Screenshots"
     /// Turns Hang copied screenshots on or off (the same switch as in Settings › General).
     @objc func toggleScreenshots() { Settings.hangScreenshots.toggle() }
 
@@ -1070,7 +1072,9 @@ final class ClotheslineMenuTarget: NSObject, NSMenuItemValidation {
         if menuItem.action == #selector(toggleScreenshots) {
             let state: NSControl.StateValue = Settings.hangScreenshots ? .on : .off
             if menuItem.state != state { menuItem.state = state }
-            return Settings.resultsDestination == .clothesline
+            let title = Settings.resultsDestination == .shelf ? Self.shelfScreenshotsTitle : Self.screenshotsTitle
+            if menuItem.title != title { menuItem.title = title }
+            return Settings.screenshotsHaveAPlace
         }
         return menuItem.action == #selector(showLine) ? Self.lineHasFiles() : true
     }
