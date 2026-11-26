@@ -145,9 +145,12 @@ enum PDFScanText {
         let paper = top.sum.map { $0 / Double(top.n) }
         let paperLum = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2]
         lums.sort()
-        let darkLum = lums[min(lums.count - 1, lums.count / 50)]
+        // Ink is whichever way the line's pixels go furthest from the paper: dark text on light paper, or light text
+        // on a dark band (white headings on navy).
+        let lo = lums[min(lums.count - 1, lums.count / 50)], hi = lums[max(0, lums.count - 1 - lums.count / 50)]
+        let darkInk = paperLum - lo >= hi - paperLum
+        let darkLum = darkInk ? lo : hi   // the ink's extreme, darkest or lightest
         let contrast = abs(paperLum - darkLum)
-        let darkInk = darkLum < paperLum
         // Ink: clearly away from the paper, toward the darkest (or lightest, for light text on dark) pixels.
         let threshold = (paperLum + darkLum) / 2
         func isInk(_ c: Int, _ row: Int) -> Bool {
@@ -159,7 +162,7 @@ enum PDFScanText {
         var minC = r.w, maxC = -1, minR = r.h, maxR = -1
         var rowCount = [Int](repeating: 0, count: r.h)
         var inkSum = [0.0, 0.0, 0.0], inkN = 0
-        let core = darkInk ? (darkLum + threshold) / 2 : (darkLum + threshold) / 2
+        let core = (darkLum + threshold) / 2
         for row in 0..<r.h {
             for col in 0..<r.w where isInk(col, row) {
                 mask[row * r.w + col] = true
@@ -243,12 +246,13 @@ enum PDFScanText {
         let fm = NSFontManager.shared
         let families = Set(fm.availableFontFamilies)
         for fam in candidateFamilies where families.contains(fam) {
-            // Upright members from regular to bold (weights 5…10, no italics, no condensed): semibold headings too.
+            // Members from regular to bold (weights 5…10): semibold headings too.
             for m in fm.availableMembers(ofFontFamily: fam) ?? [] {
                 guard m.count >= 4, let name = m[0] as? String, let weight = m[2] as? Int,
                       let traits = (m[3] as? NSNumber)?.uintValue else { continue }
                 let t = NSFontTraitMask(rawValue: traits)
-                if t.contains(.italicFontMask) || t.contains(.condensedFontMask) || t.contains(.narrowFontMask) { continue }
+                // Upright and italic (an italic line is matched to an italic face); no condensed widths.
+                if t.contains(.condensedFontMask) || t.contains(.narrowFontMask) { continue }
                 if (5...10).contains(weight), !name.localizedCaseInsensitiveContains("ornament") { names.append(name) }
             }
         }

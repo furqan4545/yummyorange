@@ -182,6 +182,9 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         if let id = canvas.editor?.addedID { addedID = id }
         let addingNew = canvas.editor?.isNew == true
 
+        // The Colors window stays with the line's colour well across rebuilds (it would otherwise keep sending
+        // colours to a well that is gone).
+        activeLineWell = lineColor?.isActive == true ? lineColor : nil
         lineFont = nil; lineTraits = nil; lineSize = nil; lineColor = nil; highlightSwatches = nil
         if let m = canvas.selectedMarkInfo {
             markSection(m)
@@ -519,6 +522,11 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         color.widthAnchor.constraint(equalToConstant: 52).isActive = true
         color.heightAnchor.constraint(equalToConstant: 24).isActive = true
         lineFont = font; lineTraits = traits; lineSize = size; lineColor = color
+        if let old = activeLineWell {
+            old.deactivate()
+            color.activate(true)
+            activeLineWell = nil
+        }
         lineStepperRef = stepper
         let sizeRow = NSStackView(views: [size, stepper, value("pt", secondary: true)])
         sizeRow.orientation = .horizontal
@@ -527,6 +535,7 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         add(grid([("Font", font), ("Style", traits), ("Size", sizeRow), ("Color", color)]))
     }
     private var lineStepperRef: NSStepper?
+    private var activeLineWell: NSColorWell?
 
     @objc private func lineSizeStepped(_ sender: NSStepper) {
         lineSize?.doubleValue = sender.doubleValue
@@ -539,8 +548,10 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         if let e = c.canvas.editor?.lineID { id = e } else if case .line(let s)? = c.canvas.selection { id = s } else { return }
         if c.canvas.editor != nil { guard c.canvas.commitEditing() else { return } }
         let size = min(400, max(1, sizeField.doubleValue > 0 ? sizeField.doubleValue : 12))
+        // The colour comes from the well that sent it (a rebuild may have replaced `lineColor` meanwhile).
+        let chosen = (sender as? NSColorWell)?.color ?? well.color
         let style = Self.textStyle(family: font.titleOfSelectedItem ?? "Helvetica", bold: traits.isSelected(forSegment: 0),
-                                   italic: traits.isSelected(forSegment: 1), size: size, color: well.color)
+                                   italic: traits.isSelected(forSegment: 1), size: size, color: chosen)
         c.perform("Couldn’t change the style") { try c.session.setStyle(style, for: id) }
         c.canvas.select(.line(id))
     }

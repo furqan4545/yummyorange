@@ -3,6 +3,10 @@ import AppKit
 import PDFKit
 
 /// Style (font, bold, italic, size, colour) for existing lines, highlights and pictures (part of `--selftest pdf-edit`).
+enum PDFEditMarkupTests {
+    static func meanColor(_ data: Data, page: Int, in rect: CGRect) -> [Double] { PDFEditTests.meanColor(data, page: page, in: rect) }
+}
+
 extension PDFEditTests {
     /// A 60 × 30 PNG: a red square with a transparent border (a stamp with transparency).
     static func stampPNG() -> Data {

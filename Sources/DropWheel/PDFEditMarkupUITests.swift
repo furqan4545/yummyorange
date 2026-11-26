@@ -82,6 +82,15 @@ extension PDFEditUITests {
             well.sendAction(well.action, to: well.target)
         }
         c.check((session.style(of: l2)?.red ?? 0) > 0.8, "style: colour well changes its colour")
+        // The Colors window keeps talking to the well it opened on, though the inspector rebuilt meanwhile: the colour it
+        // sends is the one applied, not the new well's.
+        if let oldWell = ctl.inspector.lineColor {
+            ctl.inspector.reload()
+            oldWell.color = NSColor(srgbRed: 0.1, green: 0.8, blue: 0.2, alpha: 1)
+            oldWell.sendAction(oldWell.action, to: oldWell.target)
+            let g = session.style(of: l2)
+            c.check((g?.green ?? 0) > 0.7 && (g?.red ?? 1) < 0.2, "style: a colour from the Colors window sticks after a rebuild")
+        }
         let out = try session.save()
         let txt = PDFEditVerify.normalized(PDFDocument(url: out)?.page(at: 0)?.string ?? "")
         c.check(txt.contains(PDFEditVerify.normalized(session.line(l2)!.text)), "markup: saved through the gate, the styled line reads back")
