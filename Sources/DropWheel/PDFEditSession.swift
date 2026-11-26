@@ -40,6 +40,9 @@ struct PDFTextStyle: Equatable, Codable {
     var size: Double = 12
     /// sRGB, 0…1.
     var red: Double = 0, green: Double = 0, blue: Double = 0
+    /// Bold or italic drawn by the PDF (a thickened outline, a slant) for a family without that face.
+    var syntheticBold = false
+    var syntheticItalic = false
 
     var color: CGColor { CGColor(srgbRed: red, green: green, blue: blue, alpha: 1) }
 
@@ -55,23 +58,48 @@ struct PDFTextStyle: Equatable, Codable {
     }
 }
 
+/// A highlight or a picture (an image, a stamp, a signature) placed on a page, drawn over its content.
+enum PDFMarkKind: Equatable {
+    /// Page-space rectangles, painted with Multiply so the text under them stays readable. sRGB 0…1.
+    case highlight(rects: [CGRect], red: Double, green: Double, blue: Double)
+    /// PNG data shown upright (for the page's rotation) in `rect`, page space.
+    case image(png: Data, rect: CGRect)
+
+    var bounds: CGRect {
+        switch self {
+        case .highlight(let rects, _, _, _): return rects.reduce(CGRect.null) { $0.union($1) }
+        case .image(_, let r): return r
+        }
+    }
+}
+
+struct PDFMark: Equatable {
+    let id: UUID
+    let page: Int
+    let kind: PDFMarkKind
+}
+
 /// One entry of the edit list.
 enum PDFEdit: Equatable {
     case text(line: PDFLineID, text: String, spacing: PDFSpacing, scope: PDFEditScope)
     case delete(line: PDFLineID, scope: PDFEditScope)
     case add(id: UUID, page: Int, origin: CGPoint, text: String, style: PDFTextStyle)
+    /// A line redrawn in another font, size or colour (bold, italic): its text is removed and `text` drawn in `style`.
+    case styled(line: PDFLineID, text: String, style: PDFTextStyle, scope: PDFEditScope)
+    case mark(id: UUID, page: Int, kind: PDFMarkKind)
 
     var line: PDFLineID? {
         switch self {
-        case .text(let l, _, _, _), .delete(let l, _): return l
-        case .add: return nil
+        case .text(let l, _, _, _), .delete(let l, _), .styled(let l, _, _, _): return l
+        case .add, .mark: return nil
         }
     }
     var addID: UUID? { if case .add(let id, _, _, _, _) = self { return id }; return nil }
+    var markID: UUID? { if case .mark(let id, _, _) = self { return id }; return nil }
     var page: Int {
         switch self {
-        case .text(let l, _, _, _), .delete(let l, _): return l.page
-        case .add(_, let p, _, _, _): return p
+        case .text(let l, _, _, _), .delete(let l, _), .styled(let l, _, _, _): return l.page
+        case .add(_, let p, _, _, _), .mark(_, let p, _): return p
         }
     }
 }
@@ -402,6 +430,14 @@ final class PDFEditSession {
         let text = newText.replacingOccurrences(of: "\r\n", with: " ").map { $0.isNewline || $0 == "\t" ? " " : String($0) }.joined()
         if case .readOnly(let why) = availability(id) { throw ConversionError.unsupported(why) }
         let old = edit(for: id)
+        if case .styled(_, let t, let style, let sc)? = old {
+            // A restyled line keeps its style while its text changes.
+            if t == text { return }
+            if text.trimmingCharacters(in: .whitespaces).isEmpty { try deleteLine(id, scope: scope ?? sc); return }
+            try replaceEdits(edits.map { $0.line == id ? .styled(line: id, text: text, style: style, scope: scope ?? sc) : $0 },
+                             actionName: "Edit Text", lines: [id])
+            return
+        }
         if text.precomposedStringWithCanonicalMapping == l.text.precomposedStringWithCanonicalMapping {
             if old != nil { try replaceEdits(edits.filter { $0.line != id }, actionName: "Edit Text", lines: [id]) }
             return
@@ -443,7 +479,8 @@ final class PDFEditSession {
         switch e {
         case .text(let l, let t, let sp, _): changed = .text(line: l, text: t, spacing: sp, scope: scope)
         case .delete(let l, _): changed = .delete(line: l, scope: scope)
-        case .add: return
+        case .styled(let l, let t, let st, _): changed = .styled(line: l, text: t, style: st, scope: scope)
+        case .add, .mark: return
         }
         try replaceEdits(edits.map { $0.line == id ? changed : $0 }, actionName: scope == .allPages ? "Edit All Pages" : "Edit This Page", lines: [id])
     }
@@ -470,6 +507,73 @@ final class PDFEditSession {
     func removeAddedText(_ id: UUID) {
         guard edits.contains(where: { $0.addID == id }) else { return }
         try? replaceEdits(edits.filter { $0.addID != id }, actionName: "Delete Text", added: [id])
+    }
+
+    // MARK: Style of a line
+
+    /// True when the line is redrawn in a style of its own (it is then drawn whole: spacing doesn't apply).
+    func isRestyled(_ id: PDFLineID) -> Bool { if case .styled? = edit(for: id) { return true }; return false }
+
+    /// The style a line is drawn in now: its restyle, else its own font (or the scan's closest match), size and colour.
+    func style(of id: PDFLineID) -> PDFTextStyle? {
+        if case .styled(_, _, let st, _)? = edit(for: id) { return st }
+        guard let l = line(id) else { return nil }
+        if let scan = scanLook(id) { return scan.style }
+        let font = editorFont(id).font
+        let c = content(page: id.page)
+        let fill = l.runs.first.map { c.runs[$0].fill } ?? [0]
+        return PDFTextStyle(fontName: font.fontName, size: (l.pointSize * 100).rounded() / 100, color: PDFEditSession.color(fill))
+    }
+
+    /// Redraws a line in `style` (another font, bold, italic, size or colour), keeping its current text.
+    func setStyle(_ style: PDFTextStyle, for id: PDFLineID) throws {
+        guard let l = line(id) else { throw ConversionError.unsupported("That line doesn’t exist.") }
+        if case .readOnly(let why) = availability(id) { throw ConversionError.unsupported(why) }
+        guard NSFont(name: style.fontName, size: 12) != nil else { throw ConversionError.unsupported("The font \(style.fontName) isn’t on this Mac.") }
+        let old = edit(for: id)
+        var text = l.text
+        switch old {
+        case .text(_, let t, _, _)?: text = t
+        case .styled(_, let t, _, _)?: text = t
+        case .delete?: throw ConversionError.unsupported("The line is deleted. Revert it first.")
+        default: break
+        }
+        let entry = PDFEdit.styled(line: id, text: text, style: style, scope: old?.scopeValue ?? .thisPage)
+        if entry == old { return }
+        var new = edits
+        if let i = new.firstIndex(where: { $0.line == id }) { new[i] = entry } else { new.append(entry) }
+        try replaceEdits(new, actionName: "Change Style", lines: [id])
+    }
+
+    // MARK: Highlights and pictures
+
+    var marks: [PDFMark] {
+        edits.compactMap { if case .mark(let id, let p, let k) = $0 { return PDFMark(id: id, page: p, kind: k) }; return nil }
+    }
+
+    @discardableResult
+    func addMark(_ kind: PDFMarkKind, page: Int) throws -> UUID {
+        guard page >= 0, page < pages.count else { throw ConversionError.unsupported("Page \(page + 1) doesn’t exist.") }
+        if signatures.noChangesAllowed { throw ConversionError.unsupported("The signature on this PDF doesn’t allow changes.") }
+        let id = UUID()
+        let name: String
+        switch kind { case .highlight: name = "Highlight"; case .image: name = "Add Picture" }
+        try replaceEdits(edits + [.mark(id: id, page: page, kind: kind)], actionName: name, added: [id])
+        return id
+    }
+
+    func updateMark(_ id: UUID, _ kind: PDFMarkKind, actionName: String) throws {
+        guard let i = edits.firstIndex(where: { $0.markID == id }), case .mark(_, let p, let old) = edits[i], old != kind else { return }
+        var new = edits
+        new[i] = .mark(id: id, page: p, kind: kind)
+        try replaceEdits(new, actionName: actionName, added: [id])
+    }
+
+    func removeMark(_ id: UUID) {
+        guard let m = marks.first(where: { $0.id == id }) else { return }
+        let name: String
+        switch m.kind { case .highlight: name = "Remove Highlight"; case .image: name = "Remove Picture" }
+        try? replaceEdits(edits.filter { $0.markID != id }, actionName: name, added: [id])
     }
 
     /// Sets the whole edit list (the undo model), rebuilding the candidate first; a refusal leaves everything as it was.
@@ -559,20 +663,24 @@ final class PDFEditSession {
         let font = firstRun.flatMap { c.font(of: $0) }
         var text = l.text
         var deleted = false
+        var styled: PDFTextStyle?
         switch e {
         case .text(_, let t, _, _)?: text = t
+        case .styled(_, let t, let st, _)?: text = t; styled = st
         case .delete?: text = ""; deleted = true
         default: break
         }
         // The picture is read when the line is edited or opened for typing (editorFont), not for every line listed.
         let scan = e != nil ? scanLook(id) : cachedScanLook(id)
         let quad = st?.quad ?? l.quad
+        let styledName = styled.map { NSFont(name: $0.fontName, size: 12)?.displayName ?? $0.fontName }
         return PDFLineInfo(id: id, originalText: l.text, text: text, isEdited: e != nil, isDeleted: deleted,
                            quad: quad, originalQuad: l.quad, origin: scan?.origin ?? l.origin, direction: l.direction, angle: l.angle,
-                           pointSize: scan?.style.size ?? l.pointSize,
-                           color: scan?.style.color ?? PDFEditSession.color(firstRun?.fill ?? [0]), availability: availability(id),
+                           pointSize: styled?.size ?? scan?.style.size ?? l.pointSize,
+                           color: styled?.color ?? scan?.style.color ?? PDFEditSession.color(firstRun?.fill ?? [0]), availability: availability(id),
                            notes: notes(id),
-                           fontDescription: scan.map { "Scanned text, drawn in \($0.fontDisplayName) (closest match on this Mac)" }
+                           fontDescription: styledName.map { "\($0) (this Mac)" }
+                               ?? scan.map { "Scanned text, drawn in \($0.fontDisplayName) (closest match on this Mac)" }
                                ?? font?.sourceDescription ?? "Unknown font",
                            substitutions: build?.lineSubstitutions[id] ?? [], spacing: e?.spacingValue ?? .flow,
                            scope: e?.scopeValue ?? .thisPage, sharedPages: sharedPages(id), overflow: st?.overflow ?? 0,
@@ -581,6 +689,7 @@ final class PDFEditSession {
 
     /// The font the inline editor types in, sized in page points (multiply by the zoom).
     func editorFont(_ id: PDFLineID) -> (font: NSFont, source: PDFEditorFontSource) {
+        if case .styled(_, _, let st, _)? = edit(for: id), let f = NSFont(name: st.fontName, size: CGFloat(st.size)) { return (f, .installed) }
         if let scan = scanLook(id), let f = NSFont(name: scan.style.fontName, size: CGFloat(scan.style.size)) { return (f, .similar) }
         guard let l = line(id), let r = l.runs.first else { return (NSFont.systemFont(ofSize: 12), .system) }
         let c = content(page: id.page)
@@ -669,8 +778,8 @@ private extension PDFEdit {
     var spacingValue: PDFSpacing? { if case .text(_, _, let s, _) = self { return s }; return nil }
     var scopeValue: PDFEditScope? {
         switch self {
-        case .text(_, _, _, let s), .delete(_, let s): return s
-        case .add: return nil
+        case .text(_, _, _, let s), .delete(_, let s), .styled(_, _, _, let s): return s
+        case .add, .mark: return nil
         }
     }
 }
@@ -786,6 +895,8 @@ final class PDFEditBuilder {
         let text: String?
         let spacing: PDFSpacing
         let request: Int?
+        /// Baseline direction, page space (restyled lines keep theirs).
+        var direction = CGVector(dx: 1, dy: 0)
         /// Unchanged words before the edit: left as they are in the picture and written as invisible text, so the
         /// line still reads whole.
         var keptText: String? = nil
@@ -834,6 +945,7 @@ final class PDFEditBuilder {
         var plans: [LinePlan] = []
         var adds: [AddPlan] = []
         var scans: [ScanPlan] = []
+        var marks: [(id: UUID, page: Int, kind: PDFMarkKind)] = []
         for e in edits {
             switch e {
             case .text(let id, let text, let spacing, let scope):
@@ -863,6 +975,25 @@ final class PDFEditBuilder {
             case .delete(let id, let scope):
                 plans.append(try plan(id, newText: "", spacing: .keep, scope: scope, delete: true))
                 if let look = session.scanLook(id) { scans.append(ScanPlan(id: id, look: look, text: nil, spacing: .keep, request: nil)) }
+            case .styled(let id, let text, let style, let scope):
+                // The line's own text goes (as Delete), a scan's old words are covered, and the text is drawn in the style.
+                guard let l = session.line(id) else { throw ConversionError.unsupported("\(id) doesn’t exist.") }
+                let shown = String(text.reversed().drop(while: { $0 == " " }).reversed())
+                if PDFTransplant.isEmoji(shown) { throw ConversionError.unsupported("Emoji can’t be added as PDF text.") }
+                plans.append(try plan(id, newText: "", spacing: .keep, scope: scope, delete: true))
+                let scan = session.scanLook(id)
+                let look = PDFScanLook(cover: scan?.cover ?? .null, paper: scan?.paper ?? [], ink: scan?.ink ?? [], style: style,
+                                       origin: scan?.origin ?? l.origin, inkWidth: scan?.inkWidth ?? Double(l.bounds.width))
+                if shown.trimmingCharacters(in: .whitespaces).isEmpty {
+                    if scan != nil { scans.append(ScanPlan(id: id, look: look, text: nil, spacing: .flow, request: nil)) }
+                } else {
+                    requests.append(PDFTransplant.Request(text: shown, font: CTFontCreateWithName(style.fontName as CFString, 100, nil)))
+                    var sp = ScanPlan(id: id, look: look, text: shown, spacing: .flow, request: requests.count - 1)
+                    if scan == nil { sp.direction = l.direction }
+                    scans.append(sp)
+                }
+            case .mark(let id, let page, let kind):
+                marks.append((id, page, kind))
             case .add(let id, let page, let origin, let text, let style):
                 let ct = CTFontCreateWithName(style.fontName as CFString, 100, nil)
                 requests.append(PDFTransplant.Request(text: text.replacingOccurrences(of: "\n", with: " "), font: ct))
@@ -881,13 +1012,14 @@ final class PDFEditBuilder {
         var addIDs: [Int: [UUID]] = [:]
         var scanLines: [Int: [PDFLineID]] = [:]
         var scanCovers: [Int: [CGRect]] = [:]
-        for page in Set(adds.map(\.page) + scans.map(\.id.page)).sorted() {
+        for page in Set(adds.map(\.page) + scans.map(\.id.page) + marks.map(\.page)).sorted() {
             let list = adds.filter { $0.page == page }
             let pageScans = scans.filter { $0.id.page == page }
-            addedStreams[page] = try emitAdds(list, scans: pageScans, page: page)
+            let pageMarks = marks.filter { $0.page == page }.map(\.kind)
+            addedStreams[page] = try emitAdds(list, scans: pageScans, marks: pageMarks, page: page)
             addIDs[page] = list.map(\.id)
             scanLines[page] = pageScans.filter { $0.text != nil }.map(\.id)
-            scanCovers[page] = pageScans.map(\.look.cover)
+            scanCovers[page] = pageScans.map(\.look.cover).filter { !$0.isNull } + pageMarks.map { $0.bounds.insetBy(dx: -1, dy: -1) }
         }
         let renames = try writeTargets()
         for (pi, d) in pendingPages { update.put(session.pages[pi].number, .dict(d), generation: session.pages[pi].generation) }
@@ -1273,30 +1405,74 @@ final class PDFEditBuilder {
         return number
     }
 
-    private func freshName(in fonts: PDFDict?) -> String {
+    private func freshName(in fonts: PDFDict?, prefix: String = "DWF") -> String {
         var k = 1
-        while fonts?[ "DWF\(k)"] != nil { k += 1 }
-        return "DWF\(k)"
+        while fonts?["\(prefix)\(k)"] != nil { k += 1 }
+        return "\(prefix)\(k)"
     }
 
     /// The page's /Font gets the new entry: a new version of the /Font object, else of the Resources object,
     /// else of the page (with inherited resources copied in).
+    /// A picture as an image XObject (RGB, with a soft mask when it has transparency). Returns its object number.
+    private func imageXObject(_ png: Data) throws -> (Int, Int, Int)? {
+        guard let src = CGImageSourceCreateWithData(png as CFData, nil), let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
+        let w = cg.width, h = cg.height
+        guard w > 0, h > 0, w * h <= 16_000_000 else { return nil }
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let ok: Bool = px.withUnsafeMutableBytes { buf in
+            guard let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard ok else { return nil }
+        var rgb = [UInt8](repeating: 0, count: w * h * 3), alpha = [UInt8](repeating: 255, count: w * h)
+        var transparent = false
+        for i in 0..<(w * h) {
+            let a = px[i * 4 + 3]
+            alpha[i] = a
+            if a < 255 { transparent = true }
+            for k in 0..<3 {
+                let c = px[i * 4 + k]
+                rgb[i * 3 + k] = a == 0 ? 255 : UInt8(min(255, (Int(c) * 255 + Int(a) / 2) / Int(a)))
+            }
+        }
+        func imageDict(_ space: String) -> PDFDict {
+            PDFDict([("Type", .name("XObject")), ("Subtype", .name("Image")), ("Width", .integer(w)), ("Height", .integer(h)),
+                     ("ColorSpace", .name(space)), ("BitsPerComponent", .integer(8))])
+        }
+        var dict = imageDict("DeviceRGB")
+        if transparent {
+            let mask = update.allocate()
+            update.putStream(mask, dict: imageDict("DeviceGray"), decoded: alpha)
+            dict["SMask"] = .ref(mask, 0)
+        }
+        let n = update.allocate()
+        update.putStream(n, dict: dict, decoded: rgb)
+        return (n, w, h)
+    }
+
     private func mergeFontIntoPage(_ pi: Int, font number: Int) -> String {
+        mergeResourceIntoPage(pi, category: "Font", number: number, prefix: "DWF")
+    }
+
+    /// The page's resource dictionary of `category` (Font, ExtGState, XObject) gets a new entry for object `number`.
+    private func mergeResourceIntoPage(_ pi: Int, category: String, number: Int, prefix: String) -> String {
         let page = session.pages[pi]
         var pageDict = pendingPages[pi] ?? page.dict
         let resValue: PDFValue? = pageDict["Resources"]
         var resources = resValue.flatMap { resolveCurrent($0)?.dict } ?? page.resources
-        let fontValue = resources["Font"]
-        if let fref = fontValue?.ref?.number, var fd = resolveCurrent(.ref(fref, 0))?.dict {
-            let name = freshName(in: fd)
+        let fontValue = resources[category]
+        if let fref = fontValue?.ref?.number, var fd = pendingDicts[fref] ?? resolveCurrent(.ref(fref, 0))?.dict {
+            let name = freshName(in: fd, prefix: prefix)
             fd[name] = .ref(number, 0)
             pendingDicts[fref] = fd
             return name
         }
         var fd = fontValue.flatMap { resolveCurrent($0)?.dict } ?? PDFDict()
-        let name = freshName(in: fd)
+        let name = freshName(in: fd, prefix: prefix)
         fd[name] = .ref(number, 0)
-        resources["Font"] = .dict(fd)
+        resources[category] = .dict(fd)
         if let rref = resValue?.ref?.number {
             pendingDicts[rref] = resources
         } else {
@@ -1343,7 +1519,7 @@ final class PDFEditBuilder {
 
     /// q … Q around the page's own content (plus Q for any q it leaves open), then the new text in its own
     /// q … Q. Returns the appended stream's object number.
-    private func emitAdds(_ list: [AddPlan], scans: [ScanPlan] = [], page pi: Int) throws -> Int {
+    private func emitAdds(_ list: [AddPlan], scans: [ScanPlan] = [], marks: [PDFMarkKind] = [], page pi: Int) throws -> Int {
         let t = transplant
         if t == nil && (!list.isEmpty || scans.contains { $0.request != nil }) {
             throw ConversionError.toolFailed("Couldn’t prepare the text to add.")
@@ -1356,9 +1532,35 @@ final class PDFEditBuilder {
         func f(_ d: Double) -> String { PDFNumber.format(d) }
         var body = "\n" + String(repeating: "Q\n", count: max(0, c.unbalancedSaves) + 1)
         // Scanned lines: paper over the old words, then the new words in the closest font (page space, horizontal).
-        for sp in scans {
+        for sp in scans where !sp.look.cover.isNull && sp.look.paper.count == 3 {
             let r = sp.look.cover, p = sp.look.paper
             body += "q \(f(p[0])) \(f(p[1])) \(f(p[2])) rg \(f(r.minX)) \(f(r.minY)) \(f(r.width)) \(f(r.height)) re f Q\n"
+        }
+        // Highlights: under the page's own content where there's no picture (a marker under the text: no
+        // transparency, which would make Core Graphics redraw the whole page through a group); over a picture (a scan),
+        // painted on top with Multiply so the words in it stay as dark as they were.
+        var under = ""
+        var highlights: [([CGRect], Double, Double, Double)] = []
+        for m in marks {
+            guard case .highlight(let rs, let r, let g, let b) = m else { continue }
+            let overPicture = rs.filter { rc in c.images.contains { !$0.bounds.intersection(rc).isNull } }
+            let plain = rs.filter { rc in !overPicture.contains(rc) }
+            if !overPicture.isEmpty { highlights.append((overPicture, r, g, b)) }
+            if !plain.isEmpty {
+                under += "q \(f(r)) \(f(g)) \(f(b)) rg "
+                for rc in plain { under += "\(f(rc.minX)) \(f(rc.minY)) \(f(rc.width)) \(f(rc.height)) re " }
+                under += "f Q\n"
+            }
+        }
+        if !highlights.isEmpty {
+            let gs = update.allocate()
+            update.put(gs, .dict(PDFDict([("Type", .name("ExtGState")), ("BM", .name("Multiply"))])))
+            let gsName = mergeResourceIntoPage(pi, category: "ExtGState", number: gs, prefix: "DWGS")
+            for (rects, r, g, b) in highlights {
+                body += "q /\(gsName) gs \(f(r)) \(f(g)) \(f(b)) rg "
+                for rc in rects { body += "\(f(rc.minX)) \(f(rc.minY)) \(f(rc.width)) \(f(rc.height)) re " }
+                body += "f Q\n"
+            }
         }
         for sp in scans {
             guard let req = sp.request, let t else { continue }
@@ -1385,7 +1587,10 @@ final class PDFEditBuilder {
                     body += String(decoding: PDFValue.string(seg.bytes, hex: true).serialized(), as: UTF8.self) + " Tj "
                 }
             }
-            body += "0 Tr \(f(100 * scale)) Tz 1 0 0 1 \(f(sp.look.origin.x)) \(f(sp.look.origin.y)) Tm "
+            let dv = sp.direction
+            let slant = st.syntheticItalic ? 0.21 : 0
+            body += st.syntheticBold ? "2 Tr \(f(st.red)) \(f(st.green)) \(f(st.blue)) RG \(f(st.size * 0.035)) w " : "0 Tr "
+            body += "\(f(100 * scale)) Tz \(f(dv.dx)) \(f(dv.dy)) \(f(slant * dv.dx - dv.dy)) \(f(slant * dv.dy + dv.dx)) \(f(sp.look.origin.x)) \(f(sp.look.origin.y)) Tm "
             for seg in segs {
                 let number = try copiedFont(seg.scratchFont)
                 let key = "page:\(pi)|\(number)"
@@ -1398,8 +1603,10 @@ final class PDFEditBuilder {
         }
         for a in list {
             let st = a.style
-            body += "q BT 0 Tc 0 Tw 100 Tz 0 Ts 0 Tr \(f(st.red)) \(f(st.green)) \(f(st.blue)) rg "
-            body += "\(f(cosA)) \(f(sinA)) \(f(-sinA)) \(f(cosA)) \(f(a.origin.x)) \(f(a.origin.y)) Tm "
+            let slant = st.syntheticItalic ? 0.21 : 0
+            body += "q BT 0 Tc 0 Tw 100 Tz 0 Ts \(st.syntheticBold ? 2 : 0) Tr \(f(st.red)) \(f(st.green)) \(f(st.blue)) rg "
+            if st.syntheticBold { body += "\(f(st.red)) \(f(st.green)) \(f(st.blue)) RG \(f(st.size * 0.035)) w " }
+            body += "\(f(cosA)) \(f(sinA)) \(f(slant * cosA - sinA)) \(f(slant * sinA + cosA)) \(f(a.origin.x)) \(f(a.origin.y)) Tm "
             var subs: [PDFFontSubstitution] = []
             guard let t else { continue }
             for seg in t.segments[a.request] {
@@ -1419,8 +1626,21 @@ final class PDFEditBuilder {
             body += "ET Q\n"
             addSubs[a.id] = subs
         }
+        // Pictures last, on top of everything, upright for the reader.
+        for m in marks {
+            guard case .image(let png, let rect) = m else { continue }
+            guard let (img, w, h) = try imageXObject(png) else { throw ConversionError.unsupported("That picture can’t be read.") }
+            let name = mergeResourceIntoPage(pi, category: "XObject", number: img, prefix: "DWIm")
+            // Unit square → the rectangle, turned with the page so the picture reads upright.
+            let upright = page.rotate % 180 == 0 ? CGSize(width: rect.width, height: rect.height) : CGSize(width: rect.height, height: rect.width)
+            _ = (w, h)
+            let u = CGVector(dx: cosA * upright.width, dy: sinA * upright.width)
+            let v = CGVector(dx: -sinA * upright.height, dy: cosA * upright.height)
+            let ox = rect.minX - min(0, u.dx) - min(0, v.dx), oy = rect.minY - min(0, u.dy) - min(0, v.dy)
+            body += "q \(f(u.dx)) \(f(u.dy)) \(f(v.dx)) \(f(v.dy)) \(f(ox)) \(f(oy)) cm /\(name) Do Q\n"
+        }
         let open = update.allocate(), close = update.allocate()
-        update.putStream(open, dict: PDFDict(), decoded: Array("q\n".utf8))
+        update.putStream(open, dict: PDFDict(), decoded: Array((under + "q\n").utf8))
         update.putStream(close, dict: PDFDict(), decoded: Array(body.utf8))
         var pageDict = pendingPages[pi] ?? page.dict
         let existing: [PDFValue]

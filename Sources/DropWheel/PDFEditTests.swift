@@ -33,6 +33,12 @@ enum PDFEditTests {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let t0 = Date()
+            // PDFEDIT_ONLY=markup|scan: just that part (while working on it).
+            switch ProcessInfo.processInfo.environment["PDFEDIT_ONLY"] {
+            case "markup"?: try markup(c, dir); return (c.failed == 0 ? "PASS" : "FAIL") + " pdf-edit markup\n" + c.lines.joined(separator: "\n")
+            case "scan"?: try scannedText(c, dir); return (c.failed == 0 ? "PASS" : "FAIL") + " pdf-edit scan\n" + c.lines.joined(separator: "\n")
+            default: break
+            }
             try objectLayer(c, dir)
             try runsAndReplace(c, dir)
             try lineState(c, dir)
@@ -42,6 +48,7 @@ enum PDFEditTests {
             try documentsAndCLI(c, dir)
             try realFixtures(c, dir)
             try scannedText(c, dir)
+            try markup(c, dir)
             try hostileFiles(c, dir)
             c.lines.append("time \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         } catch {

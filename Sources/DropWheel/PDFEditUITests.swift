@@ -31,6 +31,7 @@ enum PDFEditUITests {
             try rotatedPages(c, dir)
             try bannersAndSnapshot(c, report, dir)
             try reviewRegressions(c, report, dir)
+            try markupTools(c, report, dir)
             c.lines.append("time \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         } catch {
             c.check(false, "error: \(error.localizedDescription)")
@@ -136,9 +137,9 @@ enum PDFEditUITests {
         c.check(d.window.title == "report.pdf" && d.window.subtitle == "Edit PDF" && d.window.representedURL == url,
                 "titled “report.pdf”, subtitle “Edit PDF”, represented URL set")
         let ids = d.window.toolbar?.items.map(\.itemIdentifier.rawValue) ?? []
-        c.check(ids == ["pdfedit.sidebar", "NSToolbarFlexibleSpaceItem", "pdfedit.mode", "pdfedit.zoom", "NSToolbarFlexibleSpaceItem",
+        c.check(ids == ["pdfedit.sidebar", "NSToolbarFlexibleSpaceItem", "pdfedit.mode", "pdfedit.sign", "pdfedit.zoom", "NSToolbarFlexibleSpaceItem",
                         "pdfedit.undo", "pdfedit.redo", "pdfedit.inspector", "pdfedit.save"],
-                "toolbar: sidebar · Edit Text|Add Text, zoom · Undo, Redo, inspector, Save (\(ids.count) items)")
+                "toolbar: sidebar · Edit Text|Add Text|Highlight, Sign, zoom · Undo, Redo, inspector, Save (\(ids.count) items)")
         // The item's `.prominent` style draws nothing in YummyOrange's toolbars, so Save is the image editors' accent button.
         let prominent = d.window.toolbar?.items.filter { $0.view is ImageEditors.Bar.ProminentButton }.map(\.itemIdentifier.rawValue) ?? []
         c.check(prominent == ["pdfedit.save"], "Save is the one prominent toolbar item (an accent push button): \(prominent)")
@@ -392,7 +393,7 @@ enum PDFEditUITests {
 
         // Inspector for a selected line, then Revert.
         canvas.select(.line(l1))
-        c.check(ctl.inspector.sections == ["Text", "Spacing", "Saving"], "a selected line: inspector shows \(ctl.inspector.sections)")
+        c.check(ctl.inspector.sections == ["Text", "Style", "Spacing", "Saving"], "a selected line: inspector shows \(ctl.inspector.sections)")
         c.check(ctl.inspector.revertButton?.isEnabled == false && ctl.inspector.spacingButtons[.flow]?.isEnabled == false,
                 "Revert and Spacing wait until the line changes")
         _ = ctl.perform("") { try session.setText("Line 1: The quick red fox.", for: l1) }

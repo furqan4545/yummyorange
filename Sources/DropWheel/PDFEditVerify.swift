@@ -136,6 +136,7 @@ enum PDFEditVerify {
                         if pa[i] == pb[i] && pa[i + 1] == pb[i + 1] && pa[i + 2] == pb[i + 2] { continue }
                         let p = CGPoint(x: x.origin.x + (CGFloat(col) + 0.5) / x.scale, y: x.origin.y + (CGFloat(x.height - 1 - row) + 0.5) / x.scale)
                         if dirty.contains(where: { $0.contains(p) }) { continue }
+                        if ProcessInfo.processInfo.environment["DW_GATE_DEBUG"] != nil { print("gate: changed pixel at \(p)") }
                         n += 1
                     }
                 }

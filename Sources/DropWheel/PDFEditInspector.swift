@@ -16,6 +16,14 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
     let sizeField = NSTextField()
     let sizeStepper = NSStepper()
     let colorWell: NSColorWell
+    /// Bold and Italic for added text.
+    let addTraits = NSSegmentedControl(labels: ["B", "I"], trackingMode: .selectAny, target: nil, action: nil)
+    /// The selected line's style controls (made again on every reload).
+    private(set) var lineFont: NSPopUpButton?
+    private(set) var lineTraits: NSSegmentedControl?
+    private(set) var lineSize: NSTextField?
+    private(set) var lineColor: NSColorWell?
+    private(set) var highlightSwatches: NSSegmentedControl?
     private(set) var revertButton: NSButton?
     private(set) var spacingButtons: [PDFSpacing: NSButton] = [:]
     /// Section titles shown now (the self-test reads them).
@@ -85,6 +93,10 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         sizeStepper.action = #selector(stepped(_:))
         sizeStepper.setAccessibilityLabel("Size")
 
+        Self.configureTraits(addTraits, label: "added text")
+        addTraits.target = self
+        addTraits.action = #selector(styleChanged(_:))
+
         colorWell.isContinuous = false
         colorWell.target = self
         colorWell.action = #selector(styleChanged(_:))
@@ -118,7 +130,7 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
     /// The Add Text style remembered from last time.
     func loadRememberedStyle() -> PDFTextStyle {
         let last = ImageExtras.remembered(Self.remembered)
-        let name = last["font"].flatMap { Self.fonts.contains($0) ? $0 : nil } ?? "Helvetica"
+        let name = last["font"].flatMap { NSFont(name: $0, size: 12) != nil ? $0 : nil } ?? "Helvetica"
         let size = ImageExtras.rememberedNumber(last, "size", 12)
         var style = PDFTextStyle(fontName: name, size: min(400, max(1, size)))
         if let hex = last["color"], let c = NSColor(hex: hex) { style = PDFTextStyle(fontName: style.fontName, size: style.size, color: c.cgColor) }
@@ -170,9 +182,25 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         if let id = canvas.editor?.addedID { addedID = id }
         let addingNew = canvas.editor?.isNew == true
 
+        lineFont = nil; lineTraits = nil; lineSize = nil; lineColor = nil; highlightSwatches = nil
+        if let m = canvas.selectedMarkInfo {
+            markSection(m)
+            add(separator())
+            documentSection(session)
+            needsLayout = true
+            return
+        }
+        if canvas.mode == .highlight {
+            highlightSection(selected: nil)
+            add(separator())
+            documentSection(session)
+            needsLayout = true
+            return
+        }
         if let id = lineID, let info = session.info(id) {
             lineSection(info, canvas: canvas)
-            if info.availability.isEditable { spacingSection(info) }
+            if info.availability.isEditable && !info.isDeleted { lineStyleSection(id) }
+            if info.availability.isEditable && !session.isRestyled(id) { spacingSection(info) }
         } else if canvas.mode == .editText, addedID == nil {
             add(header("Text"))
             let hasText = !session.lines(page: canvas.page).isEmpty
@@ -275,8 +303,10 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         let style: PDFTextStyle
         if let id = addedID, let a = c.session.addedTexts.first(where: { $0.id == id }) { style = a.style } else { style = c.canvas.addStyle }
         add(header(addedID != nil ? "Added Text" : "Add Text"))
-        if !Self.fonts.contains(style.fontName) { fontPopUp.addItem(withTitle: style.fontName) }
-        fontPopUp.selectItem(withTitle: style.fontName)
+        let family = Self.family(of: style.fontName)
+        if fontPopUp.item(withTitle: family) == nil { fontPopUp.addItem(withTitle: family) }
+        fontPopUp.selectItem(withTitle: family)
+        Self.setTraits(addTraits, style: style)
         sizeField.doubleValue = style.size
         sizeStepper.doubleValue = style.size
         colorWell.color = NSColor(cgColor: style.color) ?? .black
@@ -284,7 +314,7 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         sizeRow.orientation = .horizontal
         sizeRow.alignment = .firstBaseline
         sizeRow.spacing = 4
-        add(grid([("Font", fontPopUp), ("Size", sizeRow), ("Color", colorWell)]))
+        add(grid([("Font", fontPopUp), ("Style", addTraits), ("Size", sizeRow), ("Color", colorWell)]))
         if addedID == nil && !addingNew { add(note("Click the page where the new text should start.")) }
         if let id = addedID, let a = c.session.addedTexts.first(where: { $0.id == id }) {
             for s in a.substitutions { add(note(s.description, symbol: "info.circle")) }
@@ -439,6 +469,206 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         return String(format: "#%02X%02X%02X", r, g, b)
     }
 
+    // MARK: Style of a line, highlights and pictures
+
+    /// Font, Bold/Italic, size and colour of the selected line: changing any redraws the line in that style.
+    private func lineStyleSection(_ id: PDFLineID) {
+        guard let c = controller, let style = c.session.style(of: id) else { return }
+        add(separator())
+        add(header("Style"))
+        let font = NSPopUpButton(frame: .zero, pullsDown: false)
+        let family = Self.family(of: style.fontName)
+        var families = Self.fonts
+        if !families.contains(family) { families.insert(family, at: 0) }
+        font.addItems(withTitles: families)
+        for item in font.itemArray {
+            if let f = NSFont(name: item.title, size: 13) ?? NSFontManager.shared.font(withFamily: item.title, traits: [], weight: 5, size: 13) {
+                item.attributedTitle = NSAttributedString(string: item.title, attributes: [.font: f])
+            }
+        }
+        font.selectItem(withTitle: family)
+        font.target = self
+        font.action = #selector(lineStyleChanged(_:))
+        font.setAccessibilityLabel("Font of the line")
+        let traits = NSSegmentedControl(labels: ["B", "I"], trackingMode: .selectAny, target: self, action: #selector(lineStyleChanged(_:)))
+        Self.configureTraits(traits, label: "the line")
+        Self.setTraits(traits, style: style)
+        let size = NSTextField()
+        let number = NumberFormatter()
+        number.minimum = 1; number.maximum = 400; number.maximumFractionDigits = 1
+        size.formatter = number
+        size.alignment = .right
+        size.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+        size.doubleValue = style.size
+        size.target = self
+        size.action = #selector(lineStyleChanged(_:))
+        (size.cell as? NSTextFieldCell)?.sendsActionOnEndEditing = true
+        size.setAccessibilityLabel("Size of the line in points")
+        size.widthAnchor.constraint(equalToConstant: 52).isActive = true
+        let stepper = NSStepper()
+        stepper.minValue = 1; stepper.maxValue = 400; stepper.increment = 1; stepper.doubleValue = style.size
+        stepper.target = self
+        stepper.action = #selector(lineSizeStepped(_:))
+        stepper.setAccessibilityLabel("Size")
+        let color = NSColorWell()
+        color.isContinuous = false
+        color.color = NSColor(cgColor: style.color) ?? .black
+        color.target = self
+        color.action = #selector(lineStyleChanged(_:))
+        color.setAccessibilityLabel("Color of the line")
+        color.widthAnchor.constraint(equalToConstant: 52).isActive = true
+        color.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        lineFont = font; lineTraits = traits; lineSize = size; lineColor = color
+        lineStepperRef = stepper
+        let sizeRow = NSStackView(views: [size, stepper, value("pt", secondary: true)])
+        sizeRow.orientation = .horizontal
+        sizeRow.alignment = .firstBaseline
+        sizeRow.spacing = 4
+        add(grid([("Font", font), ("Style", traits), ("Size", sizeRow), ("Color", color)]))
+    }
+    private var lineStepperRef: NSStepper?
+
+    @objc private func lineSizeStepped(_ sender: NSStepper) {
+        lineSize?.doubleValue = sender.doubleValue
+        lineStyleChanged(sender)
+    }
+
+    @objc private func lineStyleChanged(_ sender: Any?) {
+        guard let c = controller, let font = lineFont, let traits = lineTraits, let sizeField = lineSize, let well = lineColor else { return }
+        let id: PDFLineID
+        if let e = c.canvas.editor?.lineID { id = e } else if case .line(let s)? = c.canvas.selection { id = s } else { return }
+        if c.canvas.editor != nil { guard c.canvas.commitEditing() else { return } }
+        let size = min(400, max(1, sizeField.doubleValue > 0 ? sizeField.doubleValue : 12))
+        let style = Self.textStyle(family: font.titleOfSelectedItem ?? "Helvetica", bold: traits.isSelected(forSegment: 0),
+                                   italic: traits.isSelected(forSegment: 1), size: size, color: well.color)
+        c.perform("Couldn’t change the style") { try c.session.setStyle(style, for: id) }
+        c.canvas.select(.line(id))
+    }
+
+    /// Highlight mode (no highlight selected): the colour for new highlights. A highlight selected: its colour.
+    private func highlightSection(selected: PDFMark?) {
+        guard let c = controller else { return }
+        let removeButton = selected.map { _ in Self.smallButton("Remove", target: self, action: #selector(removeMark(_:))) }
+        add(header("Highlight", trailing: removeButton))
+        let current: (Double, Double, Double)
+        if let m = selected, case .highlight(_, let r, let g, let b) = m.kind { current = (r, g, b) } else { current = c.canvas.highlightColor }
+        let images = PDFEditCanvas.highlightColors.map { Self.dot(NSColor(srgbRed: $0.rgb.0, green: $0.rgb.1, blue: $0.rgb.2, alpha: 1)) }
+        let seg = NSSegmentedControl(images: images, trackingMode: .selectOne, target: self, action: #selector(highlightColorChosen(_:)))
+        for (i, hc) in PDFEditCanvas.highlightColors.enumerated() {
+            seg.setWidth(32, forSegment: i)
+            seg.setToolTip(hc.name, forSegment: i)
+            seg.setLabel("", forSegment: i)
+            (seg.cell as? NSSegmentedCell)?.setToolTip(hc.name, forSegment: i)
+            if abs(hc.rgb.0 - current.0) < 0.01 && abs(hc.rgb.1 - current.1) < 0.01 && abs(hc.rgb.2 - current.2) < 0.01 { seg.selectedSegment = i }
+        }
+        seg.setAccessibilityLabel("Highlight colour")
+        highlightSwatches = seg
+        add(grid([("Color", seg)]))
+        add(note(selected == nil ? "Drag across text to highlight it. Click a highlight to change its colour or remove it."
+                 : "Delete removes the highlight."))
+    }
+
+    private func markSection(_ m: PDFMark) {
+        switch m.kind {
+        case .highlight:
+            highlightSection(selected: m)
+        case .image(_, let r):
+            add(header("Picture", trailing: Self.smallButton("Remove", target: self, action: #selector(removeMark(_:)))))
+            add(grid([("Size", value("\(Self.points(Double(r.width))) × \(Self.points(Double(r.height))) pt"))]))
+            add(note("Drag the picture to move it, or its corner to resize it. Delete removes it."))
+        }
+    }
+
+    @objc private func highlightColorChosen(_ sender: NSSegmentedControl) {
+        guard let c = controller, sender.selectedSegment >= 0, sender.selectedSegment < PDFEditCanvas.highlightColors.count else { return }
+        c.canvas.setHighlightColor(PDFEditCanvas.highlightColors[sender.selectedSegment].rgb)
+    }
+
+    @objc private func removeMark(_ sender: Any?) { controller?.canvas.removeSelectedMark() }
+
+    static func smallButton(_ title: String, target: AnyObject, action: Selector) -> NSButton {
+        let b = NSButton(title: title, target: target, action: action)
+        b.bezelStyle = .rounded
+        b.controlSize = .small
+        b.font = .systemFont(ofSize: NSFont.systemFontSize(for: .small))
+        return b
+    }
+
+    static func dot(_ color: NSColor) -> NSImage {
+        let img = NSImage(size: CGSize(width: 14, height: 14), flipped: false) { r in
+            color.setFill()
+            NSBezierPath(ovalIn: r.insetBy(dx: 1, dy: 1)).fill()
+            NSColor.black.withAlphaComponent(0.2).setStroke()
+            NSBezierPath(ovalIn: r.insetBy(dx: 1.5, dy: 1.5)).stroke()
+            return true
+        }
+        img.isTemplate = false
+        return img
+    }
+
+    /// B and I: bold and italic type in their own faces, with spoken names.
+    static func configureTraits(_ seg: NSSegmentedControl, label: String) {
+        seg.setWidth(32, forSegment: 0)
+        seg.setWidth(32, forSegment: 1)
+        let b = NSFont.boldSystemFont(ofSize: 13)
+        let i = NSFontManager.shared.convert(NSFont.systemFont(ofSize: 13), toHaveTrait: .italicFontMask)
+        (seg.cell as? NSSegmentedCell)?.setToolTip("Bold", forSegment: 0)
+        (seg.cell as? NSSegmentedCell)?.setToolTip("Italic", forSegment: 1)
+        seg.setLabel("B", forSegment: 0)
+        seg.setLabel("I", forSegment: 1)
+        // Segment labels take the control's font: draw each letter as an image in its own face instead.
+        seg.setImage(letter("B", b), forSegment: 0)
+        seg.setImage(letter("I", i), forSegment: 1)
+        seg.setLabel("", forSegment: 0)
+        seg.setLabel("", forSegment: 1)
+        seg.setAccessibilityLabel("Bold and italic for \(label)")
+    }
+
+    private static func letter(_ s: String, _ font: NSFont) -> NSImage {
+        let str = NSAttributedString(string: s, attributes: [.font: font, .foregroundColor: NSColor.black])
+        let size = str.size()
+        let img = NSImage(size: CGSize(width: ceil(size.width) + 2, height: ceil(size.height)), flipped: false) { _ in
+            str.draw(at: CGPoint(x: 1, y: 0)); return true
+        }
+        img.isTemplate = true
+        img.accessibilityDescription = s == "B" ? "Bold" : "Italic"
+        return img
+    }
+
+    static func setTraits(_ seg: NSSegmentedControl, style: PDFTextStyle) {
+        let t = NSFont(name: style.fontName, size: 12).map { NSFontManager.shared.traits(of: $0) } ?? []
+        seg.setSelected(t.contains(.boldFontMask) || style.syntheticBold, forSegment: 0)
+        seg.setSelected(t.contains(.italicFontMask) || style.syntheticItalic, forSegment: 1)
+    }
+
+    /// A style in the family's bold or italic face, or drawn bold or slanted when the family has no such face.
+    static func textStyle(family: String, bold: Bool, italic: Bool, size: Double, color: NSColor) -> PDFTextStyle {
+        let name = fontName(family: family, bold: bold, italic: italic, size: size)
+        var st = PDFTextStyle(fontName: name, size: size, color: (color.usingColorSpace(.sRGB) ?? .black).cgColor)
+        let t = NSFont(name: name, size: 12).map { NSFontManager.shared.traits(of: $0) } ?? []
+        st.syntheticBold = bold && !t.contains(.boldFontMask)
+        st.syntheticItalic = italic && !t.contains(.italicFontMask)
+        return st
+    }
+
+    static func family(of fontName: String) -> String { NSFont(name: fontName, size: 12)?.familyName ?? fontName }
+
+    /// The family's face for bold and italic, or the nearest it has.
+    static func fontName(family: String, bold: Bool, italic: Bool, size: Double) -> String {
+        let fm = NSFontManager.shared
+        var traits: NSFontTraitMask = []
+        if bold { traits.insert(.boldFontMask) }
+        if italic { traits.insert(.italicFontMask) }
+        let weight = bold ? 9 : 5
+        if let f = fm.font(withFamily: family, traits: traits, weight: weight, size: CGFloat(size)) { return f.fontName }
+        guard var f = fm.font(withFamily: family, traits: [], weight: 5, size: CGFloat(size)) ?? NSFont(name: family, size: CGFloat(size)) else {
+            return family
+        }
+        if bold { f = fm.convert(f, toHaveTrait: .boldFontMask) }
+        if italic { f = fm.convert(f, toHaveTrait: .italicFontMask) }
+        return f.fontName
+    }
+
     // MARK: Actions
 
     @objc private func revert(_ sender: Any?) {
@@ -478,8 +708,8 @@ final class PDFEditInspector: NSView, NSTextFieldDelegate {
         guard let c = controller else { return }
         let size = min(400, max(1, sizeField.doubleValue > 0 ? sizeField.doubleValue : 12))
         sizeStepper.doubleValue = size
-        let style = PDFTextStyle(fontName: fontPopUp.titleOfSelectedItem ?? "Helvetica", size: size,
-                                 color: (colorWell.color.usingColorSpace(.sRGB) ?? .black).cgColor)
+        let style = Self.textStyle(family: fontPopUp.titleOfSelectedItem ?? "Helvetica", bold: addTraits.isSelected(forSegment: 0),
+                                   italic: addTraits.isSelected(forSegment: 1), size: size, color: colorWell.color)
         c.canvas.addStyle = style
         ImageExtras.remember(["font": style.fontName, "size": Self.points(style.size),
                               "color": String(format: "#%02X%02X%02X", Int(style.red * 255), Int(style.green * 255), Int(style.blue * 255))],

@@ -46,7 +46,7 @@ enum PDFEditPaint {
 /// Coordinates: page space (the PDF's unrotated user space) → upright space (crop box at the origin, /Rotate
 /// applied; `PDFEditGeometry.uprightTransform`) → view space (flipped, zoomed, the page centred with a margin).
 final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
-    enum Mode { case editText, addText }
+    enum Mode { case editText, addText, highlight }
 
     /// The inline editor while a line or a text box is being typed in.
     final class Editor {
@@ -132,6 +132,13 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
     private var availability: [PDFLineID: PDFLineAvailability] = [:]
     private var drag: (id: UUID, start: CGPoint, origin: CGPoint, moved: Bool, offset: CGVector)?
     private var elements: [PDFEditLineElement]?
+    /// The highlight or picture selected (instead of a line or an added text), and this page's marks.
+    var selectedMark: UUID?
+    var marksOnPage: [PDFMark] = []
+    var markDrag: MarkDrag?
+    var highlightDrag: (start: CGPoint, end: CGPoint)?
+    /// The colour of new highlights (sRGB 0…1).
+    var highlightColor: (Double, Double, Double) = PDFEditCanvas.highlightColors[0].rgb
     /// Each line's own band (see `band(_:)`), worked out once: lines and their fonts don't change.
     private var bands: [PDFLineID: Band] = [:]
 
@@ -285,6 +292,8 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
             if let id = e.line, id.page == page, let info = session.info(id) { editedInfos[id] = info }
         }
         addedOnPage = session.addedTexts.filter { $0.page == page }
+        marksOnPage = session.marks.filter { $0.page == page }
+        if let m = selectedMark, !session.marks.contains(where: { $0.id == m }) { selectedMark = nil }
     }
 
     func lines() -> [PDFTextLine] { session.lines(page: page) }
@@ -581,6 +590,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
             stroke(q, color: PDFEditPaint.accent, width: 1.5)
             NSGraphicsContext.restoreGraphicsState()
         }
+        drawMarkOverlays()
     }
 
     private func isEditing(_ t: PDFEditTarget) -> Bool {
@@ -675,9 +685,10 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
     }
 
     override func resetCursorRects() {
-        if mode == .addText {
+        if mode == .addText || mode == .highlight {
             addCursorRect(pageFrame.intersection(visibleRect), cursor: .iBeam)
         }
+        addMarkCursorRects()
         for a in addedOnPage { addCursorRect(Self.bounds(viewQuad(a.quad, grow: 3)).intersection(visibleRect), cursor: .iBeam) }
         guard mode == .editText else { return }
         for l in lines() {
@@ -711,6 +722,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
     func select(_ t: PDFEditTarget?, reveal: Bool = false) {
         if let t, case .line(let id) = t, id.page != page { show(page: id.page) }
         if let t, case .added(let id) = t, let a = session.addedTexts.first(where: { $0.id == id }), a.page != page { show(page: a.page) }
+        if t != nil, selectedMark != nil { selectedMark = nil; needsDisplay = true }
         if t != selection {
             for old in [selection].compactMap({ $0 }) { setNeedsDisplay(viewBounds(old, grow: 6)) }
             selection = t
@@ -755,6 +767,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
             guard commitEditing() else { return }
         }
         window?.makeFirstResponder(self)
+        if markMouseDown(at: p) { return }
         let t = target(at: p)
         if case .added(let id)? = t, let a = addedOnPage.first(where: { $0.id == id }) {
             drag = (id, p, a.origin, false, .zero)
@@ -776,6 +789,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
     override func mouseDragged(with event: NSEvent) { mouseDragged(to: convert(event.locationInWindow, from: nil)) }
 
     func mouseDragged(to p: CGPoint) {
+        if markMouseDragged(to: p) { return }
         guard var d = drag else { return }
         let off = CGVector(dx: p.x - d.start.x, dy: p.y - d.start.y)
         if !d.moved && hypot(off.dx, off.dy) < 3 { return }
@@ -788,6 +802,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
     override func mouseUp(with event: NSEvent) { mouseUp(at: convert(event.locationInWindow, from: nil)) }
 
     func mouseUp(at p: CGPoint) {
+        if markMouseUp(at: p) { return }
         guard let d = drag else { return }
         drag = nil
         if d.moved {
@@ -815,7 +830,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
         case 36, 76:                                                    // Return, Enter
             if let s = selection { beginEditing(s.editorTarget) } else { moveSelection(1) }
         case 51, 117: deleteSelection()                                 // ⌫, ⌦
-        case 53: select(nil)                                            // Esc
+        case 53: select(nil); selectMark(nil)                           // Esc
         case 116: show(page: page - 1)                                  // Page Up
         case 121: show(page: page + 1)                                  // Page Down
         case 115: show(page: 0)                                         // Home
@@ -832,6 +847,7 @@ final class PDFEditCanvas: NSView, NSTextViewDelegate, NSViewToolTipOwner {
 
     /// ⌫ on a selected line (not while typing): its text goes, with a spacer so nothing else moves.
     func deleteSelection() {
+        if selectedMark != nil { removeSelectedMark(); return }
         switch selection {
         case .line(let id)?:
             guard availability(id).isEditable else { NSSound.beep(); return }

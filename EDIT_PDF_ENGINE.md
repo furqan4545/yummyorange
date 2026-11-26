@@ -1,6 +1,6 @@
 # Edit PDF engine: API for the window builder
 
-Everything here is in `Sources/DropWheel/` and is checked by `--selftest pdf-edit` (267 checks). The engine never
+Everything here is in `Sources/DropWheel/` and is checked by `--selftest pdf-edit` (283 checks; the window: `--selftest pdf-edit-ui`, 162). The engine never
 writes the input file. Its output is always "<name> edited.pdf", and Save writes nothing unless the result passes the
 verification gate.
 
@@ -9,6 +9,7 @@ verification gate.
 | `PDFEditTool.swift` | `PDFEditTool` (the FeatureModule): the petal, the `present` hook, the command-line `run`, self-test routing |
 | `PDFEditSession.swift` | `PDFEditSession` (the API below), `PDFEditBuilder` (edits → one incremental update), `PDFEditAnalysis` (reads the candidate back) |
 | `PDFContentRuns.swift` | `PDFPageContent`: runs, lines, images, glyph quads, `PDFEditGeometry` |
+| `PDFEditMarks.swift` | Highlights and pictures on the canvas (drag to highlight, place, move, resize), `PDFEditPicture` (picture files, the saved signature), `PDFSignaturePadView` and `PDFSignatureSheet` |
 | `PDFEditScanText.swift` | `PDFScanText`, `PDFScanLook`: OCR lines over a scan (paper and ink colour, baseline, word starts and the closest installed font, read from the picture) |
 | `PDFEditFonts.swift` | `PDFEditFont` (decode, encode, evidence), `PDFFontMatch` (installed or closest font, editor font), `PDFTransplant` |
 | `PDFEditVerify.swift` | the gate |
@@ -279,3 +280,22 @@ changed word and those words are written again as invisible text, so the line re
 Fit Width squeezes the new words to the old ink width. The gate counts the covers as changed areas, checks ink under
 every new visible glyph and reads the text back. The old words stay in the picture under the cover (Remove replaced
 text takes out the old OCR text, not pixels).
+
+## 5b. Style, highlights and pictures
+
+- **Style of a line** (`session.setStyle(_:for:)`, `session.style(of:)`): `PDFEdit.styled(line:text:style:scope:)`. The
+  line's text is removed as Delete removes it (a scan's old words are covered, §5a) and the text is drawn in the style
+  in the appended stream, on the line's baseline and direction. Typing in a restyled line keeps the style; Spacing
+  doesn't apply (the line is drawn whole). Bold and italic use the family's own face; a family without one gets
+  `syntheticBold` (fill and stroke, 0.035 em) or `syntheticItalic` (a 0.21 slant), also for added text.
+- **Marks** (`addMark`, `updateMark`, `removeMark`, `marks`): `PDFEdit.mark(id:page:kind:)`, kind
+  `.highlight(rects:red:green:blue:)` or `.image(png:rect:)`. A highlight is painted under the page's own content (no
+  transparency: a transparency group makes Core Graphics redraw the whole page, which the gate sees as stray pixels);
+  over a picture (a scan) it is painted on top with an ExtGState `/BM /Multiply`. A picture becomes an RGB image
+  XObject with an `/SMask` when it has transparency, drawn last, upright for the page's rotation. The gate counts
+  each mark's bounds as a changed area.
+- **The window**: Edit Text | Add Text | Highlight; the Sign toolbar menu (Add My Signature, Draw Signature…, Add
+  Picture or Stamp…, Forget Saved Signature). A drawn signature is saved as a transparent PNG at 4× in the app's
+  defaults (`PDFEditSignaturePNG`) and placed like any picture: drag to move, the corner to resize (proportions
+  kept), Delete removes. The inspector shows Style (font, B/I, size, colour) for a selected line, Highlight (colour)
+  and Picture (size, Remove).

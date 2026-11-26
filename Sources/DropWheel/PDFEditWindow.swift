@@ -35,6 +35,8 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
     private(set) var showsSidebar = true
     private(set) var showsInspector = true
     private(set) var modeControl: NSSegmentedControl!
+    private(set) var signItem: NSMenuToolbarItem?
+    private var signatureSheet: PDFSignatureSheet?
     private(set) var zoomControl: NSSegmentedControl!
     private var undoItem: NSToolbarItem?
     private var redoItem: NSToolbarItem?
@@ -199,7 +201,7 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
     /// Toolbar state, status line, inspector and banners.
     func refreshChrome() {
         refreshToolbarAndStatus()
-        modeControl?.selectedSegment = canvas.mode == .editText ? 0 : 1
+        modeControl?.selectedSegment = Self.segment(for: canvas.mode)
         sidebarItem?.toolTip = showsSidebar ? "Hide Sidebar (⌃⌘S)" : "Show Sidebar (⌃⌘S)"
         inspectorItem?.toolTip = showsInspector ? "Hide Inspector (⌥⌘I)" : "Show Inspector (⌥⌘I)"
         inspectorShowsTyping = isTyping
@@ -309,10 +311,89 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
 
     // MARK: Actions
 
-    @objc func modeChanged(_ sender: NSSegmentedControl) { setMode(sender.selectedSegment == 1 ? .addText : .editText) }
+    /// Sign: Draw Signature…, the saved signature, Add Picture or Stamp…
+    func signMenu() -> NSMenu {
+        let m = NSMenu(title: "Sign")
+        m.delegate = self
+        rebuildSignMenu(m)
+        return m
+    }
+
+    func rebuildSignMenu(_ m: NSMenu) {
+        m.removeAllItems()
+        if let saved = PDFEditPicture.savedSignature, let img = NSImage(data: saved.png) {
+            let item = NSMenuItem(title: "Add My Signature", action: #selector(addSavedSignature(_:)), keyEquivalent: "")
+            item.target = self
+            img.size = CGSize(width: 80, height: 80 * saved.size.height / max(1, saved.size.width))
+            item.image = img
+            m.addItem(item)
+        }
+        let draw = NSMenuItem(title: PDFEditPicture.savedSignature == nil ? "Draw Signature…" : "Draw New Signature…",
+                              action: #selector(drawSignature(_:)), keyEquivalent: "")
+        draw.target = self
+        m.addItem(draw)
+        m.addItem(.separator())
+        let pic = NSMenuItem(title: "Add Picture or Stamp…", action: #selector(addPicture(_:)), keyEquivalent: "")
+        pic.target = self
+        m.addItem(pic)
+        if PDFEditPicture.savedSignature != nil {
+            m.addItem(.separator())
+            let forget = NSMenuItem(title: "Forget Saved Signature", action: #selector(forgetSignature(_:)), keyEquivalent: "")
+            forget.target = self
+            m.addItem(forget)
+        }
+    }
+
+    @objc func addSavedSignature(_ sender: Any?) {
+        guard let s = PDFEditPicture.savedSignature else { return }
+        if canvas.mode != .editText { setMode(.editText) }
+        canvas.placePicture(png: s.png, pixelSize: s.size, width: 160)
+    }
+
+    @objc func drawSignature(_ sender: Any?) {
+        guard !isSnapshot else { return }
+        let sheet = PDFSignatureSheet { [weak self] pad in
+            guard let self else { return }
+            self.signatureSheet = nil
+            guard let pad, let r = pad.renderPNG() else { return }
+            PDFEditPicture.saveSignature(r.png)
+            if self.canvas.mode != .editText { self.setMode(.editText) }
+            self.canvas.placePicture(png: r.png, pixelSize: r.size, width: 160)
+        }
+        signatureSheet = sheet
+        if let w = sheet.window { window.beginSheet(w) }
+    }
+
+    @objc func addPicture(_ sender: Any?) {
+        guard !isSnapshot else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a picture, stamp or signature to put on the page."
+        panel.prompt = "Add"
+        panel.beginSheetModal(for: window) { [weak self] r in
+            guard let self, r == .OK, let url = panel.url else { return }
+            guard let pic = PDFEditPicture.load(url) else {
+                self.showError(ConversionError.unsupported("\(url.lastPathComponent) can’t be read as a picture."), title: "Couldn’t add the picture")
+                return
+            }
+            if self.canvas.mode != .editText { self.setMode(.editText) }
+            self.canvas.placePicture(png: pic.png, pixelSize: pic.size, width: 200)
+        }
+    }
+
+    @objc func forgetSignature(_ sender: Any?) { PDFEditPicture.saveSignature(nil) }
+
+    @objc func modeChanged(_ sender: NSSegmentedControl) {
+        setMode([PDFEditCanvas.Mode.editText, .addText, .highlight][min(2, max(0, sender.selectedSegment))])
+    }
+
+    static func segment(for mode: PDFEditCanvas.Mode) -> Int {
+        switch mode { case .editText: return 0; case .addText: return 1; case .highlight: return 2 }
+    }
 
     func setMode(_ mode: PDFEditCanvas.Mode) {
-        if mode == .addText && session.isReadOnly { NSSound.beep(); refreshChrome(); return }
+        if mode != .editText && session.isReadOnly { NSSound.beep(); refreshChrome(); return }
         canvas.mode = mode
         refreshChrome()
     }
@@ -515,9 +596,10 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
     static let redoID = NSToolbarItem.Identifier("pdfedit.redo")
     static let inspectorID = NSToolbarItem.Identifier("pdfedit.inspector")
     static let saveID = NSToolbarItem.Identifier("pdfedit.save")
+    static let signID = NSToolbarItem.Identifier("pdfedit.sign")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.sidebarID, .flexibleSpace, Self.modeID, Self.zoomID, .flexibleSpace, Self.undoID, Self.redoID, Self.inspectorID, Self.saveID]
+        [Self.sidebarID, .flexibleSpace, Self.modeID, Self.signID, Self.zoomID, .flexibleSpace, Self.undoID, Self.redoID, Self.inspectorID, Self.saveID]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -534,20 +616,20 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
             sidebarItem = item
             return item
         case Self.modeID:
-            let seg = NSSegmentedControl(labels: ["Edit Text", "Add Text"], trackingMode: .selectOne,
+            let seg = NSSegmentedControl(labels: ["Edit Text", "Add Text", "Highlight"], trackingMode: .selectOne,
                                          target: self, action: #selector(modeChanged(_:)))
-            seg.selectedSegment = canvas.mode == .editText ? 0 : 1
+            seg.selectedSegment = Self.segment(for: canvas.mode)
             seg.setToolTip("Click a line on the page to change it", forSegment: 0)
             seg.setToolTip("Click the page to add new text", forSegment: 1)
-            seg.setWidth(84, forSegment: 0)
-            seg.setWidth(84, forSegment: 1)
+            seg.setToolTip("Drag across text to highlight it", forSegment: 2)
+            for i in 0..<3 { seg.setWidth(84, forSegment: i) }
             seg.setAccessibilityLabel("Mode")
-            if session.isReadOnly { seg.setEnabled(false, forSegment: 1) }
+            if session.isReadOnly { seg.setEnabled(false, forSegment: 1); seg.setEnabled(false, forSegment: 2) }
             modeControl = seg
             let item = NSToolbarItem(itemIdentifier: id)
             item.view = seg
             item.label = "Mode"
-            item.toolTip = "Edit Text or Add Text"
+            item.toolTip = "Edit Text, Add Text or Highlight"
             item.autovalidates = false
             return item
         case Self.zoomID:
@@ -572,6 +654,18 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
         case Self.redoID:
             let item = symbolItem(id, symbols: ["arrow.uturn.forward"], label: "Redo", tip: "Redo (⇧⌘Z)", action: #selector(redoAction))
             redoItem = item
+            return item
+        case Self.signID:
+            let item = NSMenuToolbarItem(itemIdentifier: id)
+            item.image = NSImage(systemSymbolName: "signature", accessibilityDescription: "Sign")
+            item.label = "Sign"
+            item.paletteLabel = "Sign and Add Picture"
+            item.toolTip = "Add your signature, or a picture or stamp"
+            item.showsIndicator = true
+            item.menu = signMenu()
+            item.autovalidates = false
+            item.isEnabled = !session.isReadOnly
+            signItem = item
             return item
         case Self.inspectorID:
             let item = symbolItem(id, symbols: ["sidebar.trailing", "sidebar.right"], label: "Inspector", tip: "Hide Inspector (⌥⌘I)",
@@ -623,6 +717,17 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
     /// mode (edit|add), add (a text added at x,y page points), zoom, sidebar/inspector (false hides them),
     /// width/height (content size), dark.
     static func snapshotView(url: URL, options: ToolOptions) -> NSView? {
+        // signaturepad=true: the Draw Signature sheet with a sample signature in it.
+        if options.bool("signaturepad", false) {
+            let sheet = PDFSignatureSheet { _ in }
+            var pts: [CGPoint] = []
+            for i in 0..<120 { let t = CGFloat(i) / 119; pts.append(CGPoint(x: 70 + 360 * t, y: 110 - 34 * sin(t * 9) * (1 - t * 0.5))) }
+            sheet.pad.add(stroke: pts)
+            sheet.pad.add(stroke: [CGPoint(x: 120, y: 150), CGPoint(x: 330, y: 138)])
+            guard let v = sheet.window?.contentView else { return nil }
+            v.layoutSubtreeIfNeeded()
+            return v
+        }
         let session: PDFEditSession
         do { session = try PDFEditSession(url: url) } catch {
             let label = NSTextField(wrappingLabelWithString: error.localizedDescription)
@@ -659,6 +764,16 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
             }
         }
         if options.string("mode", "edit") == "add" { setMode(.addText) }
+        if options.string("mode", "edit") == "highlight" { setMode(.highlight) }
+        // highlight=<text>: a highlight over that line; picture=<file>: a picture placed and selected.
+        if let h = options["highlight"], !h.isEmpty, let id = session.find(h, page: canvas.page).first, let l = session.line(id) {
+            let c = canvas.highlightColor
+            let pg = canvas.page
+            perform("Couldn’t highlight") { _ = try self.session.addMark(.highlight(rects: [l.bounds.insetBy(dx: -1, dy: -1)], red: c.0, green: c.1, blue: c.2), page: pg) }
+        }
+        if let path = options["picture"], !path.isEmpty, let pic = PDFEditPicture.load(URL(fileURLWithPath: path)) {
+            canvas.placePicture(png: pic.png, pixelSize: pic.size, width: CGFloat(options.double("picturewidth", 160)))
+        }
         if let text = options["select"], !text.isEmpty,
            let id = session.find(text, page: canvas.page).first ?? session.find(text).first {
             canvas.select(.line(id))
@@ -667,6 +782,16 @@ final class PDFEditWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
                 if let sp = try? PDFEditTool.spacing(options["spacing"]), sp != .flow {
                     perform("Couldn’t change the spacing") { try session.setSpacing(sp, for: id) }
                 }
+                canvas.select(.line(id))
+            }
+            // style=bold,italic,red,<size>: the selected line restyled.
+            if let st = options["style"], !st.isEmpty, var style = session.style(of: id) {
+                let parts = st.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+                let size = parts.compactMap { Double($0) }.first ?? style.size
+                let color = parts.contains("red") ? NSColor(srgbRed: 0.8, green: 0.1, blue: 0.1, alpha: 1) : (NSColor(cgColor: style.color) ?? .black)
+                style = PDFEditInspector.textStyle(family: PDFEditInspector.family(of: style.fontName), bold: parts.contains("bold"),
+                                                   italic: parts.contains("italic"), size: size, color: color)
+                perform("Couldn’t change the style") { try self.session.setStyle(style, for: id) }
                 canvas.select(.line(id))
             }
             if options.bool("editing", false) {
@@ -1016,3 +1141,8 @@ final class PDFEditStatusBar: ImageEditors.FillView {
     }
 }
 
+
+/// The Sign menu is rebuilt as it opens (the saved signature comes and goes).
+extension PDFEditWindowController: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) { if menu.title == "Sign" { rebuildSignMenu(menu) } }
+}
