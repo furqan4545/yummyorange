@@ -79,6 +79,7 @@ enum Registry {
         TextDocuments.self, EbooksAndPages.self, Presentations.self, Spreadsheets.self,
         AppShell.self, ShelfAndWelcome.self, HoldKey.self,
         MediaTrim.self, MediaFrameTools.self, MediaTools.self, PDFEditTool.self,
+        LinkDownload.self,   // a YouTube, X, Instagram, TikTok or Threads link dragged from a browser → MP4, MP3, M4A, WAV
         ResultsShelf.self,   // no petals: where new files show (`--selftest results-shelf`, `--snapshot menu`)
         ClotheslineModule.self,   // no petals: new files hung under the notch (`--selftest clothesline`, `--snapshot clothesline`)
         MenuBarIcon.self,   // no petals: the menu-bar icon (`--snapshot menubar-icon`)
@@ -115,6 +116,8 @@ extension Registry {
     /// (`OutputFormat.targets(forAll:)`): first the petals for a mixed selection (`mixedConvertCommands`), then every
     /// command that applies to the whole selection. A selection that one command handles gets exactly what it got before.
     static func convertCommands(for files: [URL], besides formats: [OutputFormat]) -> [WheelCommand] {
+        // A link dragged from a browser gets only the downloads (not ZIP and the other petals any file gets).
+        if !files.isEmpty, files.allSatisfy(LinkFiles.isDragged) { return LinkDownload.commands.filter { $0.applies(files) } }
         let all = commands
         let whole = files.isEmpty ? [] : all.filter { $0.wheel == .convert && $0.applies(files) }
         return mixedConvertCommands(for: files, besides: formats, whole: whole, all: all) + whole

@@ -65,7 +65,10 @@ final class DragMonitor {
         recognizer.keys = Settings.wheelKeys
         recognizer.isInDock = { DockGeometry.current().contains($0) }
         recognizer.readFiles = { [dragPasteboard] in
-            dragPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+            let files = dragPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+            guard files.isEmpty else { return files }
+            // No files: a YouTube, X, Instagram, TikTok or Threads link dragged from a browser stands in as a link file.
+            return LinkFiles.files(from: dragPasteboard, sourceApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
         }
         recognizer.frontmostBundleID = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
     }

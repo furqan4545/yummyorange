@@ -32,7 +32,7 @@ enum JobRunner {
     /// for it (FFmpegHelper.whenAvailable, one download for every waiting job, progress in the HUD) and runs again
     /// once it is there. Only once: a second run reports whatever it meets.
     private static func run(_ op: Operation, on files: [URL], earlier: Earlier?) {
-        let name = files.count == 1 ? files[0].lastPathComponent : "\(files.count) files"
+        let name = files.count == 1 ? LinkFiles.displayName(files[0]) : "\(files.count) files"
         HUD.shared.begin("\(op.title)  ·  \(name)")
         count(1)
         let several = earlier?.several ?? (files.count > 1)

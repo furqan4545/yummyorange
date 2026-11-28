@@ -596,6 +596,139 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .cl-more h3 { font-size: 1.375rem; letter-spacing: -0.01em; }
 .cl-more .split-copy p { margin-top: 12px; }
 
+/* ---------- From a link (LinkDownload.swift, simulated) ----------
+   The Clothesline's desk (wall, menu bar, notch, string, polaroids) with a browser window on it. The address is the
+   thing to grab: it highlights on press, a link chip follows the pointer 1:1, ⇧ blooms the Convert wheel, and the
+   result flies out of the corner banner onto the line. */
+
+.link-desk {
+  position: relative; margin-top: 40px; height: 700px;
+  border-radius: 20px; overflow: hidden; isolation: isolate;
+  background: linear-gradient(118deg, var(--wall-a) 0%, var(--wall-b) 48%, var(--wall-c) 100%);
+  border: 1px solid var(--line); -webkit-user-select: none; user-select: none; touch-action: pan-y;
+  --lk-browser-top: 200px;
+}
+.link-desk .card { cursor: default; pointer-events: none; }
+/* A download's name is the post's title: up to two lines, so "Sunset drive.mp4" reads whole on a phone too */
+.link-desk .card-name { margin: 5px 0 7px; padding: 0 2px; font-size: 0.6875rem; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: break-word; }
+.link-desk .line-svg { z-index: 6; }
+.link-desk .line-cards { z-index: 7; }
+
+.browser {
+  position: absolute; z-index: 5; left: 50%; top: var(--lk-browser-top); translate: -50% 0;
+  width: min(540px, calc(100% - 32px)); border-radius: 12px; overflow: hidden;
+  background: var(--surface); box-shadow: var(--shadow-lg), 0 0 0 0.5px var(--line-strong);
+}
+.br-top { display: flex; align-items: flex-end; gap: 14px; padding: 9px 10px 0 14px; background: var(--surface-2); }
+.br-lights { display: flex; gap: 7px; flex: none; align-self: center; margin-top: -2px; }
+.br-lights i { width: 11px; height: 11px; border-radius: 50%; background: #FF5F57; }
+.br-lights i:nth-child(2) { background: #FEBC2E; }
+.br-lights i:nth-child(3) { background: #28C840; }
+.br-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.br-tabs::-webkit-scrollbar { display: none; }
+.br-tabs [role="tab"] {
+  flex: none; min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px 8px 0 0;
+  background: transparent; color: var(--text-2); font: 500 0.8125rem/1 var(--font); cursor: pointer;
+  transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.br-tabs [role="tab"]:hover { color: var(--text); background: color-mix(in srgb, var(--surface) 45%, transparent); }
+.br-tabs [role="tab"][aria-selected="true"] { background: var(--surface); color: var(--text); font-weight: 600; }
+.br-tabs [role="tab"]:focus-visible { outline-offset: -3px; }
+.br-bar { padding: 8px 10px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.br-address {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; padding: 0 12px;
+  border: 0; border-radius: 9px; background: var(--surface-2); color: var(--text-2);
+  font: 0.875rem/1.2 var(--font); cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.br-address:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.br-address .br-lock { width: 12px; height: 12px; color: var(--text-3); }
+.br-url { min-width: 0; padding: 2px 5px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color 0.12s var(--ease), color 0.12s var(--ease); }
+/* Selected on press, as a browser selects its address: plum on the light accent, 9.3:1 */
+.br-address.selected .br-url { background: var(--accent-highlight); color: var(--plum); }
+.link-desk[data-state="dragging"] .br-address, .link-desk[data-state="open"] .br-address { cursor: grabbing; }
+.br-page { padding: 10px 10px 12px; }
+.br-video { position: relative; aspect-ratio: 2.35 / 1; border-radius: 8px; overflow: hidden; background: #1A1418; }
+.br-video img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; transition: opacity 0.2s var(--ease); }
+.br-play { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; translate: -50% -50%; border-radius: 50%; background: rgba(20, 12, 18, 0.5); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.br-play::after { content: ""; position: absolute; left: 22px; top: 17px; border-left: 16px solid #FFF; border-top: 10px solid transparent; border-bottom: 10px solid transparent; }
+.br-dur { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.62); color: #FFF; font-size: 0.6875rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.br-info { padding: 9px 2px 0; }
+.br-title { font-weight: 600; font-size: 1rem; line-height: 1.3; color: var(--text); }
+.br-meta { margin-top: 2px; color: var(--text-3); font-size: 0.8125rem; }
+
+/* The note: above the browser, pointing at the address; once a drag starts it sits beside the key, where the wheel
+   never opens (as in the playground). */
+.lk-note { position: absolute; z-index: 4; left: calc(50% - 250px); top: 92px; display: flex; align-items: flex-start; gap: 2px; pointer-events: none; color: var(--note-ink); }
+.lk-note .note-text { color: var(--note-ink); font-size: 1.125rem; }
+.lk-note .note-arrow { margin-top: 14px; }
+.lk-note.drawn .note-arrow path { stroke-dashoffset: 0; }
+.link-desk[data-state]:not([data-state="idle"]) .lk-note,
+.link-desk.line-out .lk-note { top: auto; bottom: 34px; left: 28px; max-width: calc(50% - 130px); }
+.link-desk[data-state]:not([data-state="idle"]) .lk-note .note-arrow,
+.link-desk.line-out .lk-note .note-arrow { display: none; }
+.link-desk[data-state]:not([data-state="idle"]) .lk-note .note-text,
+.link-desk.line-out .lk-note .note-text { white-space: normal; }
+
+.lk-keybar { bottom: 20px; }
+.lk-keybar .keybtn, .lk-keybar .sound-toggle { background: color-mix(in srgb, var(--surface) 62%, transparent); }
+.lk-keybar .keybtn:hover, .lk-keybar .sound-toggle:hover { background: color-mix(in srgb, var(--surface) 85%, transparent); }
+.lk-keybar .keybtn-label, .lk-keybar .sound-toggle { color: var(--text); }
+.lk-keybar .sound-toggle::before { background: var(--line-strong); }
+.lk-keybar .sound-toggle[aria-pressed="false"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+
+/* The drag image: what a browser shows under the pointer while a link is dragged */
+.lk-chip {
+  position: absolute; left: 0; top: 0; z-index: 41; display: flex; align-items: center; gap: 10px;
+  max-width: 270px; padding: 8px 14px 8px 8px; border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: var(--shadow-lg), 0 0 0 0.5px var(--line-strong); pointer-events: none; will-change: transform;
+}
+.lk-chip[hidden] { display: none; }
+.lk-chip-icon { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+.lk-chip-icon .ic { width: 16px; height: 16px; }
+.lk-chip-text { min-width: 0; display: grid; gap: 1px; }
+.lk-chip-title { font-weight: 600; font-size: 0.875rem; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-chip-url { font-size: 0.75rem; line-height: 1.25; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* While the wheel is up, the dragged link goes under it, so the centre capsule is never covered */
+.link-desk[data-state="open"] .lk-chip { z-index: 39; opacity: 0.82; }
+
+/* The corner banner (the app's HUD): "→ MP4  ·  name" and a progress bar */
+.lk-hud {
+  position: absolute; z-index: 9; right: 14px; top: 42px; width: min(280px, calc(100% - 28px)); padding: 12px 14px 13px;
+  border-radius: 14px; background: color-mix(in srgb, var(--surface) 86%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--shadow-md), 0 0 0 0.5px var(--line-strong);
+}
+.lk-hud[hidden] { display: none; }
+.lk-hud-text { display: block; font-size: 0.8125rem; font-weight: 600; line-height: 1.3; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-hud-bar { display: block; margin-top: 9px; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.lk-hud-bar i { display: block; width: 100%; height: 100%; border-radius: 2px; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--accent-light), var(--accent-deep)); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .lk-chip, .lk-hud { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .br-play { background: rgba(20, 12, 18, 0.72); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (max-width: 960px) {
+  .lk-note { left: 24px; }
+}
+@media (max-width: 760px) {
+  .link-desk { height: 640px; --lk-browser-top: 186px; }
+  .browser { width: calc(100% - 24px); }
+  .br-tabs [role="tab"] { padding: 0 9px; }
+  .br-top { padding-left: 10px; gap: 10px; }
+  .br-lights { display: none; }
+  /* On a phone the first note sits in the empty space where the line will hang; once something happens it moves
+     between the browser and the key, and stays there. */
+  .lk-note, .link-desk[data-state]:not([data-state="idle"]) .lk-note, .link-desk.line-out .lk-note {
+    top: auto; bottom: 110px; left: 12px; right: 12px; max-width: none; justify-content: center; text-align: center;
+  }
+  .link-desk[data-state="idle"]:not(.line-out) .lk-note { top: 96px; bottom: auto; }
+  .lk-note .note-arrow { display: none; }
+  .lk-note .note-text { white-space: normal; font-size: 1.0625rem; }
+  .lk-keybar { flex-wrap: nowrap; }
+  .lk-keybar .sound-toggle { margin-left: 13px; }
+}
+
 /* ---------- Editors: css/editors.css ---------- */
 
 /* ---------- Download ---------- */

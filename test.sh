@@ -49,7 +49,7 @@ for t in appshell gesture settings wheel mainthread holdkey image-extras image-e
          image-crop-redact pdf-extras more-formats media-probe archives subtitles target-size textdocs-roundtrip textdocs-encodings \
          textdocs-thread textdocs-limits pdf-text-convert markdown ebooks ebooks-hardening epub-roundtrip pages-synthetic snappy \
          epub-pdf-background presentations spreadsheets shelf results-shelf welcome media-trim media-tools media-split media-merge media-frame pdf-edit pdf-edit-ui \
-         clothesline clothesline-screenshots menubar menu-latency updater helper; do
+         clothesline clothesline-screenshots menubar menu-latency updater helper links; do
   selftest $t ""
 done
 

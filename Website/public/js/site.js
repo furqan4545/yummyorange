@@ -2049,6 +2049,474 @@
     new ResizeObserver(() => { geom(); layoutSlots(true); render(0); if (running) kick(); }).observe(screen);
   }
 
+  // ---------- From a link (LinkDownload.swift, simulated) ----------
+  // A post's address dragged out of the browser: ⇧ opens the Convert wheel with MP4, MP3, M4A and WAV (a link's only
+  // wheel, as in the app), the corner banner shows the download, and the new file flies out of it onto the Clothesline.
+  // The posts are made up and use the page's own pictures; nothing is fetched.
+  const desk = $('#link-desk');
+  if (desk) {
+    const POSTS = {
+      youtube: { url: 'youtube.com/watch?v=sunset-drive', title: 'Sunset drive', by: 'yummyorange', dur: '2:47', img: 'assets/sunset.webp', pos: '50% 50%' },
+      x: { url: 'x.com/yummyorange/status/1862094517203', title: 'Lake at dawn', by: '@yummyorange', dur: '0:21', img: 'assets/lake.webp', pos: '50% 40%' },
+      instagram: { url: 'instagram.com/reel/DdahliaHour', title: 'Dahlia hour', by: 'yummyorange', dur: '0:34', img: 'assets/sunset.webp', pos: '18% 70%' },
+      tiktok: { url: 'tiktok.com/@yummyorange/video/7443021904', title: 'Morning swim', by: '@yummyorange', dur: '0:15', img: 'assets/lake.webp', pos: '85% 75%' },
+      threads: { url: 'threads.com/@yummyorange/post/DfStillWater', title: 'Still water', by: '@yummyorange', dur: '0:28', img: 'assets/lake.webp', pos: '20% 20%' },
+    };
+    const SITE = { youtube: 'YouTube', x: 'X', instagram: 'Instagram', tiktok: 'TikTok', threads: 'Threads' };
+    const ITEMS = [
+      { id: 'mp4', kind: 'format', label: 'MP4', title: 'MP4 video', fmt: 'mp4' },
+      { id: 'mp3', kind: 'format', label: 'MP3', title: 'MP3 sound', fmt: 'mp3' },
+      { id: 'm4a', kind: 'format', label: 'M4A', title: 'M4A sound', fmt: 'm4a' },
+      { id: 'wav', kind: 'format', label: 'WAV', title: 'WAV sound', fmt: 'wav' },
+    ];
+    const address = $('#lk-address'), urlEl = $('#lk-url'), img = $('#lk-img'), durEl = $('#lk-dur');
+    const titleEl = $('#lk-post-title'), metaEl = $('#lk-meta'), page = $('#lk-page');
+    const chip = $('#lk-chip'), chipTitle = $('#lk-chip-title'), chipURL = $('#lk-chip-url');
+    const hud = $('#lk-hud'), hudText = $('#lk-hud-text'), hudFill = $('#lk-hud-fill');
+    const notch = $('#lk-notch'), ul = $('#lk-cards'), stringPath = $('#lk-string'), glowPath = $('#lk-glow');
+    const note = $('#lk-note'), noteText = $('#lk-note-text'), live = $('#lk-live'), shiftBtn = $('#lk-shift');
+    const lk = { site: 'youtube', drag: null, via: null, at: null, busy: false, again: false, pending: 0 };
+    const post = () => POSTS[lk.site];
+
+    const wheel = new Wheel($('#lk-wheel-layer'), {
+      role: 'menu',
+      onHighlight: (i, item) => { if (item && lk.via === 'keyboard') announce(live, item.title); },
+    });
+    wheel.setItems(ITEMS, { title: 'Convert', label: 'Convert wheel for the link' });
+    wheel.el.hidden = true;
+
+    const deskRect = () => desk.getBoundingClientRect();
+    const toDesk = (x, y) => { const r = deskRect(); return { x: x - r.left, y: y - r.top }; };
+    const addressCenter = () => { const a = urlEl.getBoundingClientRect(); return toDesk(a.left + a.width / 2, a.top + a.height / 2); };
+
+    // ----- The note: one next step at a time
+    const setNote = (text) => {
+      if (noteText.textContent === text) return;
+      noteText.textContent = text;
+      noteText.classList.remove('swap');
+      void noteText.offsetWidth;
+      noteText.classList.add('swap');
+    };
+    const idleNote = () => (lk.again ? 'Try another tab, or MP3' : coarse ? 'Drag the address out' : 'Press the address and drag it out');
+    const setState = (st, text) => {
+      desk.dataset.state = st;
+      setNote(text || {
+        idle: idleNote(),
+        selected: 'Now tap ⇧ below',
+        dragging: coarse ? 'Now tap ⇧ below' : 'Now tap ⇧',
+        open: lk.via === 'keyboard' ? 'Pick a format, then press Return' : 'Let go on MP4 or MP3',
+      }[st] || noteText.textContent);
+    };
+
+    // ----- Tabs: one made-up post per site
+    function setSite(key) {
+      lk.site = key;
+      const p = POSTS[key];
+      urlEl.textContent = p.url;
+      img.src = p.img;
+      img.style.objectPosition = p.pos;
+      durEl.textContent = p.dur;
+      titleEl.textContent = p.title;
+      metaEl.textContent = `${p.by} · a made-up post`;
+      page.setAttribute('aria-labelledby', `lk-tab-${key}`);
+      address.setAttribute('aria-label', `${p.url}, the address of ${p.title} on ${SITE[key]}`);
+      if (wheel.isOpen) closeWheel({ returnFocus: false });
+      address.classList.remove('selected');
+      if (!lk.busy && !lk.drag) setState('idle');
+    }
+    tabs($('.br-tabs', desk), (t) => setSite(t.dataset.site));
+    setSite('youtube');
+
+    // ----- The wheel
+    function openWheel(at, via) {
+      const switching = wheel.isOpen;
+      lk.via = via;
+      const r0 = deskRect(), availH = r0.height - 84;   // keep the key free
+      wheel.setScale(Math.min(1.12, (Math.min(r0.width, availH) - 24) / (2 * wheel.R)));
+      const r = wheel.R * wheel.scale;
+      lk.at = { x: clamp(at.x, r + 8, r0.width - r - 8), y: clamp(at.y, r + 8, Math.max(r + 8, availH - r)) };
+      wheel.place(lk.at.x, lk.at.y);
+      hideLine();
+      if (switching) wheel.reopen(); else wheel.open();
+      shiftBtn.classList.add('on');
+      setState('open');
+      if (via === 'keyboard') { wheel.el.focus({ preventScroll: true }); wheel.highlight(0); }
+      else if (lk.drag && lk.drag.last) wheel.highlight(wheel.indexAt(lk.drag.last.x, lk.drag.last.y), { quiet: true });
+      announce(live, `Convert wheel: MP4, MP3, M4A or WAV.${via === 'keyboard' ? ' Arrow keys to choose, Return to download, Escape to close.' : ''}`);
+    }
+    function closeWheel({ returnFocus = true } = {}) {
+      if (!wheel.isOpen) return;
+      const hadFocus = wheel.el.contains(document.activeElement) || document.activeElement === wheel.el;
+      wheel.highlight(-1, { quiet: true });
+      wheel.close();
+      shiftBtn.classList.remove('on');
+      if (hadFocus && returnFocus) address.focus({ preventScroll: true });
+    }
+
+    // ----- The dragged link (the browser's drag image): 1:1 with the pointer, springs home when let go elsewhere
+    const chipPos = { x: new Spring(0, { response: 0.42, damping: 0.9, eps: 0.05 }), y: new Spring(0, { response: 0.42, damping: 0.9, eps: 0.05 }), token: 0 };
+    const GRAB = { x: 23, y: 23 };   // the pointer sits on the chip's link icon
+    const placeChip = () => { chip.style.transform = `translate(${f2(chipPos.x.x - GRAB.x)}px, ${f2(chipPos.y.x - GRAB.y)}px)`; };
+    function showChip(at) {
+      const p = post();
+      chipTitle.textContent = p.title;
+      chipURL.textContent = p.url;
+      chipPos.token++;
+      chip.getAnimations().forEach((a) => a.cancel());
+      chipPos.x.snap(at.x); chipPos.y.snap(at.y);
+      placeChip();
+      chip.style.opacity = '';
+      chip.hidden = false;
+      if (!RM) chip.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 110, easing: 'ease-out' });
+    }
+    function returnChip(vel = { vx: 0, vy: 0 }) {
+      const home = addressCenter(), token = ++chipPos.token;
+      const done = () => { chip.hidden = true; chip.style.opacity = ''; address.classList.remove('selected'); };
+      if (RM || chip.hidden) { done(); return; }
+      chipPos.x.set(home.x, vel.vx); chipPos.y.set(home.y, vel.vy);
+      loop.add((dt) => {
+        if (token !== chipPos.token) return false;
+        chipPos.x.step(dt); chipPos.y.step(dt);
+        placeChip();
+        // It melts back into the address it came from.
+        const d = Math.hypot(chipPos.x.x - home.x, chipPos.y.x - home.y);
+        chip.style.opacity = clamp(d / 50, 0, 1).toFixed(3);
+        if (d < 1.5 || (chipPos.x.done && chipPos.y.done)) { done(); return false; }
+      });
+    }
+
+    // ----- Dropping on a petal: the corner banner, then the file onto the line
+    function apply(item) {
+      const p = post();
+      closeWheel({ returnFocus: false });
+      chipPos.token++;
+      if (RM || chip.hidden) chip.hidden = true;
+      else chip.animate([{ opacity: 0.82 }, { opacity: 0 }], { duration: 160, easing: 'ease-out' }).onfinish = () => { chip.hidden = true; };
+      address.classList.remove('selected');
+      download(item, p, lk.site);
+    }
+    function download(item, p, site) {
+      lk.busy = true;
+      const name = `${p.title}.${item.fmt}`;
+      hud.getAnimations().forEach((a) => a.cancel());
+      hudText.textContent = `→ ${item.label}  ·  ${p.title}`;
+      hudFill.style.transform = 'scaleX(0)';
+      hud.hidden = false;
+      if (!RM) hud.animate([{ opacity: 0, transform: 'translateY(-6px) scale(0.97)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+      setState('downloading', `Downloading from ${SITE[site]}…`);
+      announce(live, `Downloading ${name} from ${SITE[site]}.`);
+      const D = 1.9;
+      let t = 0, dropped = false;
+      // Progress is status, not motion: it fills under Reduce Motion too.
+      loop.add((dt) => {
+        t += dt;
+        const u = clamp(t / D, 0, 1);
+        // A moment to connect, then quick, then the last part while the file is finished.
+        const prog = u < 0.12 ? u * 0.25 : 0.03 + 0.97 * (1 - Math.pow(1 - (u - 0.12) / 0.88, 2.2));
+        hudFill.style.transform = `scaleX(${prog.toFixed(4)})`;
+        if (!dropped && u > 0.7) { dropped = true; showLine(); }
+        if (u >= 1) { finish(item, p, name); return false; }
+      });
+    }
+    function finish(item, p, name) {
+      const card = makeCard({ name, kind: item.fmt === 'mp4' ? 'video' : 'audio', img: p.img, pos: p.pos, dur: p.dur });
+      cards.unshift(card);
+      ul.insertBefore(card.li, ul.firstChild);
+      while (cards.length > 8) cards.pop().li.remove();
+      layoutSlots(false);
+      card.x.snap(slotX(0));
+      const r = deskRect(), h = hud.getBoundingClientRect();
+      if (!RM) card.flight = { t: 0, dur: 0.8, from: { x: h.left - r.left + h.width / 2, y: h.top - r.top + h.height / 2 } };
+      kick();
+      // The banner goes as the card leaves it.
+      if (RM) hud.hidden = true;
+      else hud.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(0.97)' }], { duration: 280, easing: 'ease-out', fill: 'forwards' })
+        .onfinish = (ev) => { hud.hidden = true; ev.target.cancel(); };
+      lk.busy = false;
+      lk.again = true;
+      setState('done', 'In Downloads, and on the line');
+      announce(live, `${name} is saved in Downloads and hangs on the Clothesline.`);
+      setTimeout(() => { if (desk.dataset.state === 'done') setState('idle'); }, 2600);
+    }
+
+    // ----- The Clothesline (as in the Clothesline section, without dragging cards)
+    const G = {};
+    const geom = () => {
+      G.W = desk.clientWidth; G.cx = G.W / 2; G.top = 46; G.notchBottom = 32;
+      // Wide enough for "Sunset drive.mp4"; a shallow sag keeps the cards clear of the browser below.
+      G.sag = clamp(G.W * 0.022, 10, 24);
+      G.cw = clamp(G.W * 0.1, 76, 112);
+      G.pitch = G.cw + clamp(G.W * 0.02, 10, 18);
+      G.start = clamp(G.W * 0.05, 18, 52) + G.cw / 2;
+      desk.style.setProperty('--cw', `${G.cw}px`);
+    };
+    geom();
+    const drop = new Spring(0, { response: 0.55, damping: 0.78 });
+    const K = Math.pow(TAU / 1.15, 2), C = 4.5, PEND_L = 96, SOFT = 0.32, LIM = 0.6, WALL = 400, CALM_DRIVE = 0.35, LIVELY_MS = 900;
+    let cards = [], out = false, running = false;
+    const slotX = (i) => G.start + i * G.pitch;
+    const layoutSlots = (snap) => cards.forEach((c, i) => { if (snap || RM) c.x.snap(slotX(i)); else c.x.set(slotX(i)); });
+    const ends = (d) => {
+      const dd = clamp(d, 0, 1);
+      return { x0: G.cx - dd * (G.cx + 24), x1: G.cx + dd * (G.W - G.cx + 24), y: G.notchBottom - 8 + d * (G.top - G.notchBottom + 8), sag: G.sag * d };
+    };
+    const stringY = (x, d) => {
+      const e = ends(d), half = (e.x1 - e.x0) / 2 || 1, u = clamp((x - G.cx) / half, -1, 1);
+      return e.y + e.sag * (1 - u * u);
+    };
+    function makeCard(d) {
+      const c = { ...d, theta: 0, omega: 0, ppx: null, pvx: 0, axs: 0, lively: 0,
+        x: new Spring(0, { response: 0.32, damping: 1, eps: 0.05 }), yOff: new Spring(0, { response: 0.4, damping: 0.75, eps: 0.05 }) };
+      const li = document.createElement('li'), el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `<span class="pin" aria-hidden="true"></span><span class="card-thumb" aria-hidden="true">${d.kind === 'video'
+        ? `<img src="${d.img}" alt="" style="object-position:${d.pos}"><span class="dur">${d.dur}</span>` : '<span class="wave-mini"></span>'}</span><span class="card-name"></span>`;
+      el.querySelector('.card-name').textContent = d.name;
+      li.appendChild(el);
+      c.li = li; c.el = el;
+      return c;
+    }
+    function render(dt) {
+      const d = RM ? (out ? 1 : 0) : drop.x, dd = clamp(d, 0, 1), e = ends(RM ? 1 : d);
+      const pathD = `M${f2(e.x0)} ${f2(e.y)}Q${f2(G.cx)} ${f2(e.y + 2 * e.sag)} ${f2(e.x1)} ${f2(e.y)}`;
+      stringPath.setAttribute('d', pathD);
+      glowPath.setAttribute('d', pathD);
+      const vis = RM ? (out ? 1 : 0) : dd;
+      stringPath.style.opacity = vis > 0.01 ? 1 : 0;
+      glowPath.style.opacity = vis > 0.01 ? 0.75 : 0;
+      cards.forEach((c) => {
+        let pinX, pinY;
+        if (c.flight) { pinX = c.fx; pinY = c.fy; }
+        else { pinX = RM ? c.x.x : G.cx + (c.x.x - G.cx) * dd; pinY = stringY(pinX, RM ? 1 : d) + c.yOff.x; }
+        // A damped pendulum driven by its pin's acceleration: the card lags, then swings back.
+        if (c.flight) { c.theta = 0.3 * (1 - c.flight.t); c.omega = 0; c.ppx = pinX; c.pvx = 0; }
+        else if (!RM && dt > 0) {
+          if (c.ppx === null) { c.ppx = pinX; c.pvx = 0; c.axs = 0; }
+          const vx = (pinX - c.ppx) / dt, raw = clamp((vx - c.pvx) / dt, -6000, 6000);
+          c.axs += (raw - c.axs) * Math.min(1, dt * 25);
+          c.ppx = pinX; c.pvx = vx;
+          const drive = c.lively > performance.now() ? 1 : CALM_DRIVE;
+          let t = dt;
+          while (t > 1e-6) {
+            const h = Math.min(t, 1 / 240);
+            let acc = -K * Math.sin(c.theta) - C * c.omega + drive * (c.axs / PEND_L) * Math.cos(c.theta);
+            const over = Math.abs(c.theta) - SOFT;
+            if (over > 0) acc -= Math.sign(c.theta) * WALL * over;
+            c.omega += acc * h;
+            c.theta += c.omega * h;
+            if (Math.abs(c.theta) > LIM) { c.theta = Math.sign(c.theta) * LIM; if (Math.sign(c.omega) === Math.sign(c.theta)) c.omega = 0; }
+            t -= h;
+          }
+        } else { c.theta = 0; c.omega = 0; }
+        const sc = RM || c.flight ? 1 : 0.4 + 0.6 * dd;
+        const op = c.flight ? 1 : RM ? (out ? 1 : 0) : clamp(dd * 2.4 - 0.2, 0, 1);
+        c.el.style.transform = `translate(${f2(pinX - G.cw / 2)}px, ${f2(pinY + 2)}px) rotate(${(c.theta * 57.2958).toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+        c.el.style.opacity = op.toFixed(3);
+      });
+    }
+    // The new file flies along an arc from the banner, and the pin catches it.
+    function stepFlight(c, dt) {
+      const f = c.flight;
+      f.t = Math.min(f.t + dt / f.dur, 1);
+      const t = 1 - Math.pow(1 - f.t, 3);
+      const sx0 = slotX(0), target = { x: G.cx + (sx0 - G.cx) * clamp(drop.x, 0, 1), y: stringY(sx0, drop.x) };
+      // It swoops down across the wall and up into the pin, all of it in view under the menu bar.
+      const cx = (f.from.x + target.x) / 2, cy = Math.max(f.from.y, target.y) + 130;
+      c.fx = (1 - t) * (1 - t) * f.from.x + 2 * (1 - t) * t * cx + t * t * target.x;
+      c.fy = (1 - t) * (1 - t) * f.from.y + 2 * (1 - t) * t * cy + t * t * target.y;
+      if (f.t >= 1) { c.flight = null; c.yOff.snap(c.fy - stringY(c.fx, drop.x)); c.yOff.set(0); c.omega = 2; c.lively = performance.now() + LIVELY_MS; }
+    }
+    const settled = () => drop.done && cards.every((c) => c.x.done && c.yOff.done && Math.abs(c.theta) < 0.002 && Math.abs(c.omega) < 0.02 && !c.flight);
+    const task = (dt) => {
+      drop.step(dt);
+      cards.forEach((c) => {
+        if (RM) { c.x.snap(c.x.target); c.yOff.snap(c.yOff.target); } else { c.x.step(dt); c.yOff.step(dt); }
+        if (c.flight) stepFlight(c, dt);
+      });
+      render(dt);
+      if (settled()) { running = false; return false; }
+    };
+    const kick = () => { if (!running) { running = true; cards.forEach((c) => { c.ppx = null; }); loop.add(task); } };
+    function showLine() {
+      if (out) return;
+      out = true;
+      desk.classList.add('line-out');
+      notch.setAttribute('aria-expanded', 'true');
+      notch.querySelector('.visually-hidden').textContent = 'Put the Clothesline away';
+      ul.removeAttribute('aria-hidden');
+      if (RM) { drop.snap(1); render(0); } else { drop.damping = 0.78; drop.set(1, drop.x < 0.05 ? 0.6 : undefined); kick(); }
+    }
+    function hideLine() {
+      if (!out || cards.some((c) => c.flight)) return;
+      out = false;
+      desk.classList.remove('line-out');
+      notch.setAttribute('aria-expanded', 'false');
+      notch.querySelector('.visually-hidden').textContent = 'Show the Clothesline';
+      ul.setAttribute('aria-hidden', 'true');
+      if (RM) { drop.snap(0); render(0); } else { drop.damping = 1; drop.set(0); kick(); }
+    }
+    notch.addEventListener('click', () => {
+      if (out) { hideLine(); return; }
+      showLine();
+      announce(live, cards.length ? `The Clothesline is out with ${cards.length} ${cards.length === 1 ? 'file' : 'files'}.` : 'The Clothesline is out. Downloads hang here.');
+    });
+    render(0);
+
+    // ----- Pointer: press the address (it is selected at once), drag 6 px and the link comes along
+    address.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (lk.drag || lk.busy) return;
+      e.preventDefault();
+      address.focus({ preventScroll: true });
+      if (wheel.isOpen) closeWheel({ returnFocus: false });
+      address.classList.add('selected');
+      capture(address, e.pointerId);
+      lk.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, started: false, hist: [], held: e.shiftKey, last: { x: e.clientX, y: e.clientY } };
+    });
+    address.addEventListener('pointermove', (e) => {
+      const d = lk.drag;
+      if (!d || d.id !== e.pointerId) return;
+      d.last = { x: e.clientX, y: e.clientY };
+      const at = toDesk(e.clientX, e.clientY);
+      if (!d.started) {
+        if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
+        d.started = true;
+        hideLine();
+        showChip(at);
+        setState('dragging');
+        if (d.held || e.shiftKey) openWheel(at, 'pointer');
+      }
+      chipPos.x.snap(at.x); chipPos.y.snap(at.y);
+      placeChip();
+      pushHist(d.hist, e.clientX, e.clientY);
+      if (wheel.isOpen) wheel.highlight(wheel.indexAt(e.clientX, e.clientY));
+    });
+    const endDrag = (e, cancelled) => {
+      const d = lk.drag;
+      if (!d || d.id !== e.pointerId) return;
+      lk.drag = null;
+      if (!d.started) { if (!wheel.isOpen) setState('selected'); return; }
+      if (!cancelled && wheel.isOpen && wheel.hl >= 0) { apply(wheel.items[wheel.hl]); return; }
+      if (wheel.isOpen) closeWheel({ returnFocus: false });
+      returnChip(velocityOf(d.hist));
+      setState('idle');
+    };
+    address.addEventListener('pointerup', (e) => endDrag(e, false));
+    address.addEventListener('pointercancel', (e) => endDrag(e, true));
+    address.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // ----- The ⇧ key on the page: a second finger can tap it mid-drag; otherwise it opens the wheel on the address
+    shiftBtn.addEventListener('pointerdown', (e) => {
+      shiftBtn.classList.add('pressed');
+      if (lk.drag && lk.drag.started && e.pointerId !== lk.drag.id) {
+        e.preventDefault();
+        if (!wheel.isOpen) openWheel(toDesk(lk.drag.last.x, lk.drag.last.y), 'pointer');
+        shiftBtn.dataset.skipClick = '1';
+      }
+    });
+    const unpress = () => shiftBtn.classList.remove('pressed');
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => shiftBtn.addEventListener(t, unpress));
+    shiftBtn.addEventListener('click', (e) => {
+      if (shiftBtn.dataset.skipClick) { delete shiftBtn.dataset.skipClick; return; }
+      if (lk.busy || lk.drag) return;
+      if (wheel.isOpen) { closeWheel(); address.classList.remove('selected'); setState('idle'); return; }
+      address.classList.add('selected');
+      openWheel(addressCenter(), e.detail === 0 ? 'keyboard' : 'tap');
+    });
+
+    // ----- Tapping a petal (no drag): highlight on press, download on release over the same petal
+    wheel.el.addEventListener('pointerdown', (e) => {
+      if (lk.drag) return;
+      wheel.highlight(wheel.indexAt(e.clientX, e.clientY));
+      capture(wheel.el, e.pointerId);
+      wheel.el.dataset.press = '1';
+    });
+    wheel.el.addEventListener('pointermove', (e) => {
+      if (lk.drag) return;
+      if (e.pointerType === 'mouse' || wheel.el.dataset.press) wheel.highlight(wheel.indexAt(e.clientX, e.clientY));
+    });
+    wheel.el.addEventListener('pointerup', (e) => {
+      if (lk.drag || !wheel.el.dataset.press) return;
+      delete wheel.el.dataset.press;
+      const i = wheel.indexAt(e.clientX, e.clientY);
+      if (i >= 0) { apply(wheel.items[i]); return; }
+      const r = deskRect();
+      if (Math.hypot(e.clientX - (r.left + wheel.cx), e.clientY - (r.top + wheel.cy)) > wheel.R * wheel.scale) {
+        closeWheel(); address.classList.remove('selected'); setState('idle');
+      }
+    });
+    desk.addEventListener('pointerdown', (e) => {
+      // A press anywhere else closes the wheel and lets go of the address, as in the app and a browser.
+      if (lk.drag || e.target.closest('.br-address, .keybar, .wheel, .notch')) return;
+      if (wheel.isOpen) closeWheel({ returnFocus: false });
+      address.classList.remove('selected');
+      if (!lk.busy && desk.dataset.state !== 'done') setState('idle');
+    });
+
+    // ----- Keyboard: Return or a lone ⇧ on the address opens the wheel; ⇧ mid-drag too; ⌘ and ⌥ say why not
+    address.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !wheel.isOpen && !lk.busy) {
+        e.preventDefault();
+        address.classList.add('selected');
+        openWheel(addressCenter(), 'keyboard');
+      }
+    });
+    wheel.el.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); wheel.step(1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); wheel.step(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); wheel.highlight(0); }
+      else if (e.key === 'End') { e.preventDefault(); wheel.highlight(wheel.items.length - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (wheel.hl >= 0) { const item = wheel.items[wheel.hl]; address.focus({ preventScroll: true }); apply(item); }
+      } else if (e.key === 'Tab') { closeWheel({ returnFocus: false }); address.classList.remove('selected'); setState('idle'); }
+    });
+    const ours = () => (lk.drag && lk.drag.started) || desk.contains(document.activeElement);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (wheel.isOpen && ours()) { e.preventDefault(); closeWheel(); setState(lk.drag && lk.drag.started ? 'dragging' : 'idle'); if (!lk.drag) address.classList.remove('selected'); return; }
+        if (lk.drag && lk.drag.started) {
+          const d = lk.drag;
+          lk.drag = null;
+          try { address.releasePointerCapture(d.id); } catch (_) { /* already released */ }
+          returnChip();
+          setState('idle');
+        }
+        return;
+      }
+      if (e.repeat) { lk.pending = 0; return; }
+      if (e.key === 'Shift') {
+        if (lk.drag && lk.drag.started) { if (!wheel.isOpen) openWheel(toDesk(lk.drag.last.x, lk.drag.last.y), 'pointer'); return; }
+        lk.pending = document.activeElement === address && !wheel.isOpen && !lk.busy ? performance.now() : 0;
+        return;
+      }
+      lk.pending = 0;
+      if ((e.key === 'Meta' || e.key === 'Alt' || e.key === 'Control') && ((lk.drag && lk.drag.started) || document.activeElement === address || (wheel.isOpen && ours()))) {
+        if (e.key === 'Alt') e.preventDefault();
+        setNote('A link only has the ⇧ wheel');
+        announce(live, 'A link has only the Shift wheel, Convert.');
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      const t = lk.pending;
+      lk.pending = 0;
+      if (e.key !== 'Shift' || !t || performance.now() - t > 800 || document.activeElement !== address) return;
+      address.classList.add('selected');
+      openWheel(addressCenter(), 'keyboard');
+    });
+
+    // The note's arrow draws itself when the desk comes into view.
+    const noteObs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => { if (en.isIntersecting) { note.classList.add('drawn'); noteObs.disconnect(); } });
+    }, { threshold: 0.5 });
+    noteObs.observe(note);
+    new ResizeObserver(() => {
+      geom(); layoutSlots(true); render(0);
+      if (wheel.isOpen && !lk.drag) { closeWheel({ returnFocus: false }); setState('idle'); }
+      if (running) kick();
+    }).observe(desk);
+  }
+
   // The editor windows live in js/editors.js
 
   // ---------- The Clothesline loop (rendered by the app) ----------

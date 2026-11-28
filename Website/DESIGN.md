@@ -52,8 +52,8 @@ rubber-banding, reduced motion).
 
 ## Page order
 
-hero → playground → the Clothesline (demo, the real render, then "Or on a shelf, or in Finder") → every file gets
-its own wheel (a list of kinds, one wheel switched by its key cap, and what the kind works on and becomes) → editors
+hero → playground → the Clothesline (demo, the real render, then "Or on a shelf, or in Finder") → from a link to a
+file → every file gets its own wheel (a list of kinds, one wheel switched by its key cap, and what the kind works on and becomes) → editors
 → privacy → download → questions → footer.
 
 - The kinds are sorted by how often people reach for them: Images, PDF, Documents, Video, Audio, Spreadsheets,
@@ -140,6 +140,20 @@ accentDeep `#A74086`. The wheel's highlight uses the app's 3-stop gradient (acce
   9,000 px, while clicks on in-page links still glide (never under Reduce Motion).
 - **Reduced motion** (`motion.md`): the wheel and line appear in place, cards don't swing and change places at once,
   notes are already drawn, the loop doesn't autoplay, and nothing smooth-scrolls.
+
+## From a link to a file (1.0.11)
+
+The app's link downloads (`LinkDownload.swift`), simulated on the Clothesline's desk: a browser window with five tabs
+(YouTube, X, Instagram, TikTok, Threads, as plain text, no logos) showing made-up posts by `yummyorange` that use the
+page's own pictures. Press the address (it is selected at once, plum on accent-highlight, 9.3:1), drag 6 px and a
+link chip follows the pointer 1:1; ⇧ (the key or the on-screen cap, a second finger on touch) blooms the Convert wheel
+with MP4, MP3, M4A and WAV, the only wheel a link has (⌘ and ⌥ say so, as in the app). Letting go on a petal shows the
+corner banner ("→ MP4  ·  Sunset drive") with a download's progress; the line drops from the notch near the end, and
+the new card flies out of the banner, swooping down across the wall and up into the first pin, which catches it and
+sets it swinging (the Clothesline's pendulum). A drag let go elsewhere springs back into the address with the release
+velocity and fades into it. Keyboard: Return or a lone ⇧ on the address opens the wheel; arrows, Return, Esc. Reduce
+Motion: no flight or swing, the line and card appear in place; the progress bar still fills (status, not motion). On
+phones the note sits where the line will hang until the first step, then between the browser and the key.
 
 ## Accessibility
 

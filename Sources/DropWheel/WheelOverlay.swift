@@ -70,7 +70,7 @@ final class WheelView: NSView {
         ink.frame = bounds
         ink.autoresizingMask = [.width, .height]
         addSubview(ink)
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, .URL])
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -307,7 +307,10 @@ final class WheelView: NSView {
 
     private func updateHighlight(_ sender: NSDraggingInfo) -> NSDragOperation {
         track(convert(sender.draggingLocation, from: nil))
-        return highlighted == nil ? [] : .copy
+        guard highlighted != nil else { return [] }
+        // A link dragged from a browser's address bar may offer only "link".
+        let allowed = sender.draggingSourceOperationMask
+        return allowed.contains(.copy) || allowed.isEmpty ? .copy : allowed.contains(.link) ? .link : .generic
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { updateHighlight(sender) }
@@ -317,8 +320,12 @@ final class WheelView: NSView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         guard let i = highlighted, items.indices.contains(i) else { return false }
-        let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+        var urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
                                                          options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if urls.isEmpty {
+            urls = LinkFiles.files(from: sender.draggingPasteboard,
+                                   sourceApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+        }
         guard !urls.isEmpty else { return false }
         let handler = items[i].handler
         // After the drop returns, from the run loop rather than a main-queue block: handlers run modal prompts

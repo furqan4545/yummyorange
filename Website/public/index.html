@@ -266,6 +266,91 @@
   </section>
 
   <!-- Explorer: every kind of file, every wheel -->
+  <section class="section wrap links-section" id="links" aria-labelledby="lk-title">
+    <header class="section-head">
+      <h2 id="lk-title">From a link to a file</h2>
+      <p>Drag a YouTube, X, Instagram, TikTok or Threads post out of your browser’s address bar and press ⇧. Let go on <strong>MP4</strong> for the video or <strong>MP3</strong> for just its sound: the file lands in Downloads and shows up like any new file, here on the Clothesline.</p>
+    </header>
+
+    <div class="link-desk" id="link-desk" data-state="idle">
+      <div class="menubar" aria-hidden="true">
+        <span class="mb-dot"></span><span class="mb-pill w2"></span><span class="mb-pill"></span><span class="mb-pill w3"></span>
+        <span class="mb-spacer"></span>
+        <svg class="mb-glyph"><use href="#g-menubar"/></svg><span class="mb-pill"></span><span class="mb-time">9:41</span>
+      </div>
+      <button class="notch" id="lk-notch" type="button" aria-expanded="false" aria-controls="lk-cards">
+        <span class="visually-hidden">Show the Clothesline</span>
+        <span class="notch-fill" aria-hidden="true"></span>
+      </button>
+      <svg class="line-svg" aria-hidden="true">
+        <path class="string-glow" id="lk-glow" d=""/>
+        <path class="string" id="lk-string" d=""/>
+      </svg>
+      <ul class="line-cards" id="lk-cards" aria-label="Files on the Clothesline" aria-hidden="true"></ul>
+
+      <div class="lk-note" id="lk-note" aria-hidden="true">
+        <span class="note-text" id="lk-note-text">Press the address and drag it out</span>
+        <svg class="note-arrow" viewBox="0 0 120 90" width="104" height="78"><path d="M8 14C46 12 80 30 98 72M98 72l1-16M98 72l-14-7" pathLength="1"/></svg>
+      </div>
+
+      <div class="browser" id="lk-browser">
+        <div class="br-top">
+          <span class="br-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div class="br-tabs" role="tablist" aria-label="Sites">
+            <button type="button" role="tab" id="lk-tab-youtube" aria-selected="true" aria-controls="lk-page" data-site="youtube">YouTube</button>
+            <button type="button" role="tab" id="lk-tab-x" aria-selected="false" aria-controls="lk-page" data-site="x" tabindex="-1">X</button>
+            <button type="button" role="tab" id="lk-tab-instagram" aria-selected="false" aria-controls="lk-page" data-site="instagram" tabindex="-1">Instagram</button>
+            <button type="button" role="tab" id="lk-tab-tiktok" aria-selected="false" aria-controls="lk-page" data-site="tiktok" tabindex="-1">TikTok</button>
+            <button type="button" role="tab" id="lk-tab-threads" aria-selected="false" aria-controls="lk-page" data-site="threads" tabindex="-1">Threads</button>
+          </div>
+        </div>
+        <div class="br-bar">
+          <button class="br-address" id="lk-address" type="button" aria-describedby="lk-help">
+            <svg class="ic br-lock" aria-hidden="true"><use href="#i-lock"/></svg>
+            <span class="br-url" id="lk-url">youtube.com/watch?v=sunset-drive</span>
+          </button>
+        </div>
+        <div class="br-page" id="lk-page" role="tabpanel" aria-labelledby="lk-tab-youtube">
+          <div class="br-video">
+            <img id="lk-img" src="assets/sunset.webp" width="560" height="280" alt="" draggable="false">
+            <span class="br-play" aria-hidden="true"></span>
+            <span class="br-dur" id="lk-dur">2:47</span>
+          </div>
+          <div class="br-info">
+            <p class="br-title" id="lk-post-title">Sunset drive</p>
+            <p class="br-meta" id="lk-meta">yummyorange · a made-up post</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="keybar lk-keybar">
+        <div class="keys" role="group" aria-label="Wheel key">
+          <button class="keybtn" type="button" id="lk-shift" data-mode="convert" aria-keyshortcuts="Shift">
+            <span class="cap" aria-hidden="true"><span class="cap-sym">⇧</span><span class="cap-name">shift</span></span>
+            <span class="keybtn-label">Convert</span>
+          </button>
+        </div>
+        <button class="sound-toggle" type="button" aria-pressed="true" data-sound-toggle>
+          <span class="sound-icon" aria-hidden="true"><svg class="ic ic-on"><use href="#i-sound-on"/></svg><svg class="ic ic-off"><use href="#i-sound-off"/></svg></span>
+          <span class="sound-label">Sound</span>
+        </button>
+      </div>
+
+      <div class="lk-chip" id="lk-chip" hidden aria-hidden="true">
+        <span class="lk-chip-icon"><svg class="ic"><use href="#i-link"/></svg></span>
+        <span class="lk-chip-text"><span class="lk-chip-title" id="lk-chip-title"></span><span class="lk-chip-url" id="lk-chip-url"></span></span>
+      </div>
+      <div class="wheel-layer" id="lk-wheel-layer"></div>
+      <div class="lk-hud" id="lk-hud" hidden aria-hidden="true">
+        <span class="lk-hud-text" id="lk-hud-text"></span>
+        <span class="lk-hud-bar"><i id="lk-hud-fill"></i></span>
+      </div>
+    </div>
+    <p class="scene-caption">A simulation with made-up posts: nothing is downloaded here. In the app it works with links from Safari, Chrome, Firefox and other browsers. Download only your own posts, or posts whose owner allows it.</p>
+    <p class="visually-hidden" id="lk-help">Drag this address out of the browser, then press Shift, or tap the Shift key below the browser. Or press Return here. Use the arrow keys to choose MP4, MP3, M4A or WAV, Return to download and Escape to close.</p>
+    <div class="visually-hidden" id="lk-live" role="status" aria-live="polite"></div>
+  </section>
+
   <section class="section wrap" id="wheels" aria-labelledby="wheels-title">
     <header class="section-head">
       <h2 id="wheels-title">Every file gets its own wheel</h2>

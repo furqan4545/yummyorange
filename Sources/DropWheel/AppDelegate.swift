@@ -37,6 +37,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func open(_ mode: WheelMode, _ files: [URL]) {
         if overlay.isVisible && overlay.mode == mode { return }
+        // A link dragged from a browser only has the Convert wheel (MP4, MP3, M4A, WAV).
+        if mode != .convert, !files.isEmpty, files.allSatisfy(LinkFiles.isDragged) { return }
         overlay.show(mode: mode, items: Self.items(for: mode, files: files))
     }
 

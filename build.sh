@@ -124,7 +124,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSDesktopFolderUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be on your Desktop.</string>
   <key>NSDocumentsFolderUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be in your Documents folder.</string>
-  <key>NSDownloadsFolderUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be in your Downloads folder.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be in your Downloads folder, and saves the videos and sounds from links you drop on it there.</string>
   <key>NSRemovableVolumesUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be on an external drive.</string>
   <key>NSNetworkVolumesUsageDescription</key><string>YummyOrange saves the files it makes next to the ones you drop on it, which may be on a network drive.</string>
   <key>DWUpdateFeedURL</key><string>$UPDATE_FEED_URL</string>
