@@ -383,7 +383,7 @@ def head(title, desc, path, extra=""):
       <a href="guides">Guides</a>
       <a href="./#faq">Questions</a>
     </nav>
-    <a class="btn btn-small" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download</span><span class="dl-pending">Coming soon</span></a>
+    <a class="btn btn-small" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download</span></a>
   </div>
 </header>
 """
@@ -411,7 +411,7 @@ FOOT = """
 """
 
 CTA = f"""  <div class="guide-cta">
-    <a class="btn" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download YummyOrange</span><span class="dl-pending">Download coming soon</span></a>
+    <a class="btn" href="downloads/YummyOrange.dmg" data-download><span class="dl-ready">Download YummyOrange</span></a>
     <p>{FACTS}</p>
   </div>
 """
