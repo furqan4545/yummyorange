@@ -1,0 +1,36 @@
+# YummyOrange
+
+> YummyOrange is a free, open-source (MIT) menu-bar app for the Mac that converts, edits, compresses and downloads files with one gesture: start dragging a file (or a link from a browser), press a modifier key, and a wheel of options opens under the pointer; let go on one and the new file is saved next to the original. Made by Epoxlab LLC. macOS 13 Ventura or later, Apple silicon, about 7 MB. Everything runs on the Mac; files are never uploaded.
+
+Key facts:
+- Price: free. Licence: MIT. Source: https://github.com/furqan4545/yummyorange
+- Download: https://yummyorange.com/downloads/YummyOrange.dmg (notarized by Apple; updates itself)
+- The gesture: drag a file, press ⇧ Shift (Convert wheel: file formats), ⌘ Command (Tools wheel: compress, edit, trim, PDF tools) or ⌥ Option (Actions wheel: copy, AirDrop, zip, move).
+- Results are saved next to the original as new files; the original is never changed. New files can appear on a shelf near the pointer or on the Clothesline, a line of cards under the MacBook notch.
+- Converts images (JPG, PNG, HEIC, WebP, TIFF, AVIF, GIF, BMP, PDF), video (MP4, MOV, MKV, WebM, AVI, WMV, GIF, MP3), audio (MP3, M4A, WAV, FLAC, OGG, Opus, AIFF, WMA), PDF (to DOCX, TXT, Markdown, EPUB, PPTX, XLSX, PNG, JPG, SVG), documents (DOCX, DOC, RTF, HTML, TXT, Markdown, ODT, Pages to PDF and each other), spreadsheets (XLSX, XLS, ODS, CSV, TSV), slides (PPTX, PPT) and subtitles (SRT, VTT).
+- PDF tools: Edit PDF (change a line's text in place in its own font, add text), Organize pages, Merge, Split Pages, Compress, Compress to a size, Add/Remove Password, PDF/A, Extract Text (with OCR).
+- Image tools: Compress, Compress to a size, Resize, Crop, Annotate, Redact, Add Background, Remove background, Strip Metadata, Read QR Code, Collage, Make PDF.
+- Video and audio tools: frame-accurate Trim, Split, Merge, Crop, Speed, Mute, Extract Audio, Normalize, Bleep, Redact, Snapshot, Visualize.
+- Saves videos or their sound (MP4, MP3, M4A, WAV) from links to YouTube, X (Twitter), Instagram, TikTok and Threads: drag the address out of the browser's address bar, press ⇧ Shift, let go on a format; the file goes to Downloads. Uses yt-dlp, downloaded once with the user's consent.
+- Privacy: the app has no account, no analytics and sends nothing about the user or their files. The website uses PostHog analytics.
+
+## Guides
+
+- [Edit PDF text on a Mac](https://yummyorange.com/edit-pdf-on-mac): Change a line of text in a PDF on your Mac, in the PDF’s own font, or add new text. Free and open source, nothing is uploaded, and the original PDF is never changed.
+- [Convert a PDF to Word on a Mac](https://yummyorange.com/pdf-to-word-on-mac): Turn a PDF into an editable Word document on your Mac: drag it, press Shift, let go on DOCX. Also TXT, Markdown, EPUB, PPTX, XLSX and images. Free, nothing uploaded.
+- [Convert any file on your Mac](https://yummyorange.com/convert-files-on-mac): Convert images, video, audio, PDFs, documents, ebooks, slides, spreadsheets and subtitles on your Mac. Drag a file, press Shift, drop it on a format. Free, open source, offline.
+- [Convert HEIC photos to JPG on a Mac](https://yummyorange.com/heic-to-jpg-on-mac): Turn iPhone HEIC photos into JPG on your Mac: drag one or many, press Shift, let go on JPG. Also PNG, WebP, TIFF, AVIF and PDF. Free, open source, nothing uploaded.
+- [Convert MOV to MP4 on a Mac](https://yummyorange.com/mov-to-mp4-on-mac): Convert MOV screen recordings and iPhone videos to MP4 on your Mac: drag, press Shift, let go on MP4. Also MKV, WebM, AVI, GIF and MP3. Free and open source.
+- [Compress files on a Mac](https://yummyorange.com/compress-files-on-mac): Make PDFs, images, videos and audio smaller on your Mac, or shrink them to a size in MB for an email limit. Drag, press Command, drop on Compress. Free and open source.
+- [Trim a video on a Mac](https://yummyorange.com/trim-video-on-mac): Trim a video or sound on your Mac with a film strip and in and out handles, frame-accurate, in the file’s own format. Split, merge, crop and speed up too. Free and open source.
+- [Convert a video to MP3 on a Mac](https://yummyorange.com/video-to-mp3-on-mac): Take the sound out of a video on your Mac as MP3, M4A or WAV: drag the video, press Shift, let go on MP3. Works for links from YouTube, Instagram and TikTok too. Free.
+- [Save Instagram videos on a Mac](https://yummyorange.com/download-instagram-videos-on-mac): Save an Instagram Reel or video on your Mac: drag its address out of the browser, press Shift, let go on MP4 or MP3. Free and open source; it goes straight to Downloads.
+- [Save TikTok videos on a Mac](https://yummyorange.com/download-tiktok-videos-on-mac): Save a TikTok video on your Mac: drag its address out of the browser, press Shift, let go on MP4 or MP3. Short vm.tiktok.com links work too. Free and open source.
+- [Save videos from YouTube, X and Threads on a Mac](https://yummyorange.com/download-videos-from-links-on-mac): Save a video from YouTube, X (Twitter) or Threads on your Mac: drag its address out of the browser, press Shift, let go on MP4 or MP3. Free and open source.
+
+## More
+
+- [Home page, with live demos and questions](https://yummyorange.com/): what YummyOrange does and how the wheel works
+- [Release notes](https://yummyorange.com/release-notes): every version and what changed
+- [Privacy policy](https://yummyorange.com/privacy): what the app and the website do with data
+- [Source code on GitHub](https://github.com/furqan4545/yummyorange)

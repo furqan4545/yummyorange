@@ -156,6 +156,23 @@ velocity and fades into it. Keyboard: Return or a lone ⇧ on the address opens 
 Motion: no flight or swing, the line and card appear in place; the progress bar still fills (status, not motion). On
 phones the note sits where the line will hang until the first step, then between the browser and the key.
 
+## Search engines and AI assistants (SEO and GEO)
+
+- **Guides**: one page per everyday job (`/edit-pdf-on-mac`, `/pdf-to-word-on-mac`, `/convert-files-on-mac`,
+  `/heic-to-jpg-on-mac`, `/mov-to-mp4-on-mac`, `/compress-files-on-mac`, `/trim-video-on-mac`, `/video-to-mp3-on-mac`,
+  `/download-instagram-videos-on-mac`, `/download-tiktok-videos-on-mac`, `/download-videos-from-links-on-mac`) and a hub
+  at `/guides`. Each answers in its first sentence (what assistants quote), then numbered steps, what else works, a few
+  questions and related guides. `tools/make-guides.py` writes them, with `sitemap.xml`, `robots.txt`, `llms.txt`, the
+  home page's Guides section and its JSON-LD (Organization, WebSite, SoftwareApplication with the version from
+  `js/config.js`, and an FAQPage built from the page's own questions). Run it after changing a feature, a question or
+  the version: `python3 Website/tools/make-guides.py`. Every claim comes from the README.
+- **robots.txt** welcomes every crawler and names the AI ones (GPTBot, ClaudeBot, PerplexityBot, Google-Extended…).
+  **llms.txt** is the plain-text summary for assistants (llmstxt.org).
+- **One address per page**: www.yummyorange.com redirects to yummyorange.com (vercel.json), the canonical every page
+  declares.
+- **IndexNow** key: `public/598ff7bb6ca95df67cb007db105ce348.txt`. After publishing new pages, submit them so Bing (and the assistants that use its
+  index) and Yandex pick them up at once: POST to https://api.indexnow.org/indexnow with that key.
+
 ## Accessibility
 
 - Keyboard: every file is a button. Enter (or tapping ⇧ / ⌘ / ⌥ on its own) opens a wheel on the focused file;

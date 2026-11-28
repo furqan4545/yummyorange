@@ -4,6 +4,19 @@
   "outputDirectory": "Website/public",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.yummyorange.com"
+        }
+      ],
+      "destination": "https://yummyorange.com/:path*",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

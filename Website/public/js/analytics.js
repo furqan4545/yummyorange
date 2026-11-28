@@ -19,9 +19,30 @@
     enable_heatmaps: true,               // where people click, move and scroll, for the heatmap toolbar
     capture_pageview: 'history_change',
     capture_pageleave: true,
+    capture_exceptions: true,            // JavaScript errors, for Error tracking
     disable_session_recording: false,
     session_recording: {
       maskAllInputs: true,               // whatever is typed into a field is never recorded
+    },
+    // One address per page: "/#download" counts as "/", with the section kept in its own property, so page counts,
+    // heatmaps and the heatmap capture list (3 pages on the free plan) aren't split by in-page links.
+    before_send: (event) => {
+      const p = event && event.properties;
+      if (!p) return event;
+      if (typeof p.$current_url === 'string' && p.$current_url.includes('#')) {
+        const i = p.$current_url.indexOf('#');
+        if (i + 1 < p.$current_url.length) p.section = p.$current_url.slice(i + 1);
+        p.$current_url = p.$current_url.slice(0, i);
+      }
+      if (p.$heatmap_data && typeof p.$heatmap_data === 'object') {
+        const merged = {};
+        for (const [url, points] of Object.entries(p.$heatmap_data)) {
+          const key = url.split('#')[0];
+          merged[key] = (merged[key] || []).concat(points);
+        }
+        p.$heatmap_data = merged;
+      }
+      return event;
     },
   });
 })();
