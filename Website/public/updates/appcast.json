@@ -1,12 +1,12 @@
 {
-  "build" : "11",
-  "length" : 4391227,
+  "build" : "12",
+  "length" : 4430666,
   "minimumSystemVersion" : "13.0",
-  "published" : "2026-11-26T08:51:43Z",
-  "releaseNotes" : "The corner banner is one clean rounded card again, and a failed conversion says so plainly.",
+  "published" : "2026-11-28T07:09:21Z",
+  "releaseNotes" : "Drag a YouTube, X, Instagram, TikTok or Threads link out of your browser and press ⇧: the wheel offers MP4, MP3, M4A and WAV, and the video or its sound is saved in Downloads.",
   "releaseNotesURL" : "../release-notes.html",
-  "sha256" : "6d4ae212042125f8cd1a6672b7e938da57718acc09e2271c64bcfe0b2dbf9eb4",
-  "signature" : "6Cx8MESirWwHYd9gpKrQZTL+5S1EgzMs8feE7FfyQcObUsKNqwb4OPfnOBqNnAdBPLcDgbZaSk2s/g7kEwXwAA==",
-  "url" : "../downloads/YummyOrange-1.0.10-11.zip",
-  "version" : "1.0.10"
+  "sha256" : "a186c7bebd1958cda63c94ca83c8e6e8cc8ec95289002371c747a3dc3c5ccd67",
+  "signature" : "UY8XbR1H4DP9kuVDyimkQK1lOjJwlHSP57yEh9G+/9bRCHyzn/Xj+DhpnFoyZqp5kkDkCI8jQO5FHVsM9CZLAA==",
+  "url" : "../downloads/YummyOrange-1.0.11-12.zip",
+  "version" : "1.0.11"
 }
