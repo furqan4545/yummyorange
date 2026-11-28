@@ -170,6 +170,11 @@ phones the note sits where the line will hang until the first step, then between
   **llms.txt** is the plain-text summary for assistants (llmstxt.org).
 - **One address per page**: www.yummyorange.com redirects to yummyorange.com (vercel.json), the canonical every page
   declares.
+- **Directory badges**: the home page footer has a `.footer-badges` row of "Listed on …" badges, only on the home page
+  (the one the directories check, and it keeps third-party pictures off every other page). Mac App Index keeps the
+  free listing only while its badge links to `https://macappindex.com/apps/yummyorange`; it draws a light and a dark
+  badge and a `<picture>` picks one by `prefers-color-scheme`. Each badge is shown 44 px tall. A new badge is one more
+  `<li>`; the privacy page's "This website" section names every outside site a badge loads from.
 - **IndexNow** key: `public/598ff7bb6ca95df67cb007db105ce348.txt`. After publishing new pages, submit them so Bing (and the assistants that use its
   index) and Yandex pick them up at once: POST to https://api.indexnow.org/indexnow with that key.
 

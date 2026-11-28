@@ -987,6 +987,13 @@ h3 { font-size: 1.0625rem; font-weight: 600; line-height: 1.3; }
 .footer-legal { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 0.8125rem; line-height: 1.5; }
 .footer-legal a { color: inherit; text-decoration-color: var(--line-strong); }
 .footer-legal a:hover { color: var(--text); text-decoration-color: currentColor; }
+/* Directory badges ("Listed on …"): a quiet row above the legal line. The directory draws each badge in light and dark,
+   and the <picture> picks the one for the page's appearance. 44 px tall: big enough to tap, small enough to stay quiet. */
+.footer-badges { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.footer-badges a { display: block; border-radius: 10px; } /* the focus ring follows the badge's corners */
+.footer-badges img { width: auto; height: 44px; }
+.footer-badges a:active img { transform: scale(0.97); }
+@media (prefers-reduced-motion: no-preference) { .footer-badges img { transition: transform 100ms ease-out; } }
 
 @media (max-width: 960px) {
   .priv { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 40px 32px 32px; }
